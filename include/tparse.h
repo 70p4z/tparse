@@ -1,0 +1,110 @@
+/*******************************************************************************
+*   TPARSE Embedded text parsing library
+*   (c) 2022 Olivier TOMAZ
+*
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*
+*      http://www.apache.org/licenses/LICENSE-2.0
+*
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+********************************************************************************/
+
+#pragma once
+
+#include "string.h"
+#include "stdint.h"
+
+typedef struct tparse_ctx_s {
+	uint32_t timeout;
+	char* buffer;
+	char* delim;
+	size_t r_offset;
+	size_t w_offset;
+	size_t max_length;
+	uint32_t flags;
+} tparse_ctx_t;
+#define TPARSE_EOL        1
+
+#ifndef MIN
+#define MIN(x,y) (((x)<(y))?(x):(y))
+#endif // MIN
+
+// to be implemented on the target
+uint32_t tparse_al_time(void);
+
+/**
+ * Initialize token parsing, delim should include at least \0 and it is advised to
+ * also include \r and \n for correct line parsing. Field delimiter is generally ' ' or \t
+ */
+void tparse_init(tparse_ctx_t* ctx, char* buffer, size_t max_length, char* delim);
+
+/**
+ * Manual data feeding usig polling or anything.
+ */
+void tparse_append(tparse_ctx_t* ctx, char* chunk, size_t length);
+
+/**
+ * Notify of the current write offset by a background process (DMA...).
+ * The offset is the current write offset of the DMA within the circular buffer.
+ * NOTE: generally, DMA registers holds the remaining data unit transfer count. 
+ */
+void tparse_finger(tparse_ctx_t* ctx, size_t w_offset);
+
+/**
+ * Reset the tparse structure.
+ */
+void tparse_reset(tparse_ctx_t* ctx);
+
+/**
+ * 
+ */
+uint32_t tparse_timeout(tparse_ctx_t* ctx);
+
+#define TPARSE_TOKEN_PART (1<<31)
+/**
+ * Return next token part (if at end of circular buffer)
+ * @return TPARSE_TOKEN_PART bit set when only a part of the token is returned
+ */
+uint32_t tparse_token_p(tparse_ctx_t* ctx, char** token);
+
+/**
+ * Copy the next token within the given buffer, if max_size is overflown, then 
+ * only the fitting token part is copied but the whole token is consumed. Use 
+ * ::tparse_token_size beforehand to provide the correct max_size buffer.
+ */
+size_t tparse_token(tparse_ctx_t* ctx, char* buf, size_t max_size);
+
+/** 
+ * Return legth of unparsed data (not considering token delimiters)
+ */ 
+size_t tparse_avail(tparse_ctx_t* ctx);
+
+/**
+ * Returns 1 when a full line is available to parse in the buffer
+ */
+uint32_t tparse_has_line(tparse_ctx_t* ctx);
+
+/**
+ * Returns 1 if a complete token is available (with an end delimiter). Returns 0 when no next token is present
+ */
+size_t tparse_token_size(tparse_ctx_t* ctx);
+
+/**
+ * Return which token from the array matched the next token read from the buffer
+ * @return index+1 in the tokens array
+ */
+uint32_t tparse_token_in(tparse_ctx_t* ctx, char** tokens, size_t count, char* token_consumed, size_t* token_consumed_len_in_out);
+
+/**
+ * Read next token as an hexadecimal encoded byte array. 
+ */
+size_t tparse_token_hex(tparse_ctx_t* ctx, uint8_t* buffer, size_t buffer_length);
+uint32_t tparse_token_u32(tparse_ctx_t* ctx);
+
+void tparse_discard_line(tparse_ctx_t* ctx);

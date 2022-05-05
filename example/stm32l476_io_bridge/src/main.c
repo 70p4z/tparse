@@ -177,19 +177,19 @@ size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len) {
 
 uint32_t i2c_i_flag;
 void EXTI9_5_IRQHandler(void) {
-	LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
-	//NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
-	NVIC_DisableIRQ(EXTI9_5_IRQn);
-	i2c_i_flag = 1;
+	NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
+	if (LL_EXTI_ReadFlag_0_31(LL_EXTI_LINE_6)) {
+		NVIC_DisableIRQ(EXTI9_5_IRQn);
+		LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
+		i2c_i_flag = 1;
+	}
 }
 
 uint32_t i2c_consume_int(void) {
 	// don't use EXTI->PRx register to avoid race condition
 	// between read and clear and a external set
-	__disable_irq();
 	uint32_t flag = i2c_i_flag;
 	i2c_i_flag = 0;
-	__enable_irq();
 	// avoid triggering it non stop in the background if the wire is floating
 	NVIC_EnableIRQ(EXTI9_5_IRQn);
 	return flag;

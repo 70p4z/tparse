@@ -31,7 +31,7 @@ LDFLAGS += -mcpu=cortex-m4 --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 
 LIBS += -lm -lc
 
-#-include $(DEPEND_FILES)
+-include $(DEPEND_FILES)
 
 default: build/elf
 
@@ -45,8 +45,8 @@ build/elf build/map build/asm: $(OBJECT_FILES)
 	$(TARGET)gcc -o "$@" $(LDFLAGS) $(OBJECT_FILES) $(LIBS) 
 	$(TARGET)objdump -h -S build/elf > "build/asm"
 
-build/%.o: %.c prepare
+build/%.o: %.c | prepare
 	$(TARGET)gcc -o "$@" "$<" -c $(CFLAGS) -MT"$@" -MF"$(@:%.o=%.d)" 
 
-build/%.o: %.s prepare
+build/%.o: %.s | prepare
 	$(TARGET)gcc -o "$@" "$<" -c $(CFLAGS) -MT"$@" -MF"$(@:%.o=%.d)" 

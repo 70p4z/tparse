@@ -27,6 +27,8 @@ if __name__ == '__main__':
 	import random
 	import time
 	import math
+	import iobridge.iobridge
+
 	def auto_int(x):
 		return int(x, 0)
 
@@ -37,32 +39,13 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	s = serial.Serial(port=args.port, baudrate=args.baudrate)
-	# ungarble and flush incoming data
-	rng = binascii.hexlify(random.randbytes(4))
-	s.write(b'\ninfo ' + rng + b'\n')
-	while True:
-		l = s.readline()
-		if l.startswith(b'INFO:' + rng):
-			break;
+	iob = iobridge.iobridge.IOBridge(s)
+	
 	for line in sys.stdin:
 		line = line.rstrip("\n").rstrip("\r")
-		print(">" + line)
-		start = time.time();
-		s.write((line + "\n").encode("utf8"))
-		while True:
-			rline = s.readline()
-			stop = time.time();
-			if rline == None or len(rline) == 0 or not rline.startswith(b'OK:'):
-				if not rline:
-					rline = b''
-				if rline.startswith(b'#'):
-					print(rline)
-					continue
-				print("Error: Request:" + line)
-				print("       Reply:  " + rline.decode("utf8"))
-				sys.exit(-1)
-			break
-		rline = rline.rstrip(b'\n')
-		print("<" + rline.decode("utf8") + " (time:"+str(math.ceil((stop-start)*1000)/1000.0)+"s)")
+		#print(">" + line)
+		#start = time.time();
+		rline = iob.exchange(line)
+		#print("<" + rline)# + " (time:"+str(math.ceil((stop-start)*1000)/1000.0)+"s)")
 	s.close()
 	sys.stdout.flush()

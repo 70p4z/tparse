@@ -40,6 +40,7 @@ void tparse_init(tparse_ctx_t* ctx, char* buffer, size_t max_length, char* delim
 void tparse_append(tparse_ctx_t* ctx, char* chunk, size_t length) {
 	size_t l;
 	// take into account multiple overlays ... user ARE intringuing sometimes
+	// TODO when crosisng r_offset => move it
 	while (length) {
 		l = MIN(ctx->max_length - ctx->w_offset, length);
 		memmove(ctx->buffer+ctx->w_offset, chunk, l);
@@ -56,6 +57,7 @@ void tparse_append(tparse_ctx_t* ctx, char* chunk, size_t length) {
  * NOTE: generally, DMA registers holds the remaining data unit transfer count. 
  */
 void tparse_finger(tparse_ctx_t* ctx, size_t w_offset) {
+	// TODO when crosisng r_offset => move it
 	// modulo just in case 8j
 	size_t old = ctx->w_offset;
 	ctx->w_offset = w_offset % ctx->max_length;
@@ -129,9 +131,10 @@ uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t add_r_off
 				if(consume) {
 					ctx->r_offset = (r_offset + 1) % ctx->max_length;
 					ctx->flags &= ~TPARSE_EOL;
-				}
-				if (ctx->buffer[r_offset] == '\n') {
-					ctx->flags |= TPARSE_EOL;
+					// if next char is EOL, then account for it
+					if (ctx->buffer[r_offset] == '\n') {
+						ctx->flags |= TPARSE_EOL;
+					}
 				}
 				return l;
 			}
@@ -171,6 +174,43 @@ uint32_t tparse_has_line(tparse_ctx_t* ctx) {
 	}
 	return 0;
 }
+
+uint32_t tparse_eol_reached(tparse_ctx_t* ctx) {
+	return ctx->flags & TPARSE_EOL;
+}
+
+size_t tparse_token_count(tparse_ctx_t* ctx) {
+	// count tokens until
+	uint32_t off=0;
+	uint32_t len=tparse_avail(ctx);
+	size_t count=0;
+	char* token;
+	// when eol, then count tokens o the following line
+	if (len == 0) {
+		return 0;
+	}
+	while (off<len) {
+		size_t l = tparse_token_internal(ctx, &token, off, 0); 
+		if (l==0) {
+			// blank token (multiple delimiters?)
+			off++;
+			continue;
+		}
+		off+=l&~TPARSE_TOKEN_PART;
+		if (l&TPARSE_TOKEN_PART) {
+			l = tparse_token_internal(ctx, &token, off, 0); 
+			off+=l;
+		}
+		count++;
+		// TEST when count next line is on the rollover
+		if (ctx->buffer[off%ctx->max_length] == '\n') {
+			break;
+		}
+		off++; // account for the delimiter
+	}
+	return count;
+}
+
 
 /**
  * Returns 1 if a complete token is available (with an end delimiter)

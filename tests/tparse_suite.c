@@ -34,42 +34,65 @@ static MunitResult* test_basic(const MunitParameter* params, void* ignored) {
   munit_assert_int(tparse_avail(&ctx), ==, 0);
   munit_assert_int(tparse_token_size(&ctx), ==, 0);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 0);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 0);
+  
 
   tparse_append(&ctx, STR_AND_LEN("super truc\n"));
   munit_assert_int(tparse_avail(&ctx), ==, 11);
   munit_assert_int(tparse_token_size(&ctx), ==, 5);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 2);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 5);
   munit_assert_memory_equal(5, "super", t);
 
   munit_assert_int(tparse_avail(&ctx), ==, 5);
   munit_assert_int(tparse_token_size(&ctx), ==, 4);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 4);
   munit_assert_memory_equal(4, "truc", t);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 1);
+  munit_assert_int(tparse_token_count(&ctx), ==, 0);
 
   tparse_append(&ctx, STR_AND_LEN("autre machin\n"));
   munit_assert_int(tparse_avail(&ctx), ==, 13);
   munit_assert_int(tparse_token_size(&ctx), ==, 5);
+  //munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 2);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 5);
   munit_assert_memory_equal(5, "autre", t);
 
   munit_assert_int(tparse_avail(&ctx), ==, 7);
   munit_assert_int(tparse_token_size(&ctx), ==, 6);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 6);
   munit_assert_memory_equal(6, "machin", t);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 1);
+  munit_assert_int(tparse_token_count(&ctx), ==, 0);
 
   //                                      v last place of the buffer
   tparse_append(&ctx, STR_AND_LEN("bidule chouette\n"));
   munit_assert_int(tparse_avail(&ctx), ==, 16);
   munit_assert_int(tparse_token_size(&ctx), ==, 6);
+  //munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 2);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 6);
   munit_assert_memory_equal(6, "bidule", t);
 
   munit_assert_int(tparse_avail(&ctx), ==, 9);
   munit_assert_int(tparse_token_size(&ctx), ==, 8);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 0x80000001);
   munit_assert_memory_equal(1, "c", t);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 7);
   munit_assert_memory_equal(7, "houette", t);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 1);
+  munit_assert_int(tparse_token_count(&ctx), ==, 0);
 
   return MUNIT_OK;
 }
@@ -357,17 +380,22 @@ static MunitResult* test_copy(const MunitParameter* params, void* ignored) {
 }
 
 static MunitResult* test_non_reg_token_hex_split(const MunitParameter* params, void* ignored) {
+  char * t;
   tparse_ctx_t ctx = {
     .timeout = 0xea38, 
     .buffer = "36ca9d2e079a97aefbd7722a79d5d3af0da7f89fa4b186433c439b5c1a42dd931ec69ff325e1b90a0ac3dd2307955ad710c698ed94fe6e61b7622658506bc2b91dfba4304a8d8f7855fc65074046e4a16de0cf4ddd9787aa92056102927a9a8537567652b9a769b996e1d41f3146495a4d34942b18b80fcc45fdeed9020347bd75aceb42719f401c4f5f2017686960ffaa5f19117c3675cd733f1c57fdb41344897335e5007b02369a60cd5c488b2153372\n0000080e4e3d114afbfc3\nt0 84320000fe0001002004003827140a6655a67ee6a25472365d3d8cd7aaa56b211f88a8873ff41ecd48c5dce076bdb0097438b57e0cfcf961b3418f41c192951f82a1069b273745ded22e406771c270169fa\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 
     .delim = " \n", 
-    .r_offset = 0x17d, 
+    .r_offset = 0x17a, 
     .w_offset = 0x164, 
     .max_length = 0x220, 
     .flags = 0x0
   };
   uint8_t tmp[300];
   munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_token_count(&ctx), ==, 2);
+  munit_assert_int(tparse_token_p(&ctx, &t), ==, 2);
+  munit_assert_memory_equal(2, t, "t0");
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
   munit_assert_int(tparse_token_size(&ctx), ==, (5+0xFE)*2);
   munit_assert_int(tparse_token_hex(&ctx, tmp, sizeof(tmp)), ==, (5+0xFE));
   return MUNIT_OK;

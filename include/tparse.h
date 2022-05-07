@@ -41,6 +41,7 @@ uint32_t tparse_al_time(void);
 /**
  * Initialize token parsing, delim should include at least \0 and it is advised to
  * also include \r and \n for correct line parsing. Field delimiter is generally ' ' or \t
+ * End of line is always \n, no support for \r\n so far
  */
 void tparse_init(tparse_ctx_t* ctx, char* buffer, size_t max_length, char* delim);
 
@@ -60,11 +61,6 @@ void tparse_finger(tparse_ctx_t* ctx, size_t w_offset);
  * Reset the tparse structure.
  */
 void tparse_reset(tparse_ctx_t* ctx);
-
-/**
- * 
- */
-uint32_t tparse_timeout(tparse_ctx_t* ctx);
 
 #define TPARSE_TOKEN_PART (1<<31)
 /**
@@ -105,6 +101,24 @@ uint32_t tparse_token_in(tparse_ctx_t* ctx, char** tokens, size_t count, char* t
  * Read next token as an hexadecimal encoded byte array. 
  */
 size_t tparse_token_hex(tparse_ctx_t* ctx, uint8_t* buffer, size_t buffer_length);
+
+/**
+ * Read next token as a uint32_t, decimal or hexadecimal encoded
+ */
 uint32_t tparse_token_u32(tparse_ctx_t* ctx);
 
+/** 
+ * Discard everything until end of line
+ */
 void tparse_discard_line(tparse_ctx_t* ctx);
+
+/**
+ * Check if parsing reached EOL
+ */
+uint32_t tparse_eol_reached(tparse_ctx_t* ctx);
+
+/**
+ * Count number of token on the line. When EOL is reached, the count tokens on the next line if any
+ * Upon delimiter repetition, it does not account for empty tokens
+ */
+size_t tparse_token_count(tparse_ctx_t* ctx);

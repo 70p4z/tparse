@@ -22,12 +22,14 @@
 #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif // MAX
 
+#define NO_TIMEOUT 0
+#define TIMEOUT_1S 1000
+
 /* Private functions ---------------------------------------------------------*/
 
 char uart_buffer[32+512];
 uint8_t tmp[300];
 char iso_buffer[MAX(256+2, 5+255)]; // max T=0 command/responselength
-size_t iso_offset_write;
 size_t iso_offset_read;
 
 const struct {
@@ -175,6 +177,7 @@ size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len) {
 	return l;
 }
 
+#ifdef I2C_FLAG_EXTI
 uint32_t i2c_i_flag;
 void EXTI9_5_IRQHandler(void) {
 	NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
@@ -182,6 +185,7 @@ void EXTI9_5_IRQHandler(void) {
 		NVIC_DisableIRQ(EXTI9_5_IRQn);
 		LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
 		i2c_i_flag = 1;
+		gpio_set(2, 0, 1); // OTO DEBUG PC0
 	}
 }
 
@@ -189,11 +193,15 @@ uint32_t i2c_consume_int(void) {
 	// don't use EXTI->PRx register to avoid race condition
 	// between read and clear and a external set
 	uint32_t flag = i2c_i_flag;
+	if (! flag && !gpio_get(0, 6)) {
+		// it sounds like we missed the EXTI !!
+		flag = 1;
+	}
 	i2c_i_flag = 0;
-	// avoid triggering it non stop in the background if the wire is floating
 	NVIC_EnableIRQ(EXTI9_5_IRQn);
 	return flag;
 }
+#endif // I2C_FLAG_EXTI
 
 void gpio_set(uint32_t port, uint32_t pin, uint32_t value) {
 	// denied?
@@ -242,7 +250,7 @@ void iso_usart_flush(void) {
 	while (LL_USART_IsActiveFlag_BUSY(USART1)){}
 	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_5);
 	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, sizeof(iso_buffer));
-	iso_offset_read = iso_offset_write = 0;
+	iso_offset_read = 0;
 	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_5);
 }
 
@@ -293,7 +301,7 @@ void iso_usart_send(uint8_t* buffer, size_t length) {
         while (!LL_USART_IsActiveFlag_TC(USART1)){}
       }
       // wait end of transfer
-      while ((USART1->ISR & (USART_ISR_TXE|USART_ISR_IDLE|USART_ISR_BUSY) ) != (USART_ISR_TXE|USART_ISR_IDLE) );
+      while ((USART1->ISR & (USART_ISR_TXE|USART_ISR_BUSY) ) != (USART_ISR_TXE) );
 
       // shall be done quickly to avoid the real reply to be concat to our sent data
       l = MIN(iso_usart_available(), MIN(sizeof(iso_buffer), length));
@@ -413,7 +421,11 @@ void interp(void) {
 		  case 4:
 			  // I2C interrupt read
 			  uart_reply("OK:");
+#ifdef I2C_FLAG_EXTI
 			  uart_reply_hex((uint8_t*)(i2c_consume_int()?&"\x01":&"\x00"), 1);
+#else // I2C_FLAG_EXTI
+			  uart_reply_hex((uint8_t*)(!gpio_get(0, 6)?&"\x01":&"\x00"), 1);
+#endif // I2C_FLAG_EXTI
 			  uart_reply("\n");
 			  break;
 		  case 5:
@@ -495,7 +507,11 @@ void interp(void) {
 					  uart_reply("TIMEOUT:\n");
 					  break;
 				  }
+#ifdef I2C_FLAG_EXTI
 				  if (i2c_consume_int()) {
+#else // I2C_FLAG_EXTI
+					if (!gpio_get(0, 6)) {
+#endif // I2C_FLAG_EXTI
 					  uart_reply("OK:\n");
 					  break;
 				  }
@@ -643,10 +659,12 @@ void Configure_I2C(void) {
 	LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
 	LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_6, LL_GPIO_PULL_UP);
 	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
+#ifdef I2C_FLAG_EXTI
 	LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTA, LL_EXTI_LINE_6);
 	LL_EXTI_EnableFallingTrig_0_31(LL_EXTI_LINE_6);
 	LL_EXTI_EnableIT_0_31(LL_EXTI_LINE_6);
 	NVIC_EnableIRQ(EXTI9_5_IRQn);
+#endif // I2C_FLAG_EXTI
 
 	/* SDA PB9 (D14) */
 	LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
@@ -740,7 +758,7 @@ void Configure_ISO(void)
   SET_BIT(USART1->CR2, USART_CR2_CLKEN); //LL_USART_ConfigSyncMode(USART1); // thanks ST, it's clearing the SCEN, which is required to be set prior to setting CLKEN.
 
   USART1->ICR = 0xFFFFFFFF;
-  iso_offset_write = iso_offset_read = 0;
+  iso_offset_read = 0;
 
   LL_USART_Enable(USART1);
 

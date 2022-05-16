@@ -44,6 +44,7 @@ clean:
 build/elf build/map build/asm: $(OBJECT_FILES)
 	$(TARGET)gcc -o "$@" $(LDFLAGS) $(OBJECT_FILES) $(LIBS) 
 	$(TARGET)objdump -h -S build/elf > "build/asm"
+	$(TARGET)objcopy -O ihex -S build/elf build/hex
 
 build/%.o: %.c | prepare
 	$(TARGET)gcc -o "$@" "$<" -c $(CFLAGS) -MT"$@" -MF"$(@:%.o=%.d)" 

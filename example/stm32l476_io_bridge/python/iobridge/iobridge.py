@@ -20,20 +20,31 @@
 import sys
 import binascii
 import random
+from iobridge.usartiface import UsartIface
 
-class IOBridge:
-	def __init__(self, serial):
-		self.serial = serial
-		# ungarble and flush incoming data
-		rng = binascii.hexlify(random.randbytes(4))
-		self.serial.write(b'\ninfo ' + rng + b'\n')
-		while True:
-			l = self.serial.readline()
-			if l.startswith(b'INFO:' + rng):
-				break;
+import logging
+import os
+
+LOGLEVEL = os.environ.get('LOGLEVEL', 'DEBUG').upper()
+LOGFORMAT = '%(asctime)s %(levelname)s %(threadName)s %(message)s'
+logging.basicConfig(level=LOGLEVEL, format=LOGFORMAT)
+
+default_logger = logging.getLogger("")
+
+
+class IOBridgeException(BaseException):
+	pass
+
+class IOBridge(UsartIface):
+	def __init__(self, serial, logger=None):
+		super().__init__(serial)
+		self.logger = logger
+		if not logger:
+			self.logger = default_logger
 
 	def exchange(self, cmd):
-		print(">"+cmd)
+		if self.logger:
+			self.logger.debug(">"+cmd)
 		self.serial.write((cmd + "\n").encode("utf8"))
 		while True:
 			rline = self.serial.readline()
@@ -42,13 +53,16 @@ class IOBridge:
 				if not rline:
 					rline = b''
 				if rline.startswith('#'):
-					print(rline)
+					if self.logger:
+						self.logger.debug(rline)
 					continue
-				print("Error: " + cmd)
-				print("       " + rline)
-				sys.exit(-1)
+				if self.logger:
+					self.logger.error("Error: " + cmd)
+					self.logger.error("       " + rline)
+				raise IOBridgeException()
 			break
-		print("<"+rline)
+		if self.logger:
+			self.logger.debug("<"+rline)
 		reply = rline.split(':')[1]
 		return reply
 	def atr(self):
@@ -63,17 +77,39 @@ class IOBridge:
 			elif rbin[-2] == 0x6C:
 				pass
 			elif rbin[-2]&0xF0 != 0x90:
-				print("Error: CAPDU:" + line)
-				print("       RAPDU:" + rline.decode('utf8'))
-				sys.exit(-1)
+				if self.logger:
+					self.logger.error("Error: CAPDU:" + line)
+					self.logger.error("       RAPDU:" + rline.decode('utf8'))
+				raise IOBridgeException()
 		return rbin
 	def off(self):
 		self.exchange("off")
 	def on(self):
 		self.exchange("on")
 	def i2c_write(self, addr, data):
-		self.exchange("i2cw " + hex(addr) + " " + binascii.hexlify(data).decode("utf8"))
+		return self.exchange("i2cw " + hex(addr) + " " + binascii.hexlify(data).decode("utf8"))
 	def i2c_read(self, addr, maxlen):
 		return binascii.unhexlify(self.exchange("i2cr " + hex(addr) + " " + hex(maxlen)))
 	def i2c_wait_interrupt(self):
 		self.exchange("i2ciwait")
+	def gpio_set(self, port, pin, state):
+		self.exchange("gpo " + hex(port) + " " + hex(pin) + " " + hex(state))
+	def gpio_get(self, port, pin):
+		return self.exchange("gpi " + hex(port) + " " + hex(pin)) == "01"
+	def can_available(self):
+		rep = self.exchange("cavail")
+		return int(rep, 16)
+	#Return CAN identifier, CAN identifier kind, CAN frame data
+	def can_rx():
+		packet = self.exchange("crx")
+		packetfield = packet.split(",")
+		return binascii.unhexlify(packetfield[0]), packetfield[1], binascii.unhexlify(packetfield[2])
+	def can_tx(cid, cidkind, data):
+		if cidkind == 'extended' or cidkind == 'ex' or cidkind == 'x' or cidkind == "29":
+			cidkind = 'e'
+		elif cidkind == 'standard' or cidkind == 'std' or cidkind == '11': 
+			cidkind = 's'
+		else:
+			raise IOBridgeException()
+		self.exchange("ctx " + hex(cid) + " " + cidkind + " " + binascii.hexlify(data).decode("utf8"))
+

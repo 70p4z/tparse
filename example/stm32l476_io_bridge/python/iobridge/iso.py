@@ -25,7 +25,7 @@ if __name__ == '__main__':
 	import random
 	import time
 	import math
-	import iobridge.iobridge
+	from iobridge.iobridge import IOBridge
 
 	def auto_int(x):
 		return int(x, 0)
@@ -36,7 +36,7 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	s = serial.Serial(port=args.port, baudrate=args.baudrate)
-	iob = iobridge.iobridge.IOBridge(s)
+	iob = IOBridge(s)
 	
 	for line in sys.stdin:
 		line = line.rstrip("\n").rstrip("\r")

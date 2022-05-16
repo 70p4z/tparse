@@ -401,6 +401,69 @@ static MunitResult* test_non_reg_token_hex_split(const MunitParameter* params, v
   return MUNIT_OK;
 }
 
+static MunitResult* test_non_reg_nl_after_rollover(const MunitParameter* params, void* ignored) {
+  char * t;
+  tparse_ctx_t ctx = {
+    .timeout = 0xbaf, 
+    .buffer = "\nvail\ncavail\ncavail\ncavail\ncavail", 
+    .delim = " \n", 
+    .r_offset = 27, 
+    .w_offset = 1, 
+    .max_length = 33, 
+    .flags = 0x1
+  };
+  uint8_t tmp[300];
+  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
+  munit_assert_int(tparse_token_size(&ctx), ==, 6);
+  munit_assert_int(tparse_token_p(&ctx, &t), ==, 6|TPARSE_TOKEN_PART);
+  munit_assert_memory_equal(6, t, "cavail");
+  return MUNIT_OK;
+}
+
+static MunitResult* test_non_reg_nl_after_token_copy(const MunitParameter* params, void* ignored) {
+  char * t;
+  tparse_ctx_t ctx = {
+    .timeout = 0xbaf, 
+    .buffer = "\nvail\ncavail\ncavail\ncavail\ncavail", 
+    .delim = " \n", 
+    .r_offset = 27, 
+    .w_offset = 1, 
+    .max_length = 33, 
+    .flags = 0x1
+  };
+  uint8_t tmp[300];
+  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
+  munit_assert_int(tparse_token_size(&ctx), ==, 6);
+  munit_assert_int(tparse_token(&ctx, tmp, sizeof(tmp)), ==, 6);
+  munit_assert_memory_equal(6, tmp, "cavail");
+  return MUNIT_OK;
+}
+
+static MunitResult* test_non_reg_nl_after_rollover_token_in(const MunitParameter* params, void* ignored) {
+  char * t;
+  tparse_ctx_t ctx = {
+    .timeout = 0xbaf, 
+    .buffer = "\nvail\ncavail\ncavail\ncavail\ncavail", 
+    .delim = " \n", 
+    .r_offset = 27, 
+    .w_offset = 1, 
+    .max_length = 33, 
+    .flags = 0x1
+  };
+  uint8_t tmp[300];
+  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
+  munit_assert_int(tparse_token_size(&ctx), ==, 6);
+  static const char* const cmds[] = {
+    "cavail",
+  };
+  size_t tmp_size=sizeof(tmp);
+  munit_assert_int(tparse_token_in(&ctx, cmds, 1, tmp, &tmp_size), ==, 1);
+  return MUNIT_OK;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // TEST LISTS
 
@@ -414,7 +477,10 @@ static MunitTest tests_tparse_suite[] = {
   { /* name */ (char*) "/discard_no_eol",  test_discard_no_eol, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/copy",  test_copy, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
 
-  { /* name */ (char*) "/NR1",  test_non_reg_token_hex_split, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/nonreg1",  test_non_reg_token_hex_split, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/nonreg2",  test_non_reg_nl_after_rollover, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/nonreg3",  test_non_reg_nl_after_token_copy, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/nonreg4",  test_non_reg_nl_after_rollover_token_in, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   
   
   { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }

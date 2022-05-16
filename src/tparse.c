@@ -226,14 +226,12 @@ size_t tparse_token_size(tparse_ctx_t* ctx) {
 		}
 		// parse remaining part (if any)
 		l2 = tparse_token_internal(ctx, &t, l&~TPARSE_TOKEN_PART, 0);
-		if (l2) {
-			// unsupported
-			if (l2&TPARSE_TOKEN_PART) {
-				return 0;
-			}
-			// note: l2 can have the EOL set
-			return (l&~TPARSE_TOKEN_PART) + l2;
+		// unsupported: this is clearly an overflow of the buffer. enjoy
+		if (l2&TPARSE_TOKEN_PART) {
+			return 0;
 		}
+		// note: l2 can have the EOL set
+		return (l&~TPARSE_TOKEN_PART) + l2;
 	}
 	return 0;
 }
@@ -282,6 +280,9 @@ uint32_t tparse_token_in(tparse_ctx_t* ctx, char** tokens, size_t count, char* t
 	char* parts[2]; // when token is split due to circular mode
 	size_t sizes[2];
 
+	if (token_consumed_len_in_out) {
+		*token_consumed_len_in_out=0;
+	}
 	if (!tparse_token_parts(ctx, parts, sizes)) {
 		return 0;
 	}

@@ -1,6 +1,9 @@
 #include "iso7816.h"
 #include "string.h"
 
+#define NO_TIMEOUT 0
+#define TIMEOUT_1S 1000
+
 uint8_t iso_usart_recv_atr_byte(uint8_t* atr) {
   if (iso_usart_recv(atr, 1, TIMEOUT_1S) != 1) {
 	  return 0;

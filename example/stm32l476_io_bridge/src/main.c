@@ -22,220 +22,232 @@
 #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif // MAX
 
+#ifndef __bswap_32
+/* Swap bytes in 32 bit value.  */
+#define __bswap_32(x) \
+     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |                      \
+      (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
+#endif // __bswap_32
+
 #define NO_TIMEOUT 0
 #define TIMEOUT_1S 1000
+#define CAN_FIFO_RX_ENTRY_COUNT 256
 
 /* Private functions ---------------------------------------------------------*/
 
-char uart_buffer[32+512];
+char uart_buffer[33];
 uint8_t tmp[300];
 char iso_buffer[MAX(256+2, 5+255)]; // max T=0 command/responselength
 size_t iso_offset_read;
 
 const struct {
-	uint8_t port;
-	uint8_t pin;
+  uint8_t port;
+  uint8_t pin;
 } gpio_reserved[] = {
-	{0, 2},  // STLINK USART TX (D1)
-	{0, 3},  // STLINK USART RX (D0)
-	{0, 13}, // STLINK SWD
-	{0, 14}, // STLINK SWD
-	{0, 6},  // I2C INT     (D12)
-	{0, 8},  // ISO CLK     (D7)
-	{0, 9},  // ISO IO      (D8)
-	{1, 6},  // ISO GND     (D10) (SE POWER)
-	{2, 7},  // ISO RST     (D9)
-	{1, 8},  // I2C SCL     (D15)
-	{1, 9},  // I2C SDA     (D14)
+  {0, 2},  // STLINK USART TX (D1)
+  {0, 3},  // STLINK USART RX (D0)
+  {0, 13}, // STLINK SWD
+  {0, 14}, // STLINK SWD
+  {0, 6},  // I2C INT         (D12)
+  {0, 8},  // ISO CLK         (D7)
+  {0, 9},  // ISO IO          (D8)
+  {1, 6},  // ISO GND         (D10) (SE POWER)
+  {2, 7},  // ISO RST         (D9)
+  {1, 8},  // I2C SCL         (D15)
+  {1, 9},  // I2C SDA         (D14)
+  {0, 11}, // CAN RX          (CN10-14)
+  {0, 12}, // CAN TX          (CN10-12)
 };
 
 #include "tparse.h"
 #include "stddef.h"
 #include "iso7816.h"
 
+void Configure_CAN(uint32_t frequency, uint32_t auto_retransmit);
+
 uint32_t tparse_al_time(void) {
-	return uwTick; /* todo bind the systick count here */;
+  return uwTick; /* todo bind the systick count here */;
 }
 
 void uart_reply_mem(uint8_t* ptr, size_t len) {
-	while (len--) {
-		while (!LL_USART_IsActiveFlag_TXE(USART2)){}
-		LL_USART_TransmitData8(USART2, *ptr++);
-	}
+  while (len--) {
+    while (!LL_USART_IsActiveFlag_TXE(USART2)){}
+    LL_USART_TransmitData8(USART2, *ptr++);
+  }
 }
 
 void uart_reply(char* string) {
-	uart_reply_mem((uint8_t*)string, strlen(string));
+  uart_reply_mem((uint8_t*)string, strlen(string));
 }
 
 uint8_t n2h(uint8_t c) {
-	if (c<10) {
-		return c+'0';
-	}
-	else {
-		return c+'a'-10;
-	}
+  if (c<10) {
+    return c+'0';
+  }
+  else {
+    return c+'a'-10;
+  }
 }
 
 void uart_reply_hex(uint8_t* buf, size_t len) {
-	char c[2];
-	c[1] = 0;
-	while (len--) {
-		c[0] = n2h(*buf>>4);
-		uart_reply(c);
-		c[0] = n2h(*buf&0xF);
-		uart_reply(c);
-		buf++;
-	}
+  char c[2];
+  c[1] = 0;
+  while (len--) {
+    c[0] = n2h(*buf>>4);
+    uart_reply(c);
+    c[0] = n2h(*buf&0xF);
+    uart_reply(c);
+    buf++;
+  }
 }
 
 void i2c_stop(void) {
-	LL_I2C_GenerateStopCondition(I2C1);
-	LL_I2C_Disable(I2C1);
-	volatile uint32_t i = 0x100 ; while (i--);
-	LL_I2C_Enable(I2C1);
+  LL_I2C_GenerateStopCondition(I2C1);
+  LL_I2C_Disable(I2C1);
+  volatile uint32_t i = 0x100 ; while (i--);
+  LL_I2C_Enable(I2C1);
 }
 
 uint32_t i2c_strobe(uint32_t addr) {
-	// cleanup previous transaction flags
-	I2C1->ICR = 0xFFFFFFFF;
-	LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, 1, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
-	uint32_t limit = uwTick + 10;
-	while (I2C1->CR2 & I2C_CR2_START) {
-		if (uwTick - limit < 0x80000000UL) {
-			// timeout presenting address
-			i2c_stop();
-			return 0;
-		}
-	}
-	if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
-		// invalid address
-		i2c_stop();
-		return 0;
-	}
-	i2c_stop();
-	return 1;
+  // cleanup previous transaction flags
+  I2C1->ICR = 0xFFFFFFFF;
+  LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, 1, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
+  uint32_t limit = uwTick + 10;
+  while (I2C1->CR2 & I2C_CR2_START) {
+    if (uwTick - limit < 0x80000000UL) {
+      // timeout presenting address
+      i2c_stop();
+      return 0;
+    }
+  }
+  if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
+    // invalid address
+    i2c_stop();
+    return 0;
+  }
+  i2c_stop();
+  return 1;
 }
 
 size_t i2c_read(uint8_t addr, uint8_t* buf, size_t maxlen) {
-	size_t len = maxlen;
-	// cleanup previous transaction flags
-	I2C1->ICR = 0xFFFFFFFF;
-	LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, len, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_READ);
-	uint32_t limit = uwTick + TIMEOUT_1S;
-	while (I2C1->CR2 & I2C_CR2_START) {
-		if (uwTick - limit < 0x80000000UL) {
-			// timeout presenting address
-			i2c_stop();
-			return -1;
-		}
-	}
-	if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
-		// invalid address
-		i2c_stop();
-		return -2;
-	}
-	while (len--) {
-		while (!LL_I2C_IsActiveFlag_RXNE(I2C1)) {
-			if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
-				i2c_stop();
-				return maxlen - len - 1;
-			}
-		}
-		*buf++ = LL_I2C_ReceiveData8(I2C1);
-	}
-	return maxlen;
+  size_t len = maxlen;
+  // cleanup previous transaction flags
+  I2C1->ICR = 0xFFFFFFFF;
+  LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, len, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_READ);
+  uint32_t limit = uwTick + TIMEOUT_1S;
+  while (I2C1->CR2 & I2C_CR2_START) {
+    if (uwTick - limit < 0x80000000UL) {
+      // timeout presenting address
+      i2c_stop();
+      return -1;
+    }
+  }
+  if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
+    // invalid address
+    i2c_stop();
+    return -2;
+  }
+  while (len--) {
+    while (!LL_I2C_IsActiveFlag_RXNE(I2C1)) {
+      if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
+        i2c_stop();
+        return maxlen - len - 1;
+      }
+    }
+    *buf++ = LL_I2C_ReceiveData8(I2C1);
+  }
+  return maxlen;
 }
 
 size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len) {
-	size_t l = len;
-	// cleanup previous transaction flags
-	I2C1->ICR = 0xFFFFFFFF;
-	LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, len, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
-	uint32_t limit = uwTick + TIMEOUT_1S;
-	while (I2C1->CR2 & I2C_CR2_START) {
-		if (uwTick - limit < 0x80000000UL) {
-			// timeout presenting address
-			i2c_stop();
-			return -1;
-		}
-	}
-	if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
-		// invalid address
-		i2c_stop();
-		return -2;
-	}
-	while (len--) {
-		while (!LL_I2C_IsActiveFlag_TXE(I2C1)) {
-			if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
-				i2c_stop();
-				return l - len - 1;
-			}
-		}
-		LL_I2C_TransmitData8(I2C1, *buf++);
-	}
-	return l;
+  size_t l = len;
+  // cleanup previous transaction flags
+  I2C1->ICR = 0xFFFFFFFF;
+  LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, len, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
+  uint32_t limit = uwTick + TIMEOUT_1S;
+  while (I2C1->CR2 & I2C_CR2_START) {
+    if (uwTick - limit < 0x80000000UL) {
+      // timeout presenting address
+      i2c_stop();
+      return -1;
+    }
+  }
+  if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
+    // invalid address
+    i2c_stop();
+    return -2;
+  }
+  while (len--) {
+    while (!LL_I2C_IsActiveFlag_TXE(I2C1)) {
+      if (I2C1->ISR & (I2C_ISR_STOPF|I2C_ISR_NACKF|I2C_ISR_BERR|I2C_ISR_ARLO)) {
+        i2c_stop();
+        return l - len - 1;
+      }
+    }
+    LL_I2C_TransmitData8(I2C1, *buf++);
+  }
+  return l;
 }
 
 #ifdef I2C_FLAG_EXTI
 uint32_t i2c_i_flag;
 void EXTI9_5_IRQHandler(void) {
-	NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
-	if (LL_EXTI_ReadFlag_0_31(LL_EXTI_LINE_6)) {
-		NVIC_DisableIRQ(EXTI9_5_IRQn);
-		LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
-		i2c_i_flag = 1;
-		gpio_set(2, 0, 1); // OTO DEBUG PC0
-	}
+  NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
+  if (LL_EXTI_ReadFlag_0_31(LL_EXTI_LINE_6)) {
+    NVIC_DisableIRQ(EXTI9_5_IRQn);
+    LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
+    i2c_i_flag = 1;
+    gpio_set(2, 0, 1); // OTO DEBUG PC0
+  }
 }
 
 uint32_t i2c_consume_int(void) {
-	// don't use EXTI->PRx register to avoid race condition
-	// between read and clear and a external set
-	uint32_t flag = i2c_i_flag;
-	if (! flag && !gpio_get(0, 6)) {
-		// it sounds like we missed the EXTI !!
-		flag = 1;
-	}
-	i2c_i_flag = 0;
-	NVIC_EnableIRQ(EXTI9_5_IRQn);
-	return flag;
+  // don't use EXTI->PRx register to avoid race condition
+  // between read and clear and a external set
+  uint32_t flag = i2c_i_flag;
+  if (! flag && !gpio_get(0, 6)) {
+    // it sounds like we missed the EXTI !!
+    flag = 1;
+  }
+  i2c_i_flag = 0;
+  NVIC_EnableIRQ(EXTI9_5_IRQn);
+  return flag;
 }
 #endif // I2C_FLAG_EXTI
 
 void gpio_set(uint32_t port, uint32_t pin, uint32_t value) {
-	// denied?
-	for (int i = 0; i< sizeof(gpio_reserved)/ sizeof(gpio_reserved[0]); i++) {
-		if (gpio_reserved[i].port == port && gpio_reserved[i].pin == pin) {
-			return;
-		}
-	}
-	// configure GPIO as output
-	GPIO_TypeDef* GPIO = (GPIO_TypeDef*)((uintptr_t)GPIOA_BASE + 0x400*port);
-	uint32_t PIN = 1<<pin;
-	LL_GPIO_SetPinMode(GPIO, PIN, LL_GPIO_MODE_OUTPUT);
-	LL_GPIO_SetPinSpeed(GPIO, PIN, LL_GPIO_SPEED_FREQ_HIGH);
-	LL_GPIO_SetPinPull(GPIO, PIN, LL_GPIO_PULL_NO);
-	// set state
-	GPIO->BSRR = PIN<<(value?0:16);
+  // denied?
+  for (int i = 0; i< sizeof(gpio_reserved)/ sizeof(gpio_reserved[0]); i++) {
+    if (gpio_reserved[i].port == port && gpio_reserved[i].pin == pin) {
+      return;
+    }
+  }
+  // configure GPIO as output
+  GPIO_TypeDef* GPIO = (GPIO_TypeDef*)((uintptr_t)GPIOA_BASE + 0x400*port);
+  uint32_t PIN = 1<<pin;
+  LL_GPIO_SetPinMode(GPIO, PIN, LL_GPIO_MODE_OUTPUT);
+  LL_GPIO_SetPinSpeed(GPIO, PIN, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinPull(GPIO, PIN, LL_GPIO_PULL_NO);
+  // set state
+  GPIO->BSRR = PIN<<(value?0:16);
 }
 
 uint32_t gpio_get(uint32_t port, uint32_t pin) {
-	// no reserved pin for reading
-	GPIO_TypeDef* GPIO = (GPIO_TypeDef*)((uintptr_t)GPIOA_BASE + 0x400*port);
-	return GPIO->IDR & (1<<pin);
+  // no reserved pin for reading
+  GPIO_TypeDef* GPIO = (GPIO_TypeDef*)((uintptr_t)GPIOA_BASE + 0x400*port);
+  return GPIO->IDR & (1<<pin);
 }
 
 void iso_delay_ms(uint32_t ms) {
-	LL_mDelay(ms);
+  LL_mDelay(ms);
 }
 
 void iso_rst(uint32_t level) {
-	GPIOC->BSRR = LL_GPIO_PIN_7<<(level?0:16);
+  GPIOC->BSRR = LL_GPIO_PIN_7<<(level?0:16);
 }
 
 void iso_gnd(uint32_t level) {
-	GPIOB->BSRR = LL_GPIO_PIN_6<<(level?0:16);
+  GPIOB->BSRR = LL_GPIO_PIN_6<<(level?0:16);
 }
 
 void iso_usart_ETU(uint32_t etu) {
@@ -247,15 +259,15 @@ void iso_usart_ETU(uint32_t etu) {
 }
 
 void iso_usart_flush(void) {
-	while (LL_USART_IsActiveFlag_BUSY(USART1)){}
-	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_5);
-	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, sizeof(iso_buffer));
-	iso_offset_read = 0;
-	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_5);
+  while (LL_USART_IsActiveFlag_BUSY(USART1)){}
+  LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_5);
+  LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, sizeof(iso_buffer));
+  iso_offset_read = 0;
+  LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_5);
 }
 
 size_t iso_usart_available(void) {
-	return (2 * sizeof(iso_buffer) - DMA1_Channel5->CNDTR - iso_offset_read) % sizeof(iso_buffer);
+  return (2 * sizeof(iso_buffer) - DMA1_Channel5->CNDTR - iso_offset_read) % sizeof(iso_buffer);
 }
 
 // NOTE: we're not supposed to be consuming data while receiving, it is a purely half duplex protocol
@@ -286,7 +298,7 @@ size_t iso_usart_recv(uint8_t* buffer, size_t length, uint32_t timeout) {
   return len;
 }
 
-void iso_usart_send(uint8_t* buffer, size_t length) {
+void iso_usart_send(const uint8_t* buffer, size_t length) {
   if (length) {
     size_t l;
     // wait idle as we're consuming what we're sending afterwards (thanks ST wrong HD)
@@ -312,6 +324,164 @@ void iso_usart_send(uint8_t* buffer, size_t length) {
   }
 }
 
+#ifdef CAN
+size_t can_tx(uint32_t id, size_t id_bitlen, uint8_t *frame, size_t frame_len) {
+  // no free slot?
+  if (!(CAN->TSR&(CAN_TSR_TME0|CAN_TSR_TME1|CAN_TSR_TME2))) {
+    return -1;
+  }
+  uint8_t slot = (CAN->TSR & CAN_TSR_CODE) >>CAN_TSR_CODE_Pos;
+  if (slot == 3) {
+    return -2;
+  }
+
+  switch(id_bitlen) {
+    case 11:
+      CAN->sTxMailBox[slot].TIR = (id << 21);
+      break;
+    case 29:
+      CAN->sTxMailBox[slot].TIR = (id << 3) | CAN_TI0R_IDE;
+      break;
+    default:
+      return -3;
+  }
+  if (frame_len > 8) {
+    return -4;
+  }
+  CAN->sTxMailBox[slot].TDTR = frame_len;
+  // copy data
+  uint32_t d[2] = {0};
+  uint32_t i=0;
+  while (i<frame_len) {
+    d[i/4] |= (frame[i]&0xFF)<<((i%4)*8);
+    i++;
+  }
+  CAN->sTxMailBox[slot].TDLR = d[0];
+  CAN->sTxMailBox[slot].TDHR = d[1];
+
+  // enable transmission of that slot
+  CAN->sTxMailBox[slot].TIR |= CAN_TI0R_TXRQ;
+  return frame_len;
+}
+
+size_t can_avail(void) {
+  if (CAN->RF0R&(CAN_RF0R_FMP0_Msk)) {
+    return CAN->sFIFOMailBox[0].RDTR & CAN_RDT0R_DLC_Msk;
+  }
+  if (CAN->RF1R&(CAN_RF1R_FMP1_Msk)) {
+    return CAN->sFIFOMailBox[1].RDTR & CAN_RDT1R_DLC_Msk;
+  }
+  return 0;
+}
+
+size_t can_rx(uint32_t * id, size_t * id_bitlen, uint8_t* frame, size_t frame_max_len) {
+  uint32_t slot;
+  if (CAN->RF0R&(CAN_RF0R_FMP0_Msk)) {
+    slot = 0;
+  }
+  else if (CAN->RF1R&(CAN_RF1R_FMP1_Msk)) {
+    slot = 1;
+  }
+  else {
+    if (id_bitlen) {
+      *id_bitlen = 0;
+    }
+    return 0;
+  }
+
+  if (id_bitlen) {
+    *id_bitlen = CAN->sFIFOMailBox[slot].RIR & CAN_RI0R_IDE?29:11;
+    if (id) {
+      *id = CAN->sFIFOMailBox[slot].RIR >> ( 32 - *id_bitlen);
+    }
+  }
+  frame_max_len = MIN(frame_max_len, CAN->sFIFOMailBox[slot].RDTR & CAN_RDT0R_DLC_Msk);
+
+  if (frame) {
+    uint32_t d[2] = {0};
+    uint32_t i=0;
+    d[0] = CAN->sFIFOMailBox[slot].RDLR;
+    d[1] = CAN->sFIFOMailBox[slot].RDHR;
+    while (i<frame_max_len) {
+      frame[i] = d[i/4] >> ((i%4)*8);
+      i++;
+    }
+  }
+  else {
+    frame_max_len = 0;
+  }
+
+  // consume frame
+  switch(slot) {
+    case 0:
+      CAN->RF0R |= CAN_RF0R_RFOM0;
+      break;
+    case 1:
+      CAN->RF1R |= CAN_RF1R_RFOM1;
+      break;
+  }
+  return frame_max_len; 
+}
+
+size_t can_fifo_rx_size;
+struct {
+  uint32_t id;
+  size_t id_bitlen;
+  uint8_t data[8];
+  size_t data_len;
+} can_fifo_rx_entries[CAN_FIFO_RX_ENTRY_COUNT];
+
+void CAN_IRQHandler_init(void) {
+  can_fifo_rx_size = 0;
+  memset(can_fifo_rx_entries, 0, sizeof (can_fifo_rx_entries));
+}
+
+void CAN1_RX0_IRQHandler(void) {
+  if (can_fifo_rx_size >= CAN_FIFO_RX_ENTRY_COUNT) {
+    // consume received frame, no FIFO space to store it
+    can_rx(NULL, NULL, NULL, 0);
+  }
+  // consume in 0, append at the end
+  size_t entry = can_fifo_rx_size++;
+  can_fifo_rx_entries[entry].data_len =
+    can_rx(&can_fifo_rx_entries[entry].id,
+         &can_fifo_rx_entries[entry].id_bitlen,
+         can_fifo_rx_entries[entry].data,
+         8);
+}
+
+void CAN1_RX1_IRQHandler(void) {
+  CAN1_RX0_IRQHandler();
+}
+
+size_t can_fifo_avail(void) {
+  if (can_fifo_rx_size == 0) {
+    return 0;
+  }
+  return can_fifo_rx_entries[0].data_len;
+}
+
+size_t can_fifo_rx(uint32_t * id, size_t * id_bitlen, uint8_t* frame, size_t frame_max_len) {
+  // no entry readable in the fifo
+  if (can_fifo_rx_size == 0) {
+    *id_bitlen = 0;
+    return 0;
+  }
+  // consume in 0, append at the end
+  *id = can_fifo_rx_entries[0].id;
+  *id_bitlen = can_fifo_rx_entries[0].id_bitlen;
+  frame_max_len = MIN(frame_max_len, can_fifo_rx_entries[0].data_len);
+  memmove(frame, can_fifo_rx_entries[0].data, frame_max_len);
+  __disable_irq();
+  // consume fifo entry
+  can_fifo_rx_size--;
+  memmove(&can_fifo_rx_entries[0], &can_fifo_rx_entries[1], sizeof(can_fifo_rx_entries[0])*can_fifo_rx_size);
+  __enable_irq();
+  // return consumed entry len
+  return frame_max_len;
+}
+
+#endif // CAN
 
 void interp(void) {
 
@@ -328,217 +498,299 @@ void interp(void) {
 
   while (1)
   {
-	  uint32_t cmd;
-	  uint32_t addr;
-	  uint32_t len;
-	  uint32_t port;
-	  uint32_t pin;
-	  uint32_t val;
-	  size_t ts;
+    uint32_t cmd;
+    uint32_t addr;
+    uint32_t len;
+    uint32_t port;
+    uint32_t pin;
+    uint32_t val;
+    size_t ts;
 
-	  tparse_finger(&tp, sizeof(uart_buffer) - DMA1_Channel6->CNDTR);
+    tparse_finger(&tp, sizeof(uart_buffer) - DMA1_Channel6->CNDTR);
 
-	  const char * const cmds[] = {
-			  "i2cr", "i2cw", "t0", "i2ci",
-			  "gpo", "gpi", "atr", "off",
-			  "info", "on", "i2ciwait", "i2cscan",
-			  "reset",
-	  };
-	  len = tparse_has_line(&tp);
-	  if (len) {
-		  ts = sizeof(tmp);
-		  cmd = tparse_token_in(&tp, (char**)cmds, sizeof(cmds)/sizeof(cmds[0]), (char*)tmp, &ts);
-		  switch (cmd) {
-		  default:
-		  case 0:
-			  uart_reply("ERROR: unsupported: ");
-			  uart_reply_mem(tmp, ts);
-			  uart_reply("\n");
-			  break;
-		  case 1:
-			  // I2C read
-			  addr = tparse_token_u32(&tp);
-			  if (addr > 0x7F || addr == -1) {
-				  uart_reply("ERROR: invalid address\n");
-				  break;
-			  }
-			  len = tparse_token_u32(&tp);
-			  if (len == -1 ||len == 0) {
-				  uart_reply("ERROR: invalid length\n");
-				  break;
-			  }
-			  len = MIN(len, sizeof(tmp));
-			  val = i2c_read(addr, tmp, len);
-			  if (len != val) {
-				  uart_reply("ERROR: not all bytes read: ");
-				  uart_reply_hex((uint8_t*)&val, 4);
-				  uart_reply("\n");
-				  break;
-			  }
-			  uart_reply("OK:");
-			  uart_reply_hex(tmp, len);
-			  uart_reply("\n");
-			  break;
-		  case 2:
-			  // I2C write
-			  addr = tparse_token_u32(&tp);
-			  if (addr > 0x7F || addr == -1) {
-				  uart_reply("ERROR: invalid address\n");
-				  break;
-			  }
-			  len = tparse_token_hex(&tp, tmp, sizeof(tmp));
-			  if (len == 0) {
-				  uart_reply("ERROR: invalid data\n");
-				  break;
-			  }
-			  val = i2c_write(addr, tmp, len);
-			  if (len != val) {
-				  uart_reply("ERROR: not all bytes written: ");
-				  uart_reply_hex((uint8_t*)&val, 4);
-				  uart_reply("\n");
-				  break;
-			  }
-			  uart_reply("OK:\n");
-			  break;
-		  case 3:
-			  // T=0 APDU
-			  len = tparse_token_hex(&tp, tmp, sizeof(tmp));
-			  if (len > 255+5 || len < 5) {
-				  uart_reply("ERROR: invalid T=0 apdu\n");
-				  break;
-			  }
-			  if (len > 5 && len - 5 != tmp[4]) {
-				  uart_reply("ERROR: malformed apdu: ");
-				  uart_reply_hex(tmp, len);
-				  uart_reply("\n");
-				  break;
-			  }
-			  len = iso_apdu_t0(tmp, len);
-			  uart_reply("OK:");
-			  uart_reply_hex(tmp, len);
-			  uart_reply("\n");
-			  break;
-		  case 4:
-			  // I2C interrupt read
-			  uart_reply("OK:");
+    static const char * const cmds[] = {
+        "i2cr", "i2cw", "t0", "i2ci",
+        "gpo", "gpi", "atr", "off",
+        "info", "on", "i2ciwait", "i2cscan",
+        "reset",
+        "ctx", "crx", "cavail", "ccfg",
+    };
+    len = tparse_has_line(&tp);
+    if (len) {
+      volatile tparse_ctx_t tpcopy;
+      ts = sizeof(tmp);
+      memmove(&tpcopy, &tp, sizeof(tp));
+      cmd = tparse_token_in(&tp, (char**)cmds, sizeof(cmds)/sizeof(cmds[0]), (char*)tmp, &ts);
+      switch (cmd) {
+      default:
+      case __COUNTER__:
+        uart_reply("ERROR: unsupported: ");
+        ts = MIN(ts, 32);
+        uart_reply_mem(tmp, ts);
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // I2C read
+        addr = tparse_token_u32(&tp);
+        if (addr > 0x7F || addr == -1) {
+          uart_reply("ERROR: invalid address\n");
+          break;
+        }
+        len = tparse_token_u32(&tp);
+        if (len == -1 ||len == 0) {
+          uart_reply("ERROR: invalid length\n");
+          break;
+        }
+        len = MIN(len, sizeof(tmp));
+        val = i2c_read(addr, tmp, len);
+        if (len != val) {
+          uart_reply("ERROR: not all bytes read: ");
+          uart_reply_hex((uint8_t*)&val, 4);
+          uart_reply("\n");
+          break;
+        }
+        uart_reply("OK:");
+        uart_reply_hex(tmp, len);
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // I2C write
+        addr = tparse_token_u32(&tp);
+        if (addr > 0x7F || addr == -1) {
+          uart_reply("ERROR: invalid address\n");
+          break;
+        }
+        len = tparse_token_hex(&tp, tmp, sizeof(tmp));
+        if (len == 0) {
+          uart_reply("ERROR: invalid data\n");
+          break;
+        }
+        val = i2c_write(addr, tmp, len);
+        if (len != val) {
+          uart_reply("ERROR: not all bytes written: ");
+          uart_reply_hex((uint8_t*)&val, 4);
+          uart_reply("\n");
+          break;
+        }
+        uart_reply("OK:\n");
+        break;
+      case __COUNTER__:
+        // T=0 APDU
+        len = tparse_token_hex(&tp, tmp, sizeof(tmp));
+        if (len > 255+5 || len < 5) {
+          uart_reply("ERROR: invalid T=0 apdu\n");
+          break;
+        }
+        if (len > 5 && len - 5 != tmp[4]) {
+          uart_reply("ERROR: malformed apdu: ");
+          uart_reply_hex(tmp, len);
+          uart_reply("\n");
+          break;
+        }
+        len = iso_apdu_t0(tmp, len);
+        uart_reply("OK:");
+        uart_reply_hex(tmp, len);
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // I2C interrupt read
+        uart_reply("OK:");
 #ifdef I2C_FLAG_EXTI
-			  uart_reply_hex((uint8_t*)(i2c_consume_int()?&"\x01":&"\x00"), 1);
+        uart_reply_hex((uint8_t*)(i2c_consume_int()?&"\x01":&"\x00"), 1);
 #else // I2C_FLAG_EXTI
-			  uart_reply_hex((uint8_t*)(!gpio_get(0, 6)?&"\x01":&"\x00"), 1);
+        uart_reply_hex((uint8_t*)(!gpio_get(0, 6)?&"\x01":&"\x00"), 1);
 #endif // I2C_FLAG_EXTI
-			  uart_reply("\n");
-			  break;
-		  case 5:
-			  // GPO
-			  port = tparse_token_u32(&tp);
-			  if (port > 7) {
-				  uart_reply("ERROR: invalid port\n");
-				  break;
-			  }
-			  pin = tparse_token_u32(&tp);
-			  if (pin > 15) {
-				  uart_reply("ERROR: invalid pin\n");
-				  break;
-			  }
-			  val = tparse_token_u32(&tp);
-			  if (val == -1) {
-				  uart_reply("ERROR: invalid value\n");
-				  break;
-			  }
-			  gpio_set(port, pin, val);
-			  uart_reply("OK:\n");
-			  break;
-		  case 6:
-			  // GPI
-			  port = tparse_token_u32(&tp);
-			  if (port > 7) {
-				  uart_reply("ERROR: invalid port\n");
-				  break;
-			  }
-			  pin = tparse_token_u32(&tp);
-			  if (pin > 15) {
-				  uart_reply("ERROR: invalid pin\n");
-				  break;
-			  }
-			  val = gpio_get(port, pin);
-			  uart_reply("OK:");
-			  val = val?1:0;
-			  uart_reply_hex((uint8_t*)&val, 1);
-			  uart_reply("\n");
-			  break;
-		  case 7:
-			  // ATR
-			  len = iso_powercycle(tmp, sizeof(tmp));
-			  if (len < 2) {
-				  iso_power_down();
-				  uart_reply("ERROR: no card detected\n");
-				  break;
-			  }
-			  uart_reply("OK:");
-			  uart_reply_hex(tmp, len);
-			  uart_reply("\n");
-			  break;
-		  case 8:
-			  // OFF
-			  iso_power_down();
-			  uart_reply("OK:\n");
-			  break;
-		  case 9:
-			  // info
-			  uart_reply("INFO:");
-			  len = tparse_token_hex(&tp, tmp, sizeof(tmp));
-			  if (len) {
-				  uart_reply_hex(tmp, len);
-				  uart_reply(",");
-			  }
-			  uart_reply("VERSION=0.1\n");
-			  break;
-		  case 10:
-			  // ON
-			  iso_gnd(0);
-			  uart_reply("OK:\n");
-			  break;
-		  case 11:
-			  // i2ciwait
-			  len = uwTick + 30*TIMEOUT_1S;
-			  // until timeout
-			  for(;;) {
-				  if ((uwTick - len) < 0x80000000UL) {
-					  uart_reply("TIMEOUT:\n");
-					  break;
-				  }
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // GPO
+        port = tparse_token_u32(&tp);
+        if (port > 7) {
+          uart_reply("ERROR: invalid port\n");
+          break;
+        }
+        pin = tparse_token_u32(&tp);
+        if (pin > 15) {
+          uart_reply("ERROR: invalid pin\n");
+          break;
+        }
+        val = tparse_token_u32(&tp);
+        if (val == -1) {
+          uart_reply("ERROR: invalid value\n");
+          break;
+        }
+        gpio_set(port, pin, val);
+        uart_reply("OK:\n");
+        break;
+      case __COUNTER__:
+        // GPI
+        port = tparse_token_u32(&tp);
+        if (port > 7) {
+          uart_reply("ERROR: invalid port\n");
+          break;
+        }
+        pin = tparse_token_u32(&tp);
+        if (pin > 15) {
+          uart_reply("ERROR: invalid pin\n");
+          break;
+        }
+        val = gpio_get(port, pin);
+        uart_reply("OK:");
+        val = val?1:0;
+        uart_reply_hex((uint8_t*)&val, 1);
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // ATR
+        len = iso_powercycle(tmp, sizeof(tmp));
+        if (len < 2) {
+          iso_power_down();
+          uart_reply("ERROR: no card detected\n");
+          break;
+        }
+        uart_reply("OK:");
+        uart_reply_hex(tmp, len);
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // OFF
+        iso_power_down();
+        uart_reply("OK:\n");
+        break;
+      case __COUNTER__:
+        // info
+        uart_reply("INFO:");
+        len = tparse_token_hex(&tp, tmp, sizeof(tmp));
+        if (len) {
+          uart_reply_hex(tmp, len);
+          uart_reply(",");
+        }
+        uart_reply("VERSION=0.1\n");
+        break;
+      case __COUNTER__:
+        // ON
+        iso_gnd(0);
+        uart_reply("OK:\n");
+        break;
+      case __COUNTER__:
+        // i2ciwait
+        len = uwTick + 30*TIMEOUT_1S;
+        // until timeout
+        for(;;) {
+          if ((uwTick - len) < 0x80000000UL) {
+            uart_reply("TIMEOUT:\n");
+            break;
+          }
 #ifdef I2C_FLAG_EXTI
-				  if (i2c_consume_int()) {
+          if (i2c_consume_int()) {
 #else // I2C_FLAG_EXTI
-					if (!gpio_get(0, 6)) {
+          if (!gpio_get(0, 6)) {
 #endif // I2C_FLAG_EXTI
-					  uart_reply("OK:\n");
-					  break;
-				  }
-			  }
-			  break;
-		  case 12:
-			  // I2C scan
-			  len = 0;
-			  uart_reply("OK:");
-			  while (len<256) {
-				  if (i2c_strobe(len)) {
-					  uart_reply("0x");
-					  uart_reply_hex((uint8_t*)&len, 1);
-					  uart_reply(",");
-				  }
-				  len+=2; // skip the READ address each time
-			  }
-			  uart_reply("\n");
-			  break;
-		  case 13:
-			  uart_reply("OK:\n");
-			  LL_mDelay(10);
-			  NVIC_SystemReset();
-		  }
-		  // discard any remnant of the processed line
-		  tparse_discard_line(&tp);
-	  }
+            uart_reply("OK:\n");
+            break;
+          }
+        }
+        break;
+      case __COUNTER__:
+        // I2C scan
+        len = 0;
+        uart_reply("OK:");
+        while (len<256) {
+          if (i2c_strobe(len)) {
+            uart_reply("0x");
+            uart_reply_hex((uint8_t*)&len, 1);
+            uart_reply(",");
+          }
+          len+=2; // skip the READ address each time
+        }
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // reset
+        uart_reply("OK:\n");
+        LL_mDelay(10);
+        NVIC_SystemReset();
+        break;
+      case __COUNTER__:
+        // can tx
+        val = tparse_token_u32(&tp); // id
+        // Standard/Extended
+        if (1 != tparse_token(&tp, tmp, 1)) {
+        error_can_style:
+          uart_reply("ERROR: invalid Standard/Extended indication\n");
+          break;
+        } 
+        switch(tmp[0]) {
+          case 'E':
+          case 'e':
+            ts = 29;
+            break;
+          case 'S':
+          case 's':
+            ts = 11;
+            break;
+          default:
+            goto error_can_style;
+        }
+        len = tparse_token_hex(&tp, tmp, sizeof(tmp));
+        if (len > 8) {
+          uart_reply("ERROR: invalid frame len (max 8 bytes)\n");
+          break;
+        }
+        ts = can_tx(val, ts, tmp, len);
+        if (len != ts) {
+          uart_reply("ERROR: CAN transmit failed,");
+          uart_reply_hex(&ts,4);
+          uart_reply("\n");
+          break;
+        }
+        uart_reply("OK:\n");
+        break;
+      case __COUNTER__:
+        // can rx
+        len = can_fifo_rx(&addr, &ts, tmp, sizeof(tmp));
+        if (ts == 0) {
+          uart_reply("ERROR: no frame available\n");
+          break;
+        }
+        uart_reply("OK:");
+        addr = __bswap_32(addr); // change endianess (LE cpu => BE uart)
+        uart_reply_hex(&addr, 4);
+        switch(ts) {
+          case 11:
+            uart_reply(",s,");
+            break;
+          case 29:
+            uart_reply(",e,");
+            break;
+          default:
+            uart_reply(",U,");
+            break;
+        }
+        uart_reply_hex(tmp, len);
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // can available
+        len = can_fifo_avail();
+        uart_reply("OK:");
+        uart_reply_hex(&len, 1);
+        uart_reply("\n");
+        break;
+      case __COUNTER__:
+        // can config
+        val = tparse_token_u32(&tp);
+        if (val > SystemCoreClock/4) {
+          uart_reply("ERROR: invalid frequency parameter\n");
+          break;
+        }
+        Configure_CAN(val, 0);
+        uart_reply("OK:\n");
+        break;
+      }
+      // discard any remnant of the processed line
+      tparse_discard_line(&tp);
+    }
   }
 }
 
@@ -549,27 +801,22 @@ void Configure_USART(void)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
 
   LL_DMA_ConfigTransfer(DMA1, LL_DMA_CHANNEL_6,
-						LL_DMA_DIRECTION_PERIPH_TO_MEMORY |
-						LL_DMA_PRIORITY_HIGH              |
-						LL_DMA_MODE_CIRCULAR              |
-						LL_DMA_PERIPH_NOINCREMENT         |
-						LL_DMA_MEMORY_INCREMENT           |
-						LL_DMA_PDATAALIGN_BYTE            |
-						LL_DMA_MDATAALIGN_BYTE);
+            LL_DMA_DIRECTION_PERIPH_TO_MEMORY |
+            LL_DMA_PRIORITY_HIGH              |
+            LL_DMA_MODE_CIRCULAR              |
+            LL_DMA_PERIPH_NOINCREMENT         |
+            LL_DMA_MEMORY_INCREMENT           |
+            LL_DMA_PDATAALIGN_BYTE            |
+            LL_DMA_MDATAALIGN_BYTE);
   LL_DMA_ConfigAddresses(DMA1, LL_DMA_CHANNEL_6,
-						 LL_USART_DMA_GetRegAddr(USART2, LL_USART_DMA_REG_DATA_RECEIVE),
-						 (uint32_t)uart_buffer,
-						 LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_CHANNEL_6));
+             LL_USART_DMA_GetRegAddr(USART2, LL_USART_DMA_REG_DATA_RECEIVE),
+             (uint32_t)uart_buffer,
+             LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_CHANNEL_6));
   LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_6, sizeof(uart_buffer));
   LL_DMA_SetPeriphRequest(DMA1, LL_DMA_CHANNEL_6, LL_DMA_REQUEST_2);
 
   /* Enable DMA Channel Rx */
   LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_6);
-
-  /* (1) Enable GPIO clock and configures the USART pins **********************/
-
-  /* Enable the peripheral clock of GPIO Port */
-  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
 
   /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
@@ -583,7 +830,7 @@ void Configure_USART(void)
   LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_3, LL_GPIO_AF_7);
   LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_3, LL_GPIO_SPEED_FREQ_HIGH);
   LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_3, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_3, LL_GPIO_PULL_UP);
+  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_3, LL_GPIO_PULL_NO);
 
   /* (2) Enable USART2 peripheral clock and clock source ****************/
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
@@ -633,54 +880,51 @@ void Configure_USART(void)
 }
 
 void Configure_I2C(void) {
-	LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
-	LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C1);
 
-	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C1);
+  LL_RCC_SetI2CClockSource(LL_RCC_I2C1_CLKSOURCE_SYSCLK);
 
-	LL_RCC_SetI2CClockSource(LL_RCC_I2C1_CLKSOURCE_SYSCLK);
+  /* Disable prior modifying configuration registers */
+  LL_I2C_Disable(I2C1);
 
-	/* Disable prior modifying configuration registers */
-	LL_I2C_Disable(I2C1);
+  /* Timing register value is computed with the STM32CubeMX Tool,
+    * Standard Mode @100kHz with I2CCLK = 16 MHz,
+    * rise time = 50ns, fall time = 10ns
+    * Timing Value = (uint32_t)0x0020098E
+    */
+  #define I2C_TIMING                 __LL_I2C_CONVERT_TIMINGS(0x0, 0xF, 0x0, 0x2B, 0x86)
 
-	/* Timing register value is computed with the STM32CubeMX Tool,
-	  * Standard Mode @100kHz with I2CCLK = 16 MHz,
-	  * rise time = 50ns, fall time = 10ns
-	  * Timing Value = (uint32_t)0x0020098E
-	  */
-	#define I2C_TIMING                 __LL_I2C_CONVERT_TIMINGS(0x0, 0xF, 0x0, 0x2B, 0x86)
+  /* Configure the SDA setup, hold time and the SCL high, low period */
+  /* (uint32_t)0x0020098E = I2C_TIMING*/
+  LL_I2C_SetTiming(I2C1, I2C_TIMING);
 
-	/* Configure the SDA setup, hold time and the SCL high, low period */
-	/* (uint32_t)0x0020098E = I2C_TIMING*/
-	LL_I2C_SetTiming(I2C1, I2C_TIMING);
-
-	/* INT PA6 (D12)*/
-	LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_INPUT);
-	LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
-	LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_6, LL_GPIO_PULL_UP);
-	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
+  /* INT PA6 (D12)*/
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_INPUT);
+  LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_6, LL_GPIO_PULL_UP);
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
 #ifdef I2C_FLAG_EXTI
-	LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTA, LL_EXTI_LINE_6);
-	LL_EXTI_EnableFallingTrig_0_31(LL_EXTI_LINE_6);
-	LL_EXTI_EnableIT_0_31(LL_EXTI_LINE_6);
-	NVIC_EnableIRQ(EXTI9_5_IRQn);
+  LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTA, LL_EXTI_LINE_6);
+  LL_EXTI_EnableFallingTrig_0_31(LL_EXTI_LINE_6);
+  LL_EXTI_EnableIT_0_31(LL_EXTI_LINE_6);
+  NVIC_EnableIRQ(EXTI9_5_IRQn);
 #endif // I2C_FLAG_EXTI
 
-	/* SDA PB9 (D14) */
-	LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
-	LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_9, LL_GPIO_AF_4);
-	LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_HIGH);
-	LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN);
-	LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_9, LL_GPIO_PULL_UP);
+  /* SDA PB9 (D14) */
+  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_9, LL_GPIO_AF_4);
+  LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN);
+  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_9, LL_GPIO_PULL_UP);
 
-	/* SCL PB8 (D15) */
-	LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
-	LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_8, LL_GPIO_AF_4);
-	LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_8, LL_GPIO_SPEED_FREQ_HIGH);
-	LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_OPENDRAIN);
-	LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_8, LL_GPIO_PULL_UP);
+  /* SCL PB8 (D15) */
+  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_8, LL_GPIO_AF_4);
+  LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_8, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_OPENDRAIN);
+  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_8, LL_GPIO_PULL_UP);
 
-	LL_I2C_Enable(I2C1);
+  LL_I2C_Enable(I2C1);
 }
 
 void Configure_ISO(void)
@@ -690,17 +934,17 @@ void Configure_ISO(void)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
 
   LL_DMA_ConfigTransfer(DMA1, LL_DMA_CHANNEL_5,
-						LL_DMA_DIRECTION_PERIPH_TO_MEMORY |
-						LL_DMA_PRIORITY_HIGH              |
-						LL_DMA_MODE_CIRCULAR              |
-						LL_DMA_PERIPH_NOINCREMENT         |
-						LL_DMA_MEMORY_INCREMENT           |
-						LL_DMA_PDATAALIGN_BYTE            |
-						LL_DMA_MDATAALIGN_BYTE);
+            LL_DMA_DIRECTION_PERIPH_TO_MEMORY |
+            LL_DMA_PRIORITY_HIGH              |
+            LL_DMA_MODE_CIRCULAR              |
+            LL_DMA_PERIPH_NOINCREMENT         |
+            LL_DMA_MEMORY_INCREMENT           |
+            LL_DMA_PDATAALIGN_BYTE            |
+            LL_DMA_MDATAALIGN_BYTE);
   LL_DMA_ConfigAddresses(DMA1, LL_DMA_CHANNEL_5,
-						 LL_USART_DMA_GetRegAddr(USART1, LL_USART_DMA_REG_DATA_RECEIVE),
-						 (uint32_t)iso_buffer,
-						 LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_CHANNEL_5));
+             LL_USART_DMA_GetRegAddr(USART1, LL_USART_DMA_REG_DATA_RECEIVE),
+             (uint32_t)iso_buffer,
+             LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_CHANNEL_5));
   LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_5, sizeof(iso_buffer));
   LL_DMA_SetPeriphRequest(DMA1, LL_DMA_CHANNEL_5, LL_DMA_REQUEST_2);
 
@@ -708,13 +952,6 @@ void Configure_ISO(void)
   LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_5);
 
   LL_USART_Disable(USART1);
-
-  /* (1) Enable GPIO clock and configures the USART pins **********************/
-
-  /* Enable the peripheral clock of GPIO Port */
-  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
-  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
-  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
 
   /* Configure Rx/Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
@@ -769,6 +1006,97 @@ void Configure_ISO(void)
   /* Enable DMA RX Interrupt */
   LL_USART_EnableDMAReq_RX(USART1);
 }
+
+#ifdef CAN
+void Configure_CAN(uint32_t frequency, uint32_t auto_retransmit) {
+
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_CAN1);
+
+  // Wipe CAN peripheral, by u32
+  uint32_t* p = (uint32_t*)CAN;
+  size_t l = sizeof(CAN_TypeDef)/4;
+  while (l--) {
+    *p++ = 0;
+  }
+
+  CAN->MCR |= CAN_MCR_INRQ;
+  while(! (CAN->MSR & CAN_MSR_INAK));
+
+  switch(frequency) {
+    default:
+    case 500000:
+      CAN->BTR = 0x001c0009;
+      break;
+    case 1000000:
+      CAN->BTR = 0x001c0004;
+      break;
+    case 100000:
+      CAN->BTR = 0x001c0031;
+      break;
+  }
+
+  // leave sleep mode upon bus activity
+  CAN->MCR |= CAN_MCR_AWUM;
+
+  if (auto_retransmit) {
+    // retransmit after colliding frame has ended
+    CAN->MCR &= ~CAN_MCR_NART;
+  }
+  else {
+    CAN->MCR |= CAN_MCR_NART; 
+  }
+
+  // fifo lock after reception to avoid overrun
+  CAN->MCR |= CAN_MCR_RFLM;
+
+  // init any mask to receive everything from the bus
+  CAN->FMR |= CAN_FMR_FINIT;
+
+  // 16 bits matchall
+  CAN->FA1R &= ~CAN_FA1R_FACT0;
+  CAN->FM1R &= ~CAN_FM1R_FBM0;
+  CAN->FS1R &= ~CAN_FS1R_FSC0;
+  CAN->FFA1R &= ~CAN_FFA1R_FFA0;
+  CAN->sFilterRegister[0].FR1 = 0;
+  CAN->sFilterRegister[0].FR2 = 0;
+  CAN->FA1R |= CAN_FA1R_FACT0;
+
+  // 32 bits matchall
+  CAN->FA1R &= ~CAN_FA1R_FACT1;
+  CAN->FM1R &= ~CAN_FM1R_FBM1;
+  CAN->FS1R |= CAN_FS1R_FSC1;
+  CAN->FFA1R &= ~CAN_FFA1R_FFA1;
+  CAN->sFilterRegister[1].FR1 = 0;
+  CAN->sFilterRegister[1].FR2 = 0; 
+  CAN->FA1R |= CAN_FA1R_FACT1;
+
+  CAN_IRQHandler_init();
+
+  // interrupt on fifo entry
+  CAN->IER |= CAN_IER_FMPIE0 | CAN_IER_FMPIE1;
+
+  CAN->FMR &= ~CAN_FMR_FINIT;
+
+  // CAN RX
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_11, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_11, LL_GPIO_AF_9);
+  LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_11, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_11, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_11, LL_GPIO_PULL_NO);
+  // CAN TX 
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_12, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_12, LL_GPIO_AF_9);
+  LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_12, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_12, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_12, LL_GPIO_PULL_NO);
+
+  NVIC_EnableIRQ(CAN1_RX0_IRQn);
+  NVIC_EnableIRQ(CAN1_RX1_IRQn);
+
+  // enter normal mode
+  CAN->MCR &= ~CAN_MCR_INRQ;
+} 
+#endif // CAN
 
 /**
   * @brief  System Clock Configuration
@@ -836,6 +1164,10 @@ int main(void)
   /* Configure the system clock to 80 MHz */
   SystemClock_Config();
 
+  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
+  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
+  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
+
   /* Configure USARTx (USART IP configuration and related GPIO initialization) */
   Configure_USART();
 
@@ -843,9 +1175,13 @@ int main(void)
 
   Configure_ISO();
 
+#ifdef CAN
+  Configure_CAN(500000, 0);
+#endif // CAN
+
   /* Infinite loop */
   while (1)
   {
-	  interp();
+    interp();
   }
 }

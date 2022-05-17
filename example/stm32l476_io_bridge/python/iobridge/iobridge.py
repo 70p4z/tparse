@@ -100,14 +100,14 @@ class IOBridge(UsartIface):
 		rep = self.exchange("cavail")
 		return int(rep, 16)
 	#Return CAN identifier, CAN identifier kind, CAN frame data
-	def can_rx():
+	def can_rx(self):
 		packet = self.exchange("crx")
 		packetfield = packet.split(",")
-		return binascii.unhexlify(packetfield[0]), packetfield[1], binascii.unhexlify(packetfield[2])
-	def can_tx(cid, cidkind, data):
-		if cidkind == 'extended' or cidkind == 'ex' or cidkind == 'x' or cidkind == "29":
+		return int(packetfield[0], 16), packetfield[1], binascii.unhexlify(packetfield[2])
+	def can_tx(self, cid, cidkind, data):
+		if cidkind == 'extended' or cidkind == 'e' or cidkind == 'ex' or cidkind == 'x' or cidkind == "29":
 			cidkind = 'e'
-		elif cidkind == 'standard' or cidkind == 'std' or cidkind == '11': 
+		elif cidkind == 'standard' or cidkind == 's' or cidkind == 'std' or cidkind == '11': 
 			cidkind = 's'
 		else:
 			raise IOBridgeException()

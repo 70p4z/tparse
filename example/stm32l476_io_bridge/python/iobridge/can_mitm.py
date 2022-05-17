@@ -34,7 +34,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description="CAN bus man-in-the-middle example")
 	parser.add_argument("--port", default="/dev/ttyACM0", help="""Serial interface to use""")
 	parser.add_argument("--baudrate", default="921600", help="IOBridge USART speed", type=auto_int)
-	parser.add_argument("--port2", default="/dev/ttyACM0", help="""Serial interface to use""")
+	parser.add_argument("--port2", default="/dev/ttyACM1", help="""Serial interface to use""")
 	parser.add_argument("--baudrate2", default="921600", help="IOBridge USART speed", type=auto_int)
 	args = parser.parse_args()
 
@@ -49,6 +49,7 @@ if __name__ == '__main__':
 		try:
 			if iob.can_available() > 0:
 				cid, cidkind, data = iob.can_rx()
+				print("< " + hex(cid) + " " + cidkind + " " + binascii.hexlify(data).decode("utf8"))
 				iob2.can_tx(cid, cidkind, data)
 		except IOBridgeException as e:
 			traceback.print_exc()
@@ -57,6 +58,7 @@ if __name__ == '__main__':
 		try:
 			if iob2.can_available() > 0:
 				cid, cidkind, data = iob2.can_rx()
+				print("> " + hex(cid) + " " + cidkind + " " + binascii.hexlify(data).decode("utf8"))
 				iob.can_tx(cid, cidkind, data)
 		except IOBridgeException as e:
 			traceback.print_exc()

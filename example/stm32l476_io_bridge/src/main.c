@@ -35,7 +35,7 @@
 
 /* Private functions ---------------------------------------------------------*/
 
-char uart_buffer[33];
+char uart_buffer[32+512];
 uint8_t tmp[300];
 char iso_buffer[MAX(256+2, 5+255)]; // max T=0 command/responselength
 size_t iso_offset_read;
@@ -517,9 +517,7 @@ void interp(void) {
     };
     len = tparse_has_line(&tp);
     if (len) {
-      volatile tparse_ctx_t tpcopy;
       ts = sizeof(tmp);
-      memmove(&tpcopy, &tp, sizeof(tp));
       cmd = tparse_token_in(&tp, (char**)cmds, sizeof(cmds)/sizeof(cmds[0]), (char*)tmp, &ts);
       switch (cmd) {
       default:

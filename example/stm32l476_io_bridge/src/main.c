@@ -442,6 +442,8 @@ void CAN1_RX0_IRQHandler(void) {
   if (can_fifo_rx_size >= CAN_FIFO_RX_ENTRY_COUNT) {
     // consume received frame, no FIFO space to store it
     can_rx(NULL, NULL, NULL, 0);
+    // discard
+    return;
   }
   // consume in 0, append at the end
   size_t entry = can_fifo_rx_size++;

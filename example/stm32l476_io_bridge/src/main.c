@@ -544,16 +544,31 @@ void interp(void) {
           break;
         }
         len = MIN(len, sizeof(tmp));
-        val = i2c_read(addr, tmp, len);
-        if (len != val) {
-          uart_reply("ERROR: not all bytes read: ");
-          uart_reply_hex((uint8_t*)&val, 4);
-          uart_reply("\n");
-          break;
+        ts = uwTick + 30*TIMEOUT_1S;
+        // until timeout
+        for(;;) {
+          if ((uwTick - ts) < 0x80000000UL) {
+            uart_reply("TIMEOUT:\n");
+            break;
+          }
+#ifdef I2C_FLAG_EXTI
+          if (i2c_consume_int()) {
+#else // I2C_FLAG_EXTI
+          if (!gpio_get(0, 9)) {
+#endif // I2C_FLAG_EXTI
+            val = i2c_read(addr, tmp, len);
+            if (len != val) {
+              uart_reply("ERROR: not all bytes read: ");
+              uart_reply_hex((uint8_t*)&val, 4);
+              uart_reply("\n");
+              break;
+            }
+            uart_reply("OK:");
+            uart_reply_hex(tmp, len);
+            uart_reply("\n");
+            break;
+          }
         }
-        uart_reply("OK:");
-        uart_reply_hex(tmp, len);
-        uart_reply("\n");
         break;
       case __COUNTER__:
         // I2C write

@@ -49,7 +49,7 @@ const struct {
   {0, 13}, // STLINK SWD
   {0, 14}, // STLINK SWD
   //(0, 5),  // ISO SWP         (D13) =1 at boot, mutable by UART
-  {0, 6},  // I2C INT         (D12)
+  //{0, 6},  // I2C INT         (D12)
   {0, 8},  // ISO CLK         (D7)
   {0, 9},  // ISO IO          (D8)
   {1, 6},  // ISO GND         (D10) (SE POWER)
@@ -207,7 +207,7 @@ uint32_t i2c_consume_int(void) {
   // don't use EXTI->PRx register to avoid race condition
   // between read and clear and a external set
   uint32_t flag = i2c_i_flag;
-  if (! flag && !gpio_get(0, 6)) {
+  if (! flag && !gpio_get(0, 9)) {
     // it sounds like we missed the EXTI !!
     flag = 1;
   }
@@ -598,7 +598,7 @@ void interp(void) {
 #ifdef I2C_FLAG_EXTI
         uart_reply_hex((uint8_t*)(i2c_consume_int()?&"\x01":&"\x00"), 1);
 #else // I2C_FLAG_EXTI
-        uart_reply_hex((uint8_t*)(!gpio_get(0, 6)?&"\x01":&"\x00"), 1);
+        uart_reply_hex((uint8_t*)(!gpio_get(0, 9)?&"\x01":&"\x00"), 1);
 #endif // I2C_FLAG_EXTI
         uart_reply("\n");
         break;
@@ -684,7 +684,7 @@ void interp(void) {
 #ifdef I2C_FLAG_EXTI
           if (i2c_consume_int()) {
 #else // I2C_FLAG_EXTI
-          if (!gpio_get(0, 6)) {
+          if (!gpio_get(0, 9)) {
 #endif // I2C_FLAG_EXTI
             uart_reply("OK:\n");
             break;
@@ -1150,8 +1150,7 @@ void SystemClock_Config(void)
   /* This frequency can be calculated through LL RCC macro */
   /* ex: __LL_RCC_CALC_PLLCLK_FREQ(__LL_RCC_CALC_MSI_FREQ(LL_RCC_MSIRANGESEL_RUN, LL_RCC_MSIRANGE_6),
                                   LL_RCC_PLLM_DIV_1, 40, LL_RCC_PLLR_DIV_2)*/
-  LL_Init1msTick(SystemCoreClock);
-  SysTick_Config(SystemCoreClock/1000);
+  SysTick_Config(80000000/1000);
 }
 
 /**

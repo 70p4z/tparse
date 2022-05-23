@@ -333,7 +333,14 @@ void iso_usart_send(const uint8_t* buffer, size_t length) {
 size_t can_tx(uint32_t id, size_t id_bitlen, uint8_t *frame, size_t frame_len) {
   // no free slot?
   if (!(CAN->TSR&(CAN_TSR_TME0|CAN_TSR_TME1|CAN_TSR_TME2))) {
-    return -1;
+    // try to recover any previous transmission error
+    if (CAN->ESR&0xFF) {
+      CAN->TSR |= CAN_TSR_ABRQ0|CAN_TSR_ABRQ1|CAN_TSR_ABRQ2;
+      while(CAN->TSR&(CAN_TSR_ABRQ0|CAN_TSR_ABRQ1|CAN_TSR_ABRQ2));
+    }
+    if (!(CAN->TSR&(CAN_TSR_TME0|CAN_TSR_TME1|CAN_TSR_TME2))) { 
+      return -1;
+    }
   }
   uint8_t slot = (CAN->TSR & CAN_TSR_CODE) >>CAN_TSR_CODE_Pos;
   if (slot == 3) {

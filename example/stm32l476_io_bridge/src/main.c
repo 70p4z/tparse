@@ -29,6 +29,9 @@
       (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 #endif // __bswap_32
 
+//#define USART_BAUDRATE 921600
+#define USART_BAUDRATE 115200
+
 #define NO_TIMEOUT 0
 #define TIMEOUT_1S 1000
 #define CAN_FIFO_RX_ENTRY_COUNT 256
@@ -847,7 +850,7 @@ void Configure_USART(void)
   LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_3, LL_GPIO_AF_7);
   LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_3, LL_GPIO_SPEED_FREQ_HIGH);
   LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_3, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_3, LL_GPIO_PULL_NO);
+  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_3, LL_GPIO_PULL_UP);
 
   /* (2) Enable USART2 peripheral clock and clock source ****************/
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
@@ -882,7 +885,7 @@ void Configure_USART(void)
 
       In this example, Peripheral Clock is expected to be equal to 80000000 Hz => equal to SystemCoreClock
   */
-  LL_USART_SetBaudRate(USART2, SystemCoreClock, LL_USART_OVERSAMPLING_16, 921600);
+  LL_USART_SetBaudRate(USART2, SystemCoreClock, LL_USART_OVERSAMPLING_16, USART_BAUDRATE);
 
   /* (4) Enable USART2 **********************************************************/
   LL_USART_Enable(USART2);

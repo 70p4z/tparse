@@ -279,6 +279,7 @@ size_t tparse_token(tparse_ctx_t* ctx, char* buf, size_t len) {
 uint32_t tparse_token_in(tparse_ctx_t* ctx, char** tokens, size_t count, char* token_consumed, size_t* token_consumed_len_in_out) {
 	char* parts[2]; // when token is split due to circular mode
 	size_t sizes[2];
+	size_t entry=0;
 
 	if (token_consumed_len_in_out) {
 		*token_consumed_len_in_out=0;
@@ -289,19 +290,21 @@ uint32_t tparse_token_in(tparse_ctx_t* ctx, char** tokens, size_t count, char* t
 	while(count--) {
 		if (memcmp(tokens[count], parts[0], sizes[0]&~TPARSE_TOKEN_PART) == 0) {
 			if (strlen(tokens[count]) == sizes[0]) {
-				return count+1;
+				entry=count+1;
+				goto copy_consumed_token;
 			}
 			if (sizes[1] && memcmp(tokens[count]+sizes[0], parts[1], sizes[1]) == 0) {
 				if (strlen(tokens[count]) == sizes[0] + sizes[1]) {
-					return count+1;
+					entry=count+1;
+					goto copy_consumed_token;
 				}
 			}
 		}
 	}
+copy_consumed_token:
 	// if no match, then the first token is read and optionally returned.
 	if (token_consumed) {
-		count = MIN(sizes[0] + sizes[1], *token_consumed_len_in_out);
-		*token_consumed_len_in_out = count;
+		count = *token_consumed_len_in_out = MIN(sizes[0] + sizes[1], *token_consumed_len_in_out);
 		while (count && sizes[0]) {
 			count--;
 			sizes[0]--;
@@ -313,7 +316,7 @@ uint32_t tparse_token_in(tparse_ctx_t* ctx, char** tokens, size_t count, char* t
 			*token_consumed++ = *parts[1]++;
 		}
 	}
-	return 0;
+	return entry;
 }
 
 /**
@@ -382,7 +385,7 @@ size_t tparse_token_hex(tparse_ctx_t* ctx, uint8_t* buffer, size_t buffer_length
 /** 
  * Parse the next token as a uint32_t value (supporting decimal and hexadecimal encoding)
  */
-uint32_t tparse_token_u32(tparse_ctx_t* ctx) {
+uint32_t tparse_token_u32_base(tparse_ctx_t* ctx, uint32_t _base) {
 	char* parts[2]; // when token is split due to circular mode
 	size_t sizes[2];
 	size_t l = tparse_token_parts(ctx, parts, sizes);
@@ -392,7 +395,7 @@ uint32_t tparse_token_u32(tparse_ctx_t* ctx) {
 	}
 
 	uint32_t value=0;
-	uint8_t base=10;
+	uint8_t base=_base;
 	uint8_t c;
 	while (l--) {
 		// select source token part
@@ -443,4 +446,11 @@ uint32_t tparse_token_u32(tparse_ctx_t* ctx) {
 		len++;
 	}
 	return value;
+}
+
+/**
+ * Default base is 10
+ */
+uint32_t tparse_token_u32(tparse_ctx_t* ctx) {
+	return tparse_token_u32_base(ctx, 10);
 }

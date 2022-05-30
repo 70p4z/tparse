@@ -102,6 +102,11 @@ uint32_t tparse_token_in(tparse_ctx_t* ctx, char** tokens, size_t count, char* t
  */
 size_t tparse_token_hex(tparse_ctx_t* ctx, uint8_t* buffer, size_t buffer_length);
 
+/** 
+ * Parse the next token as a uint32_t value (supporting decimal and hexadecimal encoding)
+ */
+uint32_t tparse_token_u32_base(tparse_ctx_t* ctx, uint32_t _base);
+
 /**
  * Read next token as a uint32_t, decimal or hexadecimal encoded
  */

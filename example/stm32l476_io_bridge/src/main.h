@@ -27,6 +27,7 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
+#include "string.h"
 #include "stm32l4xx_hal.h"
 #include "stm32l4xx_ll_dma.h"
 #include "stm32l4xx_ll_gpio.h"
@@ -38,61 +39,57 @@ extern "C" {
 #include "stm32l4xx_ll_i2c.h"
 #include "stm32l4xx_ll_exti.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+#ifndef MAX
+#define MAX(x,y) ((x)>(y)?(x):(y))
+#endif // MAX
+#ifndef MIN
+#define MIN(x,y) ((x)<(y)?(x):(y))
+#endif // MIN
 
-/* USER CODE END Includes */
+#ifndef __bswap_32
+/* Swap bytes in 32 bit value.  */
+#define __bswap_32(x) \
+     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |                      \
+      (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
+#endif // __bswap_32
 
-/* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
+#define CPU_CLOCK 80000000
+#define USART_BAUDRATE 921600
+// #define USART_BAUDRATE 115200
 
-/* USER CODE END ET */
+#define NO_TIMEOUT 0
+#define TIMEOUT_1S 1000
+#define CAN_FIFO_RX_ENTRY_COUNT 256
 
-/* Exported constants --------------------------------------------------------*/
-/* USER CODE BEGIN EC */
+void Configure_USART2_USBVCP(void);
+void Configure_USART3(void);
+extern char uart_usbvcp_buffer[32+512];
+extern char uart3_buffer[32+512];
+void uart_send_mem(const void* _ptr, size_t len);
+void uart_send(const char* string);
+void uart_send_hex(const void* _buf, size_t len);
+void uart_select_intf(USART_TypeDef* usart);
+// rx is done through DMA, use the CNDTR value to detect were the data are
 
-/* USER CODE END EC */
+uint32_t gpio_get(uint32_t port, uint32_t pin);
+void gpio_set(uint32_t port, uint32_t pin, uint32_t value);
 
-/* Exported macro ------------------------------------------------------------*/
-/* USER CODE BEGIN EM */
+void Configure_I2C1(void);
+uint32_t i2c_strobe(uint32_t addr);
+size_t i2c_read(uint8_t addr, uint8_t* buf, size_t maxlen);
+size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len);
 
-/* USER CODE END EM */
+void Configure_CAN(uint32_t frequency, uint32_t auto_retransmit);
+#define CAN_ID_STANDARD_LEN 11
+#define CAN_ID_EXTENDED_LEN 29
+size_t can_fifo_avail(void);
+size_t can_fifo_rx(uint32_t * id, size_t * id_bitlen, uint8_t* frame, size_t frame_max_len);
+size_t can_tx(uint32_t id, size_t id_bitlen, uint8_t *frame, size_t frame_len);
 
-/* Exported functions prototypes ---------------------------------------------*/
-void Error_Handler(void);
+void Configure_USART1_ISO(void);
+#include "iso7816.h"
 
-/* USER CODE BEGIN EFP */
-
-/* USER CODE END EFP */
-
-/* Private defines -----------------------------------------------------------*/
-#define B1_Pin GPIO_PIN_13
-#define B1_GPIO_Port GPIOC
-#define USART_TX_Pin GPIO_PIN_2
-#define USART_TX_GPIO_Port GPIOA
-#define USART_RX_Pin GPIO_PIN_3
-#define USART_RX_GPIO_Port GPIOA
-#define LD2_Pin GPIO_PIN_5
-#define LD2_GPIO_Port GPIOA
-#define SE_GND_Pin GPIO_PIN_8
-#define SE_GND_GPIO_Port GPIOC
-#define SE_RST_Pin GPIO_PIN_9
-#define SE_RST_GPIO_Port GPIOC
-#define SE_CLK_Pin GPIO_PIN_8
-#define SE_CLK_GPIO_Port GPIOA
-#define SE_IO_Pin GPIO_PIN_9
-#define SE_IO_GPIO_Port GPIOA
-#define TMS_Pin GPIO_PIN_13
-#define TMS_GPIO_Port GPIOA
-#define TCK_Pin GPIO_PIN_14
-#define TCK_GPIO_Port GPIOA
-#define SWO_Pin GPIO_PIN_3
-#define SWO_GPIO_Port GPIOB
-#define I2C1_INT_Pin GPIO_PIN_5
-#define I2C1_INT_GPIO_Port GPIOB
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
+void interp(void);
 
 #ifdef __cplusplus
 }

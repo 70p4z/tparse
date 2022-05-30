@@ -101,9 +101,14 @@ if __name__ == '__main__':
 
   for line in sys.stdin:
     line = line.rstrip("\n").rstrip("\r")
-    data = i2c_exchange(iob, binascii.unhexlify(line), mtu, args.addr)
-    if data:
-      print(binascii.hexlify(data).decode("utf8"))
+    # previous reply not consumed? do it now
+    if iob.i2c_is_interrupt():
+      i2c_exchange(iob, b'', mtu, args.addr)
+    data = binascii.unhexlify(line)
+    if data and len(data):
+      data = i2c_exchange(iob, binascii.unhexlify(line), mtu, args.addr)
+      if data:
+        print(binascii.hexlify(data).decode("utf8"))
 
   s.close()
   sys.stdout.flush()

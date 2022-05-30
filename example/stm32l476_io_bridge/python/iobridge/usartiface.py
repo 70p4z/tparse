@@ -21,12 +21,20 @@ import binascii
 import random
 
 class UsartIface:
+
+	def send_challenge(self):
+		try:
+			rng = binascii.hexlify(random.randbytes(4))
+		except:
+			rng = b'\x01\x02\x03\x04'
+		self.serial.write(b'\ninfo ' + rng + b'\n')
+		return rng
+
 	def __init__(self, serial):
 		self.serial = serial
 		# ungarble and flush incoming data
-		rng = binascii.hexlify(random.randbytes(4))
-		self.serial.write(b'\ninfo ' + rng + b'\n')
+		lastrng = rng = self.send_challenge()
 		while True:
 			l = self.serial.readline()
-			if l.startswith(b'INFO:' + rng):
+			if l.startswith(b'INFO:' + rng) or l.startswith(b'INFO:' + lastrng):
 				break;

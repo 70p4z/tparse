@@ -86,12 +86,14 @@ class IOBridge(UsartIface):
 		self.exchange("off")
 	def on(self):
 		self.exchange("on")
-	def i2c_write(self, addr, data):
-		return self.exchange("i2cw " + hex(addr) + " " + binascii.hexlify(data).decode("utf8"))
-	def i2c_read(self, addr, maxlen):
-		return binascii.unhexlify(self.exchange("i2cr " + hex(addr) + " " + hex(maxlen)))
+	def i2c_write(self, addr, data, retry=5):
+		return self.exchange("i2cw " + hex(addr) + " " + binascii.hexlify(data).decode("utf8") + " " + hex(retry))
+	def i2c_read(self, addr, maxlen, retry=5):
+		return binascii.unhexlify(self.exchange("i2cr " + hex(addr) + " " + hex(maxlen) + " " + hex(retry)))
 	def i2c_wait_interrupt(self):
 		self.exchange("i2ciwait")
+	def i2c_is_interrupt(self, port=0, pin=9):
+		return self.exchange("gpi " + hex(port) + " " + hex(pin)) != "01"
 	def gpio_set(self, port, pin, state):
 		self.exchange("gpo " + hex(port) + " " + hex(pin) + " " + hex(state))
 	def gpio_get(self, port, pin):

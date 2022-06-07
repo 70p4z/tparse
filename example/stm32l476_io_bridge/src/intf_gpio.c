@@ -41,7 +41,19 @@ void gpio_set(uint32_t port, uint32_t pin, uint32_t value) {
 }
 
 uint32_t gpio_get(uint32_t port, uint32_t pin) {
-  // no reserved pin for reading
   GPIO_TypeDef* GPIO = (GPIO_TypeDef*)((uintptr_t)GPIOA_BASE + 0x400*port);
-  return GPIO->IDR & (1<<pin);
+  uint32_t PIN = 1<<pin;
+again:
+  // no reserved pin for reading
+  switch(LL_GPIO_GetPinMode(GPIO, PIN)) {
+    case LL_GPIO_MODE_OUTPUT:
+    case LL_GPIO_MODE_INPUT:
+    case LL_GPIO_MODE_ALTERNATE:
+      break;
+    default:
+      // in analog mode, schmitt trigger is not enabled to save power.
+      LL_GPIO_SetPinMode(GPIO, PIN, LL_GPIO_MODE_INPUT);
+      goto again;
+  }
+  return GPIO->IDR & PIN;
 }

@@ -65,8 +65,8 @@ class IOBridge(UsartIface):
 			self.logger.debug("<"+rline)
 		reply = rline.split(':')[1]
 		return reply
-	def atr(self):
-		return binascii.unhexlify(self.exchange("atr"))
+	def atr(self, ta1=0):
+		return binascii.unhexlify(self.exchange("atr " + hex(ta1)))
 	def apdu_t0(self, capdu):
 		rbin = binascii.unhexlify(self.exchange("t0 " + binascii.hexlify(capdu).decode("utf8")))
 		# decode status words
@@ -82,6 +82,8 @@ class IOBridge(UsartIface):
 					self.logger.error("       RAPDU:" + rline.decode('utf8'))
 				raise IOBridgeException()
 		return rbin
+	def isocfg(self, smartcard_clock_hz):
+		self.exchange("isocfg " + hex(smartcard_clock_hz))
 	def off(self):
 		self.exchange("off")
 	def on(self):

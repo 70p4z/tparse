@@ -4,6 +4,7 @@
 #include "stdint.h"
 
 size_t iso_powercycle(uint8_t* atr, size_t atr_max_len);
+size_t iso_powercycle_TA_1(uint8_t* atr, size_t atr_max_len, uint32_t TA_1);
 void iso_power_down(void);
 size_t iso_apdu_t0(uint8_t* apdu, size_t length);
 

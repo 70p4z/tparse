@@ -138,8 +138,8 @@ void Configure_I2C1(void) {
     * rise time = 50ns, fall time = 10ns
     * Timing Value = (uint32_t)0x0020098E
     */
-  // #define I2C_TIMING                 __LL_I2C_CONVERT_TIMINGS(0x0, 0xF, 0x0, 0x2B, 0x86)
-  #define I2C_TIMING            0x00200720 // 1mbps
+  #define I2C_TIMING                 __LL_I2C_CONVERT_TIMINGS(0x0, 0xF, 0x0, 0x2B, 0x86)
+  //#define I2C_TIMING            0x00200720 // 1mbps
   // #define I2C_TIMING            0x00200F33
 
   /* Configure the SDA setup, hold time and the SCL high, low period */

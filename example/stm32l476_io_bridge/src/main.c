@@ -85,6 +85,7 @@ __attribute__((weak)) void interp(void) {
           "info", "on", "i2ciwait", "i2cscan",
           "reset",
           "ctx", "crx", "cavail", "ccfg",
+          "i2cfg", "isocfg",
       };
       cmd = tparse_token_in(tp, (char**)cmds, sizeof(cmds)/sizeof(cmds[0]), (char*)tmp, &ts);
       switch (cmd) {
@@ -231,7 +232,12 @@ __attribute__((weak)) void interp(void) {
         break;
       case __COUNTER__:
         // ATR
-        len = iso_powercycle(tmp, sizeof(tmp));
+        val = 0;
+        // fixed TA provided?
+        if (tparse_token_size(tp)) {
+          val = tparse_token_u32(tp);
+        }
+        len = iso_powercycle_TA_1(tmp, sizeof(tmp), val);
         if (len < 2) {
           iso_power_down();
           uart_send("ERROR: no card detected\n");
@@ -374,6 +380,20 @@ __attribute__((weak)) void interp(void) {
           break;
         }
         Configure_CAN(val, 0);
+        uart_send("OK:\n");
+        break;
+      case __COUNTER__:
+        // i2cfg
+        val = tparse_token_u32(tp);
+        // TODO
+        break;
+      case __COUNTER__:
+        // isocfg
+        val = 0;
+        if (tparse_token_size(tp)) {
+          val = tparse_token_u32(tp);
+        }
+        Configure_USART1_ISO_CLK(val);
         uart_send("OK:\n");
         break;
       }

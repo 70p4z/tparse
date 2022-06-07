@@ -90,7 +90,7 @@ void iso_usart_send(const uint8_t* buffer, size_t length) {
   }
 }
 
-void Configure_USART1_ISO(void)
+void Configure_USART1_ISO_CLK(uint32_t smartcard_clock)
 {
   /* DMA1 used for USART2 Transmission and Reception
    */
@@ -152,9 +152,11 @@ void Configure_USART1_ISO(void)
   LL_USART_SetRxTimeout(USART1, 0); // done in iso_recv
   LL_USART_EnableOneBitSamp(USART1);
   LL_USART_EnableSmartcard(USART1);
-#define SC_CLOCK 5000000
-#define PRESC (SystemCoreClock/2/(SC_CLOCK))
-  LL_USART_SetSmartcardPrescaler(USART1, PRESC);
+  // default clock when none provided
+  if (smartcard_clock == 0) {
+    smartcard_clock = 5000000;
+  }
+  LL_USART_SetSmartcardPrescaler(USART1, (SystemCoreClock/2/(smartcard_clock)));
   SET_BIT(USART1->CR2, USART_CR2_CLKEN); //LL_USART_ConfigSyncMode(USART1); // thanks ST, it's clearing the SCEN, which is required to be set prior to setting CLKEN.
 
   USART1->ICR = 0xFFFFFFFF;
@@ -168,4 +170,9 @@ void Configure_USART1_ISO(void)
   }
   /* Enable DMA RX Interrupt */
   LL_USART_EnableDMAReq_RX(USART1);
+}
+
+void Configure_USART1_ISO(void) {
+  // use default clock
+  Configure_USART1_ISO_CLK(0);
 }

@@ -1,1 +1,1 @@
- env python -m pip install -e .
+ env python3 -m pip install -e .

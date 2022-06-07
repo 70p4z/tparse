@@ -54,8 +54,9 @@ extern "C" {
 #endif // __bswap_32
 
 #define CPU_CLOCK 80000000
-#define USART_BAUDRATE 921600
+//#define USART_BAUDRATE 921600
 // #define USART_BAUDRATE 115200
+#define USART_BAUDRATE 2000000 // 2Mbit/s seems to be the STLINK v2.1 limit for VCP
 
 #define NO_TIMEOUT 0
 #define TIMEOUT_1S 1000
@@ -87,6 +88,7 @@ size_t can_fifo_rx(uint32_t * id, size_t * id_bitlen, uint8_t* frame, size_t fra
 size_t can_tx(uint32_t id, size_t id_bitlen, uint8_t *frame, size_t frame_len);
 
 void Configure_USART1_ISO(void);
+void Configure_USART1_ISO_CLK(uint32_t smartcard_clock);
 #include "iso7816.h"
 
 void interp(void);

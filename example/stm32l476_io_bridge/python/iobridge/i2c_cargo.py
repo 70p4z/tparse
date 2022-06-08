@@ -34,6 +34,11 @@ def fragment(packet, mtu=128):
     to_split = to_split[mtu:]
   return f
 
+def i2c_write_packet(packet, iob, addr, mtu):
+  chunks = fragment(packet, mtu)
+  for c in chunks:
+    iob.i2c_write(addr, c)
+
 def cargo_size(rarray):
   if len(rarray) < 3:
     return 0
@@ -43,32 +48,38 @@ def reassemble(rarray):
   nb = cargo_size(rarray)
   if len(rarray) >= 3+nb:
     d = rarray[3:3+nb]
-    if rarray[0] == INS_CARGO:
-      return d
-    return None
+    #if rarray[0] == INS_CARGO:
+    return d
   return None
 
-
-def i2c_exchange(iob, data, mtu=256, addr=0x78):
-  # if no data, don't send :)
-  if data and len(data) > 0:
-    chunks = fragment(data, mtu)
-    for c in chunks:
-      iob.i2c_write(addr, c)
-  iob.i2c_wait_interrupt()
+def i2c_read_packet(iob, addr, mtu):
   rarray = iob.i2c_read(addr, 3)
   nb = cargo_size(rarray)
   while nb:
     si = min(nb, mtu)
     rarray += iob.i2c_read(addr, si)
     nb -= si
-  data = reassemble(rarray)
-  if data and data[0] == 0x80:
-    # check error
-    ret = struct.unpack_from(">BI", data)
-    if ret[1] != 0:
-      raise BaseException("Error %08X"  % ret[1])
-  return data
+  return reassemble(rarray)
+
+def i2c_exchange(iob, data, mtu=256, addr=0x78, error_as_exception=True):
+  # check if the I2C has already data to be retrieved
+  if iob.i2c_is_interrupt():
+    d = i2c_read_packet(iob, addr, mtu)
+    if not data or len(data) == 0:
+      return d
+  # if no data, don't send :)
+  if data and len(data) > 0:
+    i2c_write_packet(data, iob, addr, mtu)
+    iob.i2c_wait_interrupt()
+  if iob.i2c_is_interrupt():
+    data = i2c_read_packet(iob, addr, mtu)
+    if data and data[0] == 0x80:
+      # check error
+      ret = struct.unpack_from(">BI", data)
+      if ret[1] != 0 and error_as_exception:
+        raise BaseException("Error %08X"  % ret[1])
+    return data
+  return b''
 
 if __name__ == '__main__':
 

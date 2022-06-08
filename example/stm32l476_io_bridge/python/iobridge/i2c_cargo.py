@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser(description="Fragment STDIN packets as I2C CARGO frames, reassemble replies and print packets")
   parser.add_argument("--port", default="/dev/ttyACM0", help="""Serial interface to use""")
-  parser.add_argument("--baudrate", default="921600", help="IOBridge USART speed", type=auto_int)
+  parser.add_argument("--baudrate", default="2000000", help="IOBridge USART speed", type=auto_int)
   parser.add_argument("--addr", default="0x78", help="", type=auto_int)
   parser.add_argument("--mtu", default="255", help="", type=auto_int)
   parser.add_argument("--off", action="store_true")

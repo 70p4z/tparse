@@ -116,14 +116,14 @@ void Configure_USART1_ISO_CLK(uint32_t smartcard_clock)
 
   LL_USART_Disable(USART1);
 
-  /* Configure Rx/Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  /* Configure Clk Pin as : Alternate function, High Speed, Push pull, Pull up */
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
   LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_8, LL_GPIO_AF_7);
   LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_8, LL_GPIO_SPEED_FREQ_HIGH);
   LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_PUSHPULL);
   LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_8, LL_GPIO_PULL_UP);
 
-  /* Configure Clk Pin as : Alternate function, High Speed, Push pull, Pull up */
+  /* Configure Rx/Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
   LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_9, LL_GPIO_AF_7);
   LL_GPIO_SetPinSpeed(GPIOA, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_HIGH);

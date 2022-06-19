@@ -1,0 +1,4 @@
+ 
+DEFINES += MODE_FAKE_SOLAX
+
+include Makefile.solax_bms

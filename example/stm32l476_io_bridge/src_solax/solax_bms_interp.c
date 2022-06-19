@@ -12,6 +12,8 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 */
 #define BMS_RECONNECT_DELAY 20000
 
+#define BMS_FAKE_PING_INTERVAL_MS 1000
+
 #define SLAVE_TIMEOUT 100
 
 void master_log(char* buffer) {
@@ -106,6 +108,14 @@ void interp(void) {
   size_t len;
   uint32_t cid;
   size_t cid_bitlen;
+
+#ifdef MODE_FAKE_SOLAX
+  while (1) {
+    can_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
+    LL_mDelay(BMS_FAKE_PING_INTERVAL_MS);
+  }
+#endif // MODE_FAKE_SOLAX
+
   // interface with the slave nucleo
   tparse_ctx_t tp_u3;
   tparse_init(&tp_u3, uart3_buffer, sizeof(uart3_buffer), " \n:,");
@@ -116,6 +126,7 @@ void interp(void) {
   // sent ping to the BMS to wake it up at reset moment
   master_log_can("    >>> bms | ", 0x1871, 29, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
   slave_send("ctx 0x1871 e 0100010000000000\n");
+
   // will fetch reply before sending anything else
   slave_state = SLAVE_CTX_SENT;
   slave_cmd_timeout = uwTick + SLAVE_TIMEOUT;

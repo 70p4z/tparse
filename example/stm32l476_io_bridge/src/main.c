@@ -99,7 +99,7 @@ __attribute__((weak)) void interp(void) {
       case __COUNTER__:
         // I2C read
         addr = tparse_token_u32(tp);
-        if (addr > 0x7F || addr == -1) {
+        if (addr >= 0x100 || addr == -1) {
           uart_send("ERROR: invalid address\n");
           break;
         }
@@ -133,7 +133,7 @@ __attribute__((weak)) void interp(void) {
       case __COUNTER__:
         // I2C write
         addr = tparse_token_u32(tp);
-        if (addr > 0x7F || addr == -1) {
+        if (addr >= 0x100 || addr == -1) {
           uart_send("ERROR: invalid address\n");
           break;
         }

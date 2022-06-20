@@ -12,7 +12,7 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 */
 #define BMS_RECONNECT_DELAY 20000
 
-#define BMS_FAKE_PING_INTERVAL_MS 1000
+#define BMS_PING_INTERVAL_MS 1000
 
 #define SLAVE_TIMEOUT 100
 
@@ -105,6 +105,7 @@ void interp(void) {
   uint32_t forward;
   enum slave_state_e slave_state = SLAVE_IDLE;
   uint32_t slave_cmd_timeout;
+  uint32_t bms_ping_timeout;
   size_t len;
   uint32_t cid;
   size_t cid_bitlen;
@@ -112,7 +113,7 @@ void interp(void) {
 #ifdef MODE_FAKE_SOLAX
   while (1) {
     can_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
-    LL_mDelay(BMS_FAKE_PING_INTERVAL_MS);
+    LL_mDelay(BMS_PING_INTERVAL_MS);
   }
 #endif // MODE_FAKE_SOLAX
 
@@ -126,6 +127,7 @@ void interp(void) {
   // sent ping to the BMS to wake it up at reset moment
   master_log_can("    >>> bms | ", 0x1871, 29, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
   slave_send("ctx 0x1871 e 0100010000000000\n");
+  bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
 
   // will fetch reply before sending anything else
   slave_state = SLAVE_CTX_SENT;
@@ -184,8 +186,16 @@ void interp(void) {
     // check for messages from the bms
     switch(slave_state) {
       case SLAVE_IDLE:
-        slave_send("cavail\n");
-        slave_state = SLAVE_CAVAIL_SENT;
+        // time for a ping
+        if (uwTick - bms_ping_timeout < 0x80000000UL) {
+          slave_send("ctx 0x1871 e 0100010000000000\n");
+          slave_state = SLAVE_CTX_SENT;
+          bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
+        }
+        else {
+          slave_send("cavail\n");
+          slave_state = SLAVE_CAVAIL_SENT;
+        }
         slave_cmd_timeout = uwTick + SLAVE_TIMEOUT;
         __attribute__((fallthrough));
       case SLAVE_CAVAIL_SENT:
@@ -198,6 +208,10 @@ void interp(void) {
             slave_cmd_timeout = uwTick + SLAVE_TIMEOUT;
             goto case_SLAVE_CRX_SENT;
           }
+          // other reply ?
+          slave_state = SLAVE_IDLE;
+        }
+        else if (uwTick - slave_cmd_timeout < 0x80000000UL) {
           slave_state = SLAVE_IDLE;
         }
         break;

@@ -112,6 +112,9 @@ if __name__ == '__main__':
   time.sleep(args.bootdelay/1000)
   iob.on()
   time.sleep(args.bootdelay/1000)
+  if args.off:
+    # wait atr
+    iob.i2c_wait_interrupt()
 
   # TODO negociate MTU with the device
   mtu = args.mtu

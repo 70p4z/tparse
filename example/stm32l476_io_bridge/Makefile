@@ -5,6 +5,8 @@ ifeq ($(BUILD_DIR),)
 BUILD_DIR = build
 endif
 
+DEFINES += VERSION=\"0.3\"
+
 INCLUDE_PATH += CMSIS/Include 
 INCLUDE_PATH += CMSIS/Device/ST/STM32L4xx/Include 
 INCLUDE_PATH += src/ 

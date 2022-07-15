@@ -28,9 +28,33 @@ uint32_t tparse_al_time(void) {
   return uwTick; /* todo bind the systick count here */;
 }
 
+tparse_ctx_t tp_vcp;
+tparse_ctx_t tp_u3;
+
+tparse_ctx_t* tparse_check_command(void) {
+  tparse_finger(&tp_vcp, sizeof(uart_usbvcp_buffer) - DMA1_Channel6->CNDTR);
+  tparse_finger(&tp_u3, sizeof(uart3_buffer) - DMA1_Channel3->CNDTR);
+  uint32_t len;
+  tparse_ctx_t *tp = NULL;
+  uart_select_intf(USART2); // default to send on pc (for background tasks)
+  len = tparse_has_line(&tp_vcp);
+  if (len) {
+    tp = &tp_vcp;
+    uart_select_intf(USART2);
+  }
+  else {
+    len = tparse_has_line(&tp_u3);
+    if (len) {
+      uart_select_intf(USART3);
+      tp = &tp_u3;
+    }
+  }
+  return tp;
+}
+
 __attribute__((weak)) void interp(void) {
-  tparse_ctx_t tp_vcp;
-  tparse_ctx_t tp_u3;
+  uint32_t previous_sw;
+  uint8_t sw[2];
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -49,6 +73,8 @@ __attribute__((weak)) void interp(void) {
   uart_select_intf(USART2);
   uart_send("RESET:\n");
 
+  previous_sw=0; // no previous t0c
+
   while (1)
   {
     uint32_t cmd;
@@ -59,28 +85,14 @@ __attribute__((weak)) void interp(void) {
     uint32_t val;
     size_t ts;
 
-    tparse_finger(&tp_vcp, sizeof(uart_usbvcp_buffer) - DMA1_Channel6->CNDTR);
-    tparse_finger(&tp_u3, sizeof(uart3_buffer) - DMA1_Channel3->CNDTR);
-
-    tparse_ctx_t *tp = NULL;
-    uart_select_intf(USART2); // default to send on pc (for background tasks)
-    len = tparse_has_line(&tp_vcp);
-    if (len) {
-      tp = &tp_vcp;
-      uart_select_intf(USART2);
-    }
-    else {
-      len = tparse_has_line(&tp_u3);
-      if (len) {
-        uart_select_intf(USART3);
-        tp = &tp_u3;
-      }
-    }
+    tparse_ctx_t *tp = tparse_check_command();
 
     if (tp) {
       ts = sizeof(tmp);
       static const char * const cmds[] = {
-          "i2cr", "i2cw", "t0", "i2ci",
+          "i2cr", "i2cw", 
+          "t0", "t0c", "t0clast", 
+          "i2ci",
           "gpo", "gpi", "atr", "off",
           "info", "on", "i2ciwait", "i2cscan",
           "reset",
@@ -183,6 +195,53 @@ __attribute__((weak)) void interp(void) {
         uart_send("\n");
         break;
       case __COUNTER__:
+        // T0 APDU in cache (to allow for next APDU to be transferred while transferring to the SE)
+        len = tparse_token_hex(tp, tmp, sizeof(tmp));
+        if (len > 255+5 || len < 5) {
+          uart_send("ERROR: invalid T=0 apdu\n");
+          break;
+        }
+        if (len > 5 && len - 5 != tmp[4]) {
+          uart_send("ERROR: malformed apdu: ");
+          uart_send_hex(tmp, len);
+          uart_send("\n");
+          break;
+        }
+        if (previous_sw) {
+          uart_send("OK:");
+          uart_send_hex(sw, 2);
+          uart_send("\n");
+          previous_sw = 0;
+        }
+        else {
+          // fake reply to speedup
+          uart_send("OK:9000\n");
+        }
+        len = iso_apdu_t0(tmp, len);
+        if (len > 2) {
+          // won't be retained, error?
+          uart_send("ERROR: more than a SW returned, unsupported by t0c");
+          uart_send("\n");
+        }
+        if (len >= 2) {
+          memmove(sw, tmp+len-2, 2);
+          previous_sw = 1;
+        }
+        break;
+      case __COUNTER__:
+        // t0clast: retrieve the last t0c reply from the smartcard
+        if (previous_sw) {
+          uart_send("OK:");
+          uart_send_hex(sw, 2);
+          uart_send("\n");
+          previous_sw = 0;
+        }
+        else {
+          uart_send("ERROR: last SW already returned or t0c not used");
+          uart_send("\n");
+        }
+        break;
+      case __COUNTER__:
         // I2C interrupt read
         uart_send("OK:");
 #ifdef I2C_FLAG_EXTI
@@ -260,7 +319,7 @@ __attribute__((weak)) void interp(void) {
           uart_send_hex(tmp, len);
           uart_send(",");
         }
-        uart_send("VERSION=0.1\n");
+        uart_send("VERSION=" VERSION "\n");
         break;
       case __COUNTER__:
         // ON
@@ -270,6 +329,18 @@ __attribute__((weak)) void interp(void) {
       case __COUNTER__:
         // i2ciwait
         len = uwTick + 30*TIMEOUT_1S;
+
+        // port
+        ts = 0;
+        if (tparse_token_size(tp)) {
+          ts = tparse_token_u32(tp);
+        }
+        // pin
+        val = 9;
+        if (tparse_token_size(tp)) {
+          val = tparse_token_u32(tp);
+        }
+        tparse_discard_line(tp);
         // until timeout
         for(;;) {
           if ((uwTick - len) < 0x80000000UL) {
@@ -279,9 +350,17 @@ __attribute__((weak)) void interp(void) {
 #ifdef I2C_FLAG_EXTI
           if (i2c_consume_int()) {
 #else // I2C_FLAG_EXTI
-          if (!gpio_get(0, 9)) {
+          // check ISO7816 IO (PA9 D8) and INT I2C (PA6 D12) 
+          if (!gpio_get(ts, val)) {
 #endif // I2C_FLAG_EXTI
             uart_send("OK:\n");
+            break;
+          }
+
+          // check if a new command is available and abort
+          if (tparse_check_command()) {
+            // don't reply to the aborted command, as it would reply to the newly received instead
+            //uart_send("ABORT:\n");
             break;
           }
         }
@@ -291,7 +370,13 @@ __attribute__((weak)) void interp(void) {
         len = 0;
         uart_send("OK:");
         while (len<256) {
-          if (i2c_strobe(len)) {
+          val = 10;
+          ts = 0;
+          while (val-- && !ts) {
+            ts = i2c_strobe(len);
+            LL_mDelay(1);
+          }
+          if (ts) {
             uart_send("0x");
             uart_send_hex((uint8_t*)&len, 1);
             uart_send(",");

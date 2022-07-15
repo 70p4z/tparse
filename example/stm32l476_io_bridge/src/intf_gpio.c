@@ -11,12 +11,11 @@ const struct {
   //(0, 5),  // ISO SWP         (D13) =1 at boot, mutable by UART
   //{0, 6},  // I2C INT         (D12)
   {0, 8},  // ISO CLK         (D7)
-  {0, 9},  // ISO IO          (D8)
+  {0, 9},  // ISO IO          (D8) (also I2C interrupt)
   {1, 6},  // ISO GND         (D10) (SE POWER)
   {2, 7},  // ISO RST         (D9)
   {1, 8},  // I2C SCL         (D15)
   {1, 9},  // I2C SDA         (D14)
-  //(1, 10),  // ISO SWP        (D6) =0 at boot, mutable by UART
   {0, 11}, // CAN RX          (CN10-14)
   {0, 12}, // CAN TX          (CN10-12)
   {2, 10},  // USART3 TX      (CN7-1)

@@ -92,8 +92,8 @@ class IOBridge(UsartIface):
 		return self.exchange("i2cw " + hex(addr) + " " + binascii.hexlify(data).decode("utf8") + " " + hex(retry))
 	def i2c_read(self, addr, maxlen, retry=5):
 		return binascii.unhexlify(self.exchange("i2cr " + hex(addr) + " " + hex(maxlen) + " " + hex(retry)))
-	def i2c_wait_interrupt(self):
-		self.exchange("i2ciwait")
+	def i2c_wait_interrupt(self, port=0, pin=9):
+		self.exchange("i2ciwait " + hex(port) + " " + hex(pin))
 	def i2c_is_interrupt(self, port=0, pin=9):
 		return self.exchange("gpi " + hex(port) + " " + hex(pin)) != "01"
 	def gpio_set(self, port, pin, state):

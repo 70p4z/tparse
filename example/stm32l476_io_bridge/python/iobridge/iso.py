@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser(description="Wrap STDIN as ISO7816 T=0 commands, handling REISSUE/GET RESPONSE.")
 	parser.add_argument("--port", default="/dev/ttyACM0", help="""Serial interface to use""")
-	parser.add_argument("--baudrate", default="2000000", help="IOBridge USART speed", type=auto_int)
+	parser.add_argument("--baudrate", default="921600", help="IOBridge USART speed", type=auto_int)
 	args = parser.parse_args()
 
 	s = serial.Serial(port=args.port, baudrate=args.baudrate)

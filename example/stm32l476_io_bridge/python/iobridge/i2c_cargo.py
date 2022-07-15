@@ -70,6 +70,7 @@ def i2c_exchange(iob, data, mtu=256, addr=0x78, error_as_exception=True, timeout
   # if no data, don't send :)
   if data and len(data) > 0:
     i2c_write_packet(data, iob, addr, mtu)
+    #support timeouts when the target is under debug
     while True:
       try:
         iob.i2c_wait_interrupt()
@@ -96,11 +97,12 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser(description="Fragment STDIN packets as I2C CARGO frames, reassemble replies and print packets")
   parser.add_argument("--port", default="/dev/ttyACM0", help="""Serial interface to use""")
-  parser.add_argument("--baudrate", default="2000000", help="IOBridge USART speed", type=auto_int)
+  parser.add_argument("--baudrate", default="921600", help="IOBridge USART speed", type=auto_int)
   parser.add_argument("--addr", default="0x78", help="", type=auto_int)
   parser.add_argument("--mtu", default="255", help="", type=auto_int)
   parser.add_argument("--off", action="store_true")
   parser.add_argument("--bootdelay", default="100", help="Milliseconds after power on and before I2C transaction", type=auto_int)
+  parser.add_argument("--loopbacktest", action="store_true")
 
   args = parser.parse_args()
 
@@ -126,9 +128,12 @@ if __name__ == '__main__':
       i2c_exchange(iob, b'', mtu, args.addr)
     data = binascii.unhexlify(line)
     if data and len(data):
-      data = i2c_exchange(iob, binascii.unhexlify(line), mtu, args.addr)
-      if data:
-        print(binascii.hexlify(data).decode("utf8"))
+      datar = i2c_exchange(iob, data, mtu, args.addr)
+      if datar:
+        print(binascii.hexlify(datar).decode("utf8"))
+      if args.loopbacktest and datar != data:
+        print("Loopback not ok")
+        sys.exit(-1)
 
   s.close()
   sys.stdout.flush()

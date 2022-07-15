@@ -154,7 +154,7 @@ void Configure_USART1_ISO_CLK(uint32_t smartcard_clock)
   LL_USART_EnableSmartcard(USART1);
   // default clock when none provided
   if (smartcard_clock == 0) {
-    smartcard_clock = 5000000;
+    smartcard_clock = 8000000;
   }
   LL_USART_SetSmartcardPrescaler(USART1, (SystemCoreClock/2/(smartcard_clock)));
   SET_BIT(USART1->CR2, USART_CR2_CLKEN); //LL_USART_ConfigSyncMode(USART1); // thanks ST, it's clearing the SCEN, which is required to be set prior to setting CLKEN.

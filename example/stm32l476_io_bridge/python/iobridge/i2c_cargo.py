@@ -61,9 +61,9 @@ def i2c_read_packet(iob, addr, mtu):
     nb -= si
   return reassemble(rarray)
 
-def i2c_exchange(iob, data, mtu=256, addr=0x78, error_as_exception=True, timeout=True):
+def i2c_exchange(iob, data, mtu=256, addr=0x78, error_as_exception=True, timeout=True, i2c_int_port=0, i2c_int_pin=9):
   # check if the I2C has already data to be retrieved
-  if iob.i2c_is_interrupt():
+  if iob.i2c_is_interrupt(i2c_int_port, i2c_int_pin):
     d = i2c_read_packet(iob, addr, mtu)
     if not data or len(data) == 0:
       return d
@@ -73,12 +73,12 @@ def i2c_exchange(iob, data, mtu=256, addr=0x78, error_as_exception=True, timeout
     #support timeouts when the target is under debug
     while True:
       try:
-        iob.i2c_wait_interrupt()
+        iob.i2c_wait_interrupt(i2c_int_port, i2c_int_pin)
         break
       except:
         if timeout:
           raise
-  if iob.i2c_is_interrupt():
+  if iob.i2c_is_interrupt(i2c_int_port, i2c_int_pin):
     data = i2c_read_packet(iob, addr, mtu)
     if data and data[0] == 0x80:
       # check error

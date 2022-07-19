@@ -174,7 +174,7 @@ __attribute__((weak)) void interp(void) {
         // len written
         len=__bswap_32(len);
         uart_send_hex(&len, 4);
-        uart_send("OK:\n");
+        uart_send("\n");
         break;
       case __COUNTER__:
         // T=0 APDU

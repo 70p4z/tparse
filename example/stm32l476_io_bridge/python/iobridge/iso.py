@@ -18,32 +18,37 @@
 """
 
 if __name__ == '__main__':
-	import serial
-	import argparse
-	import sys
-	import binascii
-	import random
-	import time
-	import math
-	from iobridge.iobridge import IOBridge
+  import serial
+  import argparse
+  import sys
+  import binascii
+  import random
+  import time
+  import math
+  from iobridge.iobridge import IOBridge
 
-	def auto_int(x):
-		return int(x, 0)
+  def auto_int(x):
+    return int(x, 0)
 
-	parser = argparse.ArgumentParser(description="Wrap STDIN as ISO7816 T=0 commands, handling REISSUE/GET RESPONSE.")
-	parser.add_argument("--port", default="/dev/ttyACM0", help="""Serial interface to use""")
-	parser.add_argument("--baudrate", default="921600", help="IOBridge USART speed", type=auto_int)
-	args = parser.parse_args()
+  parser = argparse.ArgumentParser(description="Wrap STDIN as ISO7816 T=0 commands, handling REISSUE/GET RESPONSE.")
+  parser.add_argument("--port", default="/dev/ttyACM0", help="""Serial interface to use""")
+  parser.add_argument("--baudrate", default="921600", help="IOBridge USART speed", type=auto_int)
+  args = parser.parse_args()
 
-	s = serial.Serial(port=args.port, baudrate=args.baudrate)
-	iob = IOBridge(s)
-	
-	for line in sys.stdin:
-		line = line.rstrip("\n").rstrip("\r")
-		if line.lower().startswith("atr"):
-			print("ATR: " + binascii.hexlify(iob.atr()).decode("utf8"))
-		else:
-			print(binascii.hexlify(iob.apdu_t0(binascii.unhexlify(line))).decode("utf8"))
-		#" (time:"+str(math.ceil((stop-start)*1000)/1000.0)+"s)"
-	s.close()
-	sys.stdout.flush()
+  s = serial.Serial(port=args.port, baudrate=args.baudrate)
+  iob = IOBridge(s)
+  
+  for line in sys.stdin:
+    line = line.rstrip("\n").rstrip("\r")
+    if line.lower().startswith("atr"):
+      print("ATR: " + binascii.hexlify(iob.atr()).decode("utf8"))
+    else:
+      reply = binascii.hexlify(iob.apdu_t0(binascii.unhexlify(line))).decode("utf8")
+      if len(reply) < 2:
+        raise ISOException()
+      if reply[-4] != '9' and reply[-4:-2].upper() != '61' and reply[-4:-2].upper() != '6C':
+        raise ISOException()
+      print(reply)
+    #" (time:"+str(math.ceil((stop-start)*1000)/1000.0)+"s)"
+  s.close()
+  sys.stdout.flush()

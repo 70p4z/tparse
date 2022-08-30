@@ -55,9 +55,6 @@ extern "C" {
 
 #define CPU_CLOCK 80000000
 #define USART_BAUDRATE 921600
-// #define USART_BAUDRATE 115200
-//#define USART_BAUDRATE 2000000 // 2Mbit/s seems to be the STLINK v2.1 limit for VCP => bugs on rpi
-
 #define NO_TIMEOUT 0
 #define TIMEOUT_1S 1000
 #define CAN_FIFO_RX_ENTRY_COUNT 256

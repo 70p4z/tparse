@@ -195,6 +195,7 @@ __attribute__((weak)) void interp(void) {
         uart_send("\n");
         break;
       case __COUNTER__:
+        // t0c
         // T0 APDU in cache (to allow for next APDU to be transferred while transferring to the SE)
         len = tparse_token_hex(tp, tmp, sizeof(tmp));
         if (len > 255+5 || len < 5) {
@@ -223,8 +224,14 @@ __attribute__((weak)) void interp(void) {
           uart_send("ERROR: more than a SW returned, unsupported by t0c");
           uart_send("\n");
         }
-        if (len >= 2) {
+        if (len == 2) {
           memmove(sw, tmp+len-2, 2);
+          previous_sw = 1;
+        }
+        else {
+          uart_send("ERROR: T0 APDU exchange failed");
+          // faked status word for next fetch, to detect timeout/error
+          memmove(sw, "\x6E\xEE", 2);
           previous_sw = 1;
         }
         break;

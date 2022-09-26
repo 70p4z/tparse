@@ -9,6 +9,7 @@ uint8_t tmp[300];
 
 /**
 SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==CAN==> Pylontech SC0500
+                   iobridge in solax makefile                  regular iobridge
 */
 #define BMS_RECONNECT_DELAY 20000
 
@@ -249,7 +250,8 @@ void interp(void) {
               forward = 1;
               break;
             case 0x1877:
-              memmove(tmp, "\x00\x00\x00\x00\x52\x00\x00\x00", 8); // OK 2H48050
+              // override message to tell the inverter of the battery configuration
+              memmove(tmp, "\x00\x00\x00\x00\x52\x00\x00\x00", 8); // OK 2H48050, OK 4 H48050
               len = 8;
               forward = 1;
               break;

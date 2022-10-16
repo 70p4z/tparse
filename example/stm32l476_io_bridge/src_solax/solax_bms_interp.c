@@ -110,6 +110,8 @@ void interp(void) {
   size_t len;
   uint32_t cid;
   size_t cid_bitlen;
+  uint32_t wait_bms_info = 1;
+  uint8_t bms_info[8];
 
 #ifdef MODE_FAKE_SOLAX
   while (1) {
@@ -240,9 +242,18 @@ void interp(void) {
               // may reinterpret SoC depending on battery voltage instead of relying on BMS
               forward = 1;
               break;
-            case 0x1871:
             case 0x1872:
-              // could overwrite voltage bounds and max ch/disch currents
+              // avoid BMS adjustements at runtime, may occur to force batt equalization, which leads to discharge?
+              if (wait_bms_info) {
+                memmove(bms_info, tmp, 8);
+                // could overwrite voltage bounds and max ch/disch currents
+                wait_bms_info = 0;
+              }
+              else {
+                memmove(tmp, bms_info, 8);
+              }
+              __attribute__((fallthrough));
+            case 0x1871:
             case 0x1874:
             case 0x1875:
             case 0x1876:

@@ -75,11 +75,17 @@ void slave_send(char* str) {
 }
 
 size_t slave_recv(tparse_ctx_t* tp, uint8_t *buffer, size_t buffer_maxlength) {
+next_line:
   tparse_finger(tp, sizeof(uart3_buffer) - DMA1_Channel3->CNDTR);
   if (tparse_has_line(tp)) {
     // parse the reply status
     buffer_maxlength = tparse_token(tp, (char*)buffer, buffer_maxlength);
     uint32_t ok = memcmp(buffer, "OK", MIN(sizeof("OK")-1, buffer_maxlength)) == 0;
+    // reset received, discard line and check next
+    if (!ok && memcmp(buffer, "RESET", MIN(sizeof("RESET")-1,buffer_maxlength)) == 0) {
+      tparse_discard_line(tp);
+      goto next_line;
+    }
     return ok;
   }
   return 0;

@@ -31,7 +31,7 @@ CFLAGS += -Og -ffunction-sections -fdata-sections -Wall -fomit-frame-pointer -fs
 CFLAGS += -mcpu=cortex-m4 --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb
 
 LDFLAGS += -TSTM32L476RGTX_FLASH.ld
-LDFLAGS += -Wl,-Map="$(BUILD_DIR)/map" 
+LDFLAGS += -Wl,-Map="$(BUILD_DIR)/output.map" 
 LDFLAGS += -Wl,--gc-sections -static 
 LDFLAGS += -mcpu=cortex-m4 --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb
 
@@ -39,7 +39,7 @@ LIBS += -lm -lc
 
 -include $(DEPEND_FILES)
 
-default: $(BUILD_DIR)/elf
+default: $(BUILD_DIR)/output.elf
 
 prepare:
 	mkdir -p $(BUILD_DIR)/ 
@@ -47,11 +47,11 @@ prepare:
 clean:
 	rm -fr $(BUILD_DIR)/
 
-$(BUILD_DIR)/elf $(BUILD_DIR)/map $(BUILD_DIR)/asm $(BUILD_DIR)/bin: $(OBJECT_FILES)
+$(BUILD_DIR)/output.elf $(BUILD_DIR)/output.map $(BUILD_DIR)/output.asm $(BUILD_DIR)/output.bin: $(OBJECT_FILES)
 	$(TARGET)gcc -o "$@" $(LDFLAGS) $(OBJECT_FILES) $(LIBS) 
-	$(TARGET)objdump -h -S $(BUILD_DIR)/elf > "$(BUILD_DIR)/asm"
-	$(TARGET)objcopy -O ihex -S $(BUILD_DIR)/elf $(BUILD_DIR)/hex
-	srec_cat -o -binary $(BUILD_DIR)/hex -intel -offset - 0x08000000 > $(BUILD_DIR)/bin
+	$(TARGET)objdump -h -S $(BUILD_DIR)/output.elf > "$(BUILD_DIR)/output.asm"
+	$(TARGET)objcopy -O ihex -S $(BUILD_DIR)/output.elf $(BUILD_DIR)/output.hex
+	srec_cat -o -binary $(BUILD_DIR)/output.hex -intel -offset - 0x08000000 > $(BUILD_DIR)/output.bin
 
 $(BUILD_DIR)/%.o: %.c Makefile | prepare
 	$(TARGET)gcc -o "$@" "$<" -c $(CFLAGS) -MT"$@" -MF"$(@:%.o=%.d)" 

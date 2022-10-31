@@ -5,7 +5,7 @@
 
 #ifdef MODE_SOLAX_BMS
 
-uint8_t tmp[300];
+extern uint8_t tmp[300];
 
 /**
 SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==CAN==> Pylontech SC0500
@@ -116,8 +116,9 @@ void interp(void) {
   size_t len;
   uint32_t cid;
   size_t cid_bitlen;
-  uint32_t wait_bms_info = 1;
-  uint8_t bms_info[8];
+  uint32_t enable_battery = 0;
+  //uint32_t wait_bms_info = 1;
+  //uint8_t bms_info[8];
 
 #ifdef MODE_FAKE_SOLAX
   while (1) {
@@ -144,7 +145,7 @@ void interp(void) {
 
   while (1) {
     // check for messages from the inverter
-    if (can_fifo_avail() && slave_state == SLAVE_IDLE) {
+    if (slave_state == SLAVE_IDLE && can_fifo_avail()) {
       len = can_fifo_rx(&cid, &cid_bitlen, tmp, sizeof(tmp));
       master_log_can("inv >>>     | ", cid, cid_bitlen, tmp, len);
       // other request from the inverter are discarded
@@ -154,7 +155,10 @@ void interp(void) {
           case 1:
             // get data
             forward = 1;
-            can_tx_log(0x0100A001, CAN_ID_EXTENDED_LEN, NULL, 0);
+            if (enable_battery==1) {
+              can_tx_log(0x0100A001, CAN_ID_EXTENDED_LEN, NULL, 0);
+              enable_battery = 2;
+            }
             can_tx_log(0x1801, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
             break;
           case 2:
@@ -178,6 +182,8 @@ void interp(void) {
 
         // only forward when the bms is allowed (not timing out for juice cut)
         if (forward && uwTick - bms_reconnect_at < 0x80000000UL) {
+          // reset to reenable battery
+          enable_battery = 0;
           bms_reconnect_at = uwTick; // make sure to avoid overflow when no reconnection request for a while
           slave_send("ctx 0x");
           uint32_t cidbe = __bswap_32(cid);
@@ -200,11 +206,10 @@ void interp(void) {
           slave_send("ctx 0x1871 e 0100010000000000\n");
           slave_state = SLAVE_CTX_SENT;
           bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
+          break;
         }
-        else {
-          slave_send("cavail\n");
-          slave_state = SLAVE_CAVAIL_SENT;
-        }
+        slave_send("cavail\n");
+        slave_state = SLAVE_CAVAIL_SENT;
         slave_cmd_timeout = uwTick + SLAVE_TIMEOUT;
         __attribute__((fallthrough));
       case SLAVE_CAVAIL_SENT:
@@ -250,15 +255,15 @@ void interp(void) {
               break;
             case 0x1872:
               // avoid BMS adjustements at runtime, may occur to force batt equalization, which leads to discharge?
-              if (wait_bms_info) {
-                memmove(bms_info, tmp, 8);
-                // could overwrite voltage bounds and max ch/disch currents
-                wait_bms_info = 0;
-              }
-              else {
-                memmove(tmp, bms_info, 8);
-              }
-              __attribute__((fallthrough));
+              // if (wait_bms_info) {
+              //   memmove(bms_info, tmp, 8);
+              //   // could overwrite voltage bounds and max ch/disch currents
+              //   wait_bms_info = 0;
+              // }
+              // else {
+              //   memmove(tmp, bms_info, 8);
+              // }
+              // __attribute__((fallthrough));
             case 0x1871:
             case 0x1874:
             case 0x1875:
@@ -271,6 +276,7 @@ void interp(void) {
               memmove(tmp, "\x00\x00\x00\x00\x52\x00\x00\x00", 8); // OK 2H48050, OK 4 H48050
               len = 8;
               forward = 1;
+              enable_battery = 1;
               break;
           }
           if (forward) {

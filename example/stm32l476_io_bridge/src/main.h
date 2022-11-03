@@ -72,7 +72,7 @@ void uart_select_intf(USART_TypeDef* usart);
 uint32_t gpio_get(uint32_t port, uint32_t pin);
 void gpio_set(uint32_t port, uint32_t pin, uint32_t value);
 
-void Configure_I2C1(void);
+int32_t Configure_I2C1(uint32_t khz);
 uint32_t i2c_strobe(uint32_t addr);
 size_t i2c_read(uint8_t addr, uint8_t* buf, size_t maxlen);
 size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len);

@@ -477,7 +477,11 @@ __attribute__((weak)) void interp(void) {
       case __COUNTER__:
         // i2cfg
         val = tparse_token_u32(tp);
-        // TODO
+        if (Configure_I2C1(val)) {
+          uart_send("ERROR: unsupported khz value (100,400,1000,1500)");
+          break;
+        }
+        uart_send("OK:\n");
         break;
       case __COUNTER__:
         // isocfg
@@ -570,7 +574,7 @@ int main(void)
   // USART used for interboard communication
   Configure_USART3();
 
-  Configure_I2C1();
+  Configure_I2C1(1000);
 
   Configure_USART1_ISO();
 

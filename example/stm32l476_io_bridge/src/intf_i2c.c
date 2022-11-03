@@ -125,7 +125,8 @@ uint32_t i2c_consume_int(void) {
 }
 #endif // I2C_FLAG_EXTI
 
-void Configure_I2C1(void) {
+int32_t Configure_I2C1(uint32_t khz) {
+  uint32_t timing;
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C1);
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
 
@@ -139,13 +140,29 @@ void Configure_I2C1(void) {
     * rise time = 50ns, fall time = 10ns
     * Timing Value = (uint32_t)0x0020098E
     */
-  #define I2C_TIMING                 __LL_I2C_CONVERT_TIMINGS(0x0, 0xF, 0x0, 0x2B, 0x86)
-  //#define I2C_TIMING            0x00200720 // 1mbps
-  // #define I2C_TIMING            0x00200F33
+  //#define I2C_TIMING                 
+  timing = __LL_I2C_CONVERT_TIMINGS(0x0, 0xF, 0x0, 0x2B, 0x86); // 370k
+  switch(khz) {
+    case 0:
+    case 100:
+    case 400:
+      break;
+    case 700:
+      timing = 0x00300E3D;
+      break;
+    case 1000:
+      timing = 0x00300E22;
+      break;
+    case 1500:
+      timing = 0x00300E10;
+      break; 
+    default:
+      return -1;
+  }
 
   /* Configure the SDA setup, hold time and the SCL high, low period */
   /* (uint32_t)0x0020098E = I2C_TIMING*/
-  LL_I2C_SetTiming(I2C1, I2C_TIMING);
+  LL_I2C_SetTiming(I2C1, timing);
 
   /* INT PA6 (D12)*/
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_INPUT);
@@ -160,17 +177,21 @@ void Configure_I2C1(void) {
 
   /* SDA PB9 (D14) */
   LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_9, LL_GPIO_AF_4);
   LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_HIGH);
   LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN);
   LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_9, LL_GPIO_PULL_UP);
 
   /* SCL PB8 (D15) */
   LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_8, LL_GPIO_AF_4);
   LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_8, LL_GPIO_SPEED_FREQ_HIGH);
   LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_OPENDRAIN);
   LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_8, LL_GPIO_PULL_UP);
 
+  // enable BEFORE switching AF to avoid glitches
   LL_I2C_Enable(I2C1);
+
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_9, LL_GPIO_AF_4);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_8, LL_GPIO_AF_4);
+
+  return 0;
 }

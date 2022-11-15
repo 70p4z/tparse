@@ -37,7 +37,8 @@ def fragment(packet, mtu=128):
 def i2c_write_packet(packet, iob, addr, mtu):
   chunks = fragment(packet, mtu)
   for c in chunks:
-    iob.i2c_write(addr, c)
+    iob.i2c_write_cache(addr, c)
+  iob.i2c_write_cache_last()
 
 def cargo_size(rarray):
   if len(rarray) < 3:
@@ -71,6 +72,7 @@ def i2c_exchange(iob, data, mtu=256, addr=0x78, error_as_exception=True, timeout
   if data and len(data) > 0:
     i2c_write_packet(data, iob, addr, mtu)
     #support timeouts when the target is under debug
+  """
     while True:
       try:
         iob.i2c_wait_interrupt(i2c_int_port, i2c_int_pin)
@@ -86,7 +88,14 @@ def i2c_exchange(iob, data, mtu=256, addr=0x78, error_as_exception=True, timeout
       if ret[1] != 0 and error_as_exception:
         raise BaseException("Error %08X"  % ret[1])
     return data
-  return b''
+  """
+  data = iob.i2c_read_xfer(addr, i2c_int_port, i2c_int_pin)
+  if data and data[0] == 0x80:
+      # check error
+      ret = struct.unpack_from(">BI", data)
+      if ret[1] != 0 and error_as_exception:
+        raise BaseException("Error %08X"  % ret[1])
+  return data
 
 if __name__ == '__main__':
 

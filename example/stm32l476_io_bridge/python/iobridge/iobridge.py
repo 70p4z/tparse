@@ -92,6 +92,12 @@ class IOBridge(UsartIface):
 		return self.exchange("i2cw " + hex(addr) + " " + binascii.hexlify(data).decode("utf8") + " " + hex(retry))
 	def i2c_read(self, addr, maxlen, retry=5):
 		return binascii.unhexlify(self.exchange("i2cr " + hex(addr) + " " + hex(maxlen) + " " + hex(retry)))
+	def i2c_write_cache(self, addr, data, retry=5):
+		return self.exchange("i2cwc " + hex(addr) + " " + binascii.hexlify(data).decode("utf8") + " " + hex(retry))
+	def i2c_write_cache_last(self):
+		return self.exchange("i2cwclast")
+	def i2c_read_xfer(self, addr, port=0, pin=9, timeout_ms=30000, format=0, retry=5):
+		return binascii.unhexlify(self.exchange("i2crxfer " + hex(addr) + " " + hex(port) + " " + hex(pin) + " " + hex(timeout_ms) + " " + hex(format) + " " + hex(retry)))
 	def i2c_wait_interrupt(self, port=0, pin=9):
 		self.exchange("i2ciwait " + hex(port) + " " + hex(pin))
 	def i2c_is_interrupt(self, port=0, pin=9):

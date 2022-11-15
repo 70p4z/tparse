@@ -1,7 +1,7 @@
 #include "main.h"
 
-char uart_usbvcp_buffer[32+512];
-char uart3_buffer[32+512];
+char uart_usbvcp_buffer[32+512*2];
+char uart3_buffer[32+512*2];
 
 USART_TypeDef* usart_intf;
 
@@ -11,6 +11,8 @@ void uart_select_intf(USART_TypeDef* usart) {
 
 void uart_send_mem(const void* _ptr, size_t len) {
   const uint8_t* ptr = (const uint8_t*) _ptr;
+  while (LL_DMA_IsEnabledChannel(DMA1, LL_DMA_CHANNEL_7) && LL_DMA_GetDataLength(DMA1, LL_DMA_CHANNEL_7));
+  LL_USART_DisableDMAReq_TX(USART3);
   while (len--) {
     while (!LL_USART_IsActiveFlag_TXE(usart_intf)){}
     LL_USART_TransmitData8(usart_intf, *ptr++);
@@ -43,6 +45,19 @@ void uart_send_hex(const void* _buf, size_t len) {
   }
 }
 
+void uart_send_dma(const void* buf, size_t len) {
+  // wait until previous DMA transfer ended
+  while (LL_DMA_GetDataLength(DMA1, LL_DMA_CHANNEL_7));
+  LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_7);
+  LL_USART_EnableDMAReq_TX(USART2);
+  LL_DMA_ConfigAddresses(DMA1, LL_DMA_CHANNEL_7,
+             (uint32_t)buf,
+             LL_USART_DMA_GetRegAddr(USART2, LL_USART_DMA_REG_DATA_TRANSMIT),
+             LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_CHANNEL_7));
+  LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_7, len);
+  LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_7);
+}
+
 void Configure_USART2_USBVCP(void)
 {
   /* DMA1 used for USART2 Transmission and Reception
@@ -63,9 +78,18 @@ void Configure_USART2_USBVCP(void)
              LL_DMA_GetDataTransferDirection(DMA1, LL_DMA_CHANNEL_6));
   LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_6, sizeof(uart_usbvcp_buffer));
   LL_DMA_SetPeriphRequest(DMA1, LL_DMA_CHANNEL_6, LL_DMA_REQUEST_2);
-
   /* Enable DMA Channel Rx */
   LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_6);
+
+  LL_DMA_ConfigTransfer(DMA1, LL_DMA_CHANNEL_7,
+            LL_DMA_DIRECTION_MEMORY_TO_PERIPH |
+            LL_DMA_PRIORITY_HIGH              |
+            LL_DMA_MODE_NORMAL                |
+            LL_DMA_PERIPH_NOINCREMENT         |
+            LL_DMA_MEMORY_INCREMENT           |
+            LL_DMA_PDATAALIGN_BYTE            |
+            LL_DMA_MDATAALIGN_BYTE);
+  LL_DMA_SetPeriphRequest(DMA1, LL_DMA_CHANNEL_7, LL_DMA_REQUEST_2);
 
   /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
@@ -126,6 +150,7 @@ void Configure_USART2_USBVCP(void)
 
   /* Enable DMA RX Interrupt */
   LL_USART_EnableDMAReq_RX(USART2);
+  LL_USART_DisableDMAReq_TX(USART2);
 }
 
 void Configure_USART3(void)
@@ -211,4 +236,5 @@ void Configure_USART3(void)
 
   /* Enable DMA RX Interrupt */
   LL_USART_EnableDMAReq_RX(USART3);
+  LL_USART_DisableDMAReq_TX(USART3);
 }

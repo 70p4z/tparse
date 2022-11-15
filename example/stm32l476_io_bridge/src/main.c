@@ -28,6 +28,8 @@ uint32_t tparse_al_time(void) {
   return uwTick; /* todo bind the systick count here */;
 }
 
+extern uint8_t n2h(uint8_t c);
+
 tparse_ctx_t tp_vcp;
 tparse_ctx_t tp_u3;
 
@@ -83,7 +85,10 @@ __attribute__((weak)) void interp(void) {
     uint32_t port;
     uint32_t pin;
     uint32_t val;
-    size_t ts;
+    uint32_t tlen;
+    uint32_t timeout;
+    uint32_t t;
+    size_t ts,ts2;
 
     tparse_ctx_t *tp = tparse_check_command();
 
@@ -98,6 +103,8 @@ __attribute__((weak)) void interp(void) {
           "reset",
           "ctx", "crx", "cavail", "ccfg",
           "i2cfg", "isocfg",
+          "i2cwc", "i2cwclast",
+          "i2crxfer",
       };
       cmd = tparse_token_in(tp, (char**)cmds, sizeof(cmds)/sizeof(cmds[0]), (char*)tmp, &ts);
       switch (cmd) {
@@ -144,6 +151,7 @@ __attribute__((weak)) void interp(void) {
         break;
       case __COUNTER__:
         // I2C write
+        // i2cw <addr> <data> [<retrycount>]
         addr = tparse_token_u32(tp);
         if (addr >= 0x100 || addr == -1) {
           uart_send("ERROR: invalid address\n");
@@ -196,6 +204,16 @@ __attribute__((weak)) void interp(void) {
         break;
       case __COUNTER__:
         // t0c
+        if (previous_sw) {
+          uart_send("OK:");
+          uart_send_hex(sw, 2);
+          uart_send("\n");
+          previous_sw = 0;
+        }
+        else {
+          // fake reply to speedup
+          uart_send("OK:9000\n");
+        }
         // T0 APDU in cache (to allow for next APDU to be transferred while transferring to the SE)
         len = tparse_token_hex(tp, tmp, sizeof(tmp));
         if (len > 255+5 || len < 5) {
@@ -207,16 +225,6 @@ __attribute__((weak)) void interp(void) {
           uart_send_hex(tmp, len);
           uart_send("\n");
           break;
-        }
-        if (previous_sw) {
-          uart_send("OK:");
-          uart_send_hex(sw, 2);
-          uart_send("\n");
-          previous_sw = 0;
-        }
-        else {
-          // fake reply to speedup
-          uart_send("OK:9000\n");
         }
         len = iso_apdu_t0(tmp, len);
         if (len > 2) {
@@ -491,6 +499,147 @@ __attribute__((weak)) void interp(void) {
         }
         Configure_USART1_ISO_CLK(val);
         uart_send("OK:\n");
+        break;
+
+      case __COUNTER__:
+        // quick reply
+        if (previous_sw && ts2<=0) {
+          uart_send("ERROR:\n");
+        }
+        else {
+          uart_send("OK:\n");
+        }
+        // i2cwc <addr> <data> [<retrycount>] 
+        addr = tparse_token_u32(tp);
+        if (addr >= 0x100 || addr == -1) {
+          uart_send("ERROR: invalid address\n");
+          break;
+        }
+        len = tparse_token_hex(tp, tmp, sizeof(tmp));
+        if (len == 0) {
+          uart_send("ERROR: invalid data\n");
+          break;
+        }
+        // optional retry count
+        ts = 0;
+        if (tparse_token_size(tp)) {
+          ts = tparse_token_u32(tp);
+        }
+        previous_sw = 0;
+      write_again_c:
+        val = i2c_write(addr, tmp, len);
+        previous_sw = 1;
+        ts2 = val;
+        if (len != val) {
+          if (ts--) {
+            goto write_again_c;
+          }
+          break;
+        }
+        break;
+      case __COUNTER__:
+        // i2cwclast // last reply
+        if (previous_sw && ts2<=0) {
+          uart_send("ERROR:\n");
+        }
+        else {
+          uart_send("OK:\n");
+        }
+        previous_sw = 0;
+        break;
+
+      case __COUNTER__:
+        // i2crxfer <addr> <notify_port> <notify_pin> <notify_timeout_ms> <format> [<retry_count>]
+        // addr
+        addr = tparse_token_u32(tp);
+        if (addr >= 0x100 || addr == -1) {
+          uart_send("ERROR: invalid address\n");
+          break;
+        }
+        // port
+        if (!tparse_token_size(tp)) {
+        usage_i2crxfer:
+          uart_send("ERROR: i2crxfer <notify_port> <notify_pin> <notify_timeout_ms> <format:0=cargo> [<retry_count>]");
+          break;
+        }
+        port = tparse_token_u32(tp);
+        // pin
+        if (!tparse_token_size(tp)) {
+          goto usage_i2crxfer;
+        }
+        pin = tparse_token_u32(tp);
+        // timeout
+        if (!tparse_token_size(tp)) {
+          goto usage_i2crxfer;
+        }
+        timeout = tparse_token_u32(tp);
+        // format
+        if (!tparse_token_size(tp)) {
+          goto usage_i2crxfer;
+        }
+        if (tparse_token_u32(tp) != 0) {
+          goto usage_i2crxfer;
+        }
+        // optional retry count
+        ts = 0;
+        if (tparse_token_size(tp)) {
+          ts = tparse_token_u32(tp);
+        }
+        tparse_discard_line(tp);
+        // process CARGO instructions
+        tlen=0;
+        do {
+          // read the chunk
+          if (tlen == 0) {
+            // until timeout
+            t = uwTick + timeout;
+            for(;;) {
+              if ((uwTick - t) < 0x80000000UL) {
+                uart_send("TIMEOUT:\n");
+                break;
+              }
+              // check ISO7816 IO (PA9 D8) and INT I2C (PA6 D12) 
+              if (!gpio_get(port, pin)) {
+                break;
+              }
+            }
+            len = 3; // read only the header
+          }
+          else {
+            len = MIN(255,MIN(tlen, sizeof(tmp)));
+          }
+          ts2 = ts;
+        read_again_c:
+          val = i2c_read(addr, tmp, len);
+          if (len != val) {
+            if (ts2--) {
+              goto read_again_c;
+            }
+            uart_send_dma("ERROR: not all bytes read: ", 27);
+            val = 'z' + val;
+            uart_send_dma((uint8_t*)&val, 1);
+            uart_send_dma("\n", 1);
+            break;
+          }
+          //interp header
+          if (tlen == 0) {
+            tlen = ((tmp[1]&0xFF)<<8) | (tmp[2]&0xFF);
+            uart_send("OK:");
+          }
+          // decrement data read
+          else {
+            // output data (except the header!)
+            for (uint32_t i = 0; i < len; i++) {
+              uart_usbvcp_buffer[i*2] = n2h(tmp[i]>>4);
+              uart_usbvcp_buffer[i*2+1] = n2h(tmp[i]&0xF);
+            }
+            uart_send_dma(uart_usbvcp_buffer, len*2);
+            tlen -= len;
+          }
+        }
+        // until all cargo length has been read
+        while (tlen);
+        uart_send_dma("\n", 1); // we're DMA enabled in that transfer;
         break;
       }
       // discard any remnant of the processed line

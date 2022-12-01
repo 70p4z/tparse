@@ -66,6 +66,7 @@ extern char uart3_buffer[32+512*2];
 void uart_send_mem(const void* _ptr, size_t len);
 void uart_send(const char* string);
 void uart_send_hex(const void* _buf, size_t len);
+void uart_send_dma(const void* _buf, size_t len);
 void uart_select_intf(USART_TypeDef* usart);
 // rx is done through DMA, use the CNDTR value to detect were the data are
 

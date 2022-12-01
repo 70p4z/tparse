@@ -134,6 +134,31 @@ void interp(void) {
 
   master_log("Reset\n");
 
+  // resynch slave
+  for (;;) {
+    // discard data
+    tparse_discard_line(&tp_u3);
+    // send info
+    slave_send("info 0x1\n");
+    slave_cmd_timeout = uwTick + SLAVE_TIMEOUT;
+    while (!slave_avail(&tp_u3)) {
+      if (uwTick - slave_cmd_timeout < 0x80000000UL) {
+        break;
+      }
+    }
+    // wait info reply
+    if ( tparse_token(&tp_u3, tmp, sizeof(tmp)) ) {
+      if (memcmp(tmp, "INFO", sizeof("INFO")-1) == 0) {
+        master_log("Slave resynch ok\n");
+        // resynch success!
+        break;
+      }
+      master_log("Retry resynch\n");
+    }
+    // if not info, do again
+  }
+  tparse_discard_line(&tp_u3);
+
   // sent ping to the BMS to wake it up at reset moment
   master_log_can("    >>> bms | ", 0x1871, 29, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
   slave_send("ctx 0x1871 e 0100010000000000\n");

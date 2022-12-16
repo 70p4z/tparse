@@ -82,6 +82,10 @@ uint32_t tparse_timeout(tparse_ctx_t* ctx) {
 	return ctx->timeout && ((tparse_al_time() - ctx->timeout) < 0x8000000UL);
 }
 
+void tparse_discard(tparse_ctx_t* ctx) {
+	ctx->r_offset = ctx->w_offset;
+}
+
 void tparse_discard_line(tparse_ctx_t* ctx) {
 	size_t r_offset = ctx->r_offset;
 	// already at end of line, and nothing consumed afterwards

@@ -118,6 +118,11 @@ uint32_t tparse_token_u32(tparse_ctx_t* ctx);
 void tparse_discard_line(tparse_ctx_t* ctx);
 
 /**
+ * Discard all received data from the uart
+ */
+void tparse_discard(tparse_ctx_t* ctx);
+
+/**
  * Check if parsing reached EOL
  */
 uint32_t tparse_eol_reached(tparse_ctx_t* ctx);

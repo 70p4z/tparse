@@ -719,9 +719,13 @@ int main(void)
   LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
 
   // USART used for USBVCP communication
-  Configure_USART2_USBVCP();
+  Configure_USART2_USBVCP(USART_BAUDRATE_USART2);
   // USART used for interboard communication
-  Configure_USART3();
+  Configure_USART3(USART_BAUDRATE_USART3);
+  // Usart used for external device 
+  Configure_UART4(USART_BAUDRATE_UART4);
+  // Usart for live display
+  Configure_UART5(USART_BAUDRATE_UART5);
 
   Configure_I2C1(1000);
 

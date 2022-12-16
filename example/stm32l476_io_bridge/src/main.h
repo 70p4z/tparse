@@ -54,15 +54,21 @@ extern "C" {
 #endif // __bswap_32
 
 #define CPU_CLOCK 80000000
-#define USART_BAUDRATE 921600
+#define USART_BAUDRATE_USART2 921600
+#define USART_BAUDRATE_USART3 921600
+#define USART_BAUDRATE_UART4 9600
+#define USART_BAUDRATE_UART5 115200
 #define NO_TIMEOUT 0
 #define TIMEOUT_1S 1000
 #define CAN_FIFO_RX_ENTRY_COUNT 256
 
-void Configure_USART2_USBVCP(void);
-void Configure_USART3(void);
+void Configure_USART2_USBVCP(uint32_t baudrate);
+void Configure_USART3(uint32_t baudrate);
+void Configure_UART4(uint32_t baudrate);
+void Configure_UART5(uint32_t baudrate);
 extern char uart_usbvcp_buffer[32+512*2];
 extern char uart3_buffer[32+512*2];
+extern char uart4_buffer[256];
 void uart_send_mem(const void* _ptr, size_t len);
 void uart_send(const char* string);
 void uart_send_hex(const void* _buf, size_t len);

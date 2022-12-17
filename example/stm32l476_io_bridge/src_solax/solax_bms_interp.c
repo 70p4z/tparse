@@ -440,14 +440,17 @@ void interp(void) {
             // ok but when not connected to grid, could not start! // if (solax.pv1_wattage + solax.pv2_wattage < 100) 
             // OFFGRID or NIGHT could still have that condition true 
             if (solax.pv1_voltage + solax.pv2_voltage < SOLAX_PV_POWER_OPT_THRESHOLD_V*10 
-                &&
-                solax.pv1_wattage + solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W)  // requires some insight on the total PV array connection
+                && solax.pv1_voltage + solax.pv2_voltage > 0 // not NIGHT
+                && solax.pv1_wattage + solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W)  // requires some insight on the total PV array connection
             {
               batt_drain_fix_cause = 1;
               batt_drain_fix = 1;
             }
-            // void if OFFGRID
-            else if (solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W) {
+            // void if OFFGRID (and solar)
+            else if (
+              // if no solar, then maybe it's night ! don't mess with SoC information during potential discharge
+              solax.pv1_voltage + solax.pv2_voltage > 0
+              && solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W) {
               // if importing, then panels does not cover the house, disable charging to avoid draining
               batt_drain_fix_cause = 2;
               batt_drain_fix = 1;
@@ -457,7 +460,6 @@ void interp(void) {
               batt_drain_fix_cause = 3;
               batt_drain_fix = 1;
             }
-
           }
           tparse_discard(&tp_u4);
           solax_pw_state = SOLAX_PW_WAIT_NEXT;

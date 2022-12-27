@@ -376,6 +376,12 @@ void interp(void) {
               pylontech.max_charge = S2LE(tmp, 4);
               pylontech.max_discharge = S2LE(tmp, 6);
 
+              // add 0.9A to cover the INVERTER wrong current computation (it includes it's own DC consumption)
+              if (pylontech.max_charge) {
+                tmp[4] = (pylontech.max_charge+9)&0xFF;
+                tmp[5] = ((pylontech.max_charge+9)>>8)&0xFF;
+              }
+
               // force disabling charge, in order to avoid driving the battery to retrieve too less energy from the PVs.
               if (batt_forced_charge >= 0) {
                 tmp[4] = batt_forced_charge&0xFF;

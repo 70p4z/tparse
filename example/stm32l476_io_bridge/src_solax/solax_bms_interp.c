@@ -27,6 +27,8 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 
 #define SOLAX_MAX_PV_VOLTAGE_V 600 // from user manual
 
+#define SOLAX_BALANCE_TOLERANCE_W 250 // take into account the inverter self consumption
+
 #define DISPLAY_TIMEOUT 1000
 
 #define S2LE(buf, off) ((int16_t)((int16_t)((int16_t)((int16_t)(buf)[off+1])<<8l) | (int16_t)((int16_t)(buf)[off]&0xFFl) ))
@@ -478,18 +480,40 @@ void interp(void) {
             // }
 
 
+            int32_t power_balance_w = solax.pv1_wattage + solax.pv2_wattage - (solax.grid_wattage + pylontech.wattage );
             // check for invalid data (glitch sometimes returned by the inverter)
-            if (solax.pv1_voltage > SOLAX_MAX_PV_VOLTAGE_V*10 || solax.pv2_voltage > SOLAX_MAX_PV_VOLTAGE_V*10
-              || (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 > 150*solax.pv1_wattage/100)
-              || (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 < 50*solax.pv1_wattage/100)
-              || (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 > 150*solax.pv2_wattage/100)
-              || (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 < 50*solax.pv2_wattage/100)
-              ) {
+            if (solax.pv1_voltage > SOLAX_MAX_PV_VOLTAGE_V*10 || solax.pv2_voltage > SOLAX_MAX_PV_VOLTAGE_V*10) {
               batt_drain_fix_cause = 101;
+            invalid:
               tparse_discard(&tp_u4);
               solax_pw_state = SOLAX_PW_INVALID_NEXT;
               solax_pw_timeout = uwTick + SOLAX_PW_INVALID_RETRY_TIMEOUT;
               break;
+            }
+            if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 > 150*solax.pv1_wattage/100) {
+              batt_drain_fix_cause = 102;
+              goto invalid;
+            }
+            if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 < 50*solax.pv1_wattage/100) {
+              batt_drain_fix_cause = 103;
+              goto invalid; 
+            }
+            if (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 > 150*solax.pv2_wattage/100) {
+              batt_drain_fix_cause = 104;
+              goto invalid; 
+            }
+            if (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 < 50*solax.pv2_wattage/100) {
+              batt_drain_fix_cause = 105;
+              goto invalid; 
+            }
+            // check power balance is correct (with a +- variance)
+            if (power_balance_w < 0 && power_balance_w < - SOLAX_BALANCE_TOLERANCE_W / 2) {
+              batt_drain_fix_cause = 106;
+              goto invalid; 
+            }
+            if (power_balance_w > 0 && power_balance_w > SOLAX_BALANCE_TOLERANCE_W / 2) {
+              batt_drain_fix_cause = 107;
+              goto invalid; 
             }
 
             // only reset condition when a packet can be interpreted

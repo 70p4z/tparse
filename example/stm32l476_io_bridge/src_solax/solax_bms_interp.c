@@ -378,7 +378,8 @@ void interp(void) {
               pylontech.max_charge = S2LE(tmp, 4);
               pylontech.max_discharge = S2LE(tmp, 6);
 
-              // add 0.9A to cover the INVERTER wrong current computation (it includes it's own DC consumption)
+              // add 0.9A to cover for the INVERTER wrong current computation 
+              // (it includes its own DC consumption into the battery DC link)
               if (pylontech.max_charge) {
                 tmp[4] = (pylontech.max_charge+9)&0xFF;
                 tmp[5] = ((pylontech.max_charge+9)>>8)&0xFF;
@@ -533,17 +534,19 @@ void interp(void) {
               batt_forced_charge = 0;
               batt_forced_soc = 100;
             }
-            // void if OFFGRID (and solar)
-            else if (
-              // if no solar, then maybe it's night ! don't mess with SoC information during potential discharge
-              solax.pv1_voltage + solax.pv2_voltage > 1*10
-              // if the panels are not covering the inverter self discharge
-              && solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W) {
-              // if importing, then panels does not cover the house, disable charging to avoid draining
-              batt_drain_fix_cause = 2;
-              batt_forced_charge = 0;
-              batt_forced_soc = 100;
-            }
+            // this condition is wrong when solar is high power, and some house spurious 
+            // consumption are not covered immediately by a 0 export strategy
+            // // void if OFFGRID (and solar)
+            // else if (
+            //   // if no solar, then maybe it's night ! don't mess with SoC information during potential discharge
+            //   solax.pv1_voltage + solax.pv2_voltage > 1*10
+            //   // if the panels are not covering the inverter self discharge
+            //   && solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W) {
+            //   // if importing, then panels does not cover the house, disable charging to avoid draining
+            //   batt_drain_fix_cause = 2;
+            //   batt_forced_charge = 0;
+            //   batt_forced_soc = 100;
+            // }
             // if the solar is LESS than the house consumes, then don't try to charge
             else if (
               // not night

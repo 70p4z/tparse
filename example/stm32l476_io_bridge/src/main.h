@@ -68,7 +68,7 @@ void Configure_UART4(uint32_t baudrate);
 void Configure_UART5(uint32_t baudrate);
 extern char uart_usbvcp_buffer[32+512*2];
 extern char uart3_buffer[32+512*2];
-extern char uart4_buffer[256];
+extern char uart4_buffer[512];
 void uart_send_mem(const void* _ptr, size_t len);
 void uart_send(const char* string);
 void uart_send_hex(const void* _buf, size_t len);

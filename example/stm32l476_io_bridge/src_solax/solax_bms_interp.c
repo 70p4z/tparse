@@ -27,7 +27,6 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 
 #define SOLAX_MAX_PV_VOLTAGE_V 600 // from user manual
 
-#define SOLAX_BALANCE_TOLERANCE_W 250 // take into account the inverter self consumption
 #define SOLAX_DAY_THRESHOLD_V 50 // below 50v is considered NIGHT (with high exposure nights, it has been measured as much)
 #define SOLAX_SELF_CONSUMPTION_W 180 // observed inverter consumption when MPPT is working
 
@@ -510,11 +509,11 @@ void interp(void) {
               goto invalid; 
             }
             // check power balance is correct (with a +- variance)
-            if (power_balance_w < 0 && power_balance_w < - SOLAX_BALANCE_TOLERANCE_W / 2) {
+            if (power_balance_w < 0 && power_balance_w < - SOLAX_SELF_CONSUMPTION_W) {
               batt_drain_fix_cause = 106;
               goto invalid; 
             }
-            if (power_balance_w > 0 && power_balance_w > SOLAX_BALANCE_TOLERANCE_W / 2) {
+            if (power_balance_w > 0 && power_balance_w > SOLAX_SELF_CONSUMPTION_W) {
               batt_drain_fix_cause = 107;
               goto invalid; 
             }
@@ -614,7 +613,9 @@ void interp(void) {
           snprintf(tmp, sizeof(tmp), "HOUSE>> %dW MODE:%d\n", -solax.grid_wattage, solax.mode);
         }
         uart_send_mem(tmp, strlen(tmp));
+
         // BEGIN BATT
+        int32_t bat_wattage_corr = solax.bat_wattage+(solax.bat_wattage>0?-SOLAX_SELF_CONSUMPTION_W:SOLAX_SELF_CONSUMPTION_W);        
         if (pylontech.wattage >= 0) {
           snprintf(tmp, sizeof(tmp), "BAT<< %dW", pylontech.wattage);
         }
@@ -633,7 +634,12 @@ void interp(void) {
         snprintf(tmp, sizeof(tmp), " %d.%dA", cur/10, cur%10)
         uart_send_mem(tmp, strlen(tmp));
         #endif
-        snprintf(tmp, sizeof(tmp), " %u%% %dA %d%%\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10, batt_forced_soc);
+        if (batt_forced_soc== -1) {
+          snprintf(tmp, sizeof(tmp), " %u%% %dA %dW\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10, bat_wattage_corr);
+        }
+        else {
+          snprintf(tmp, sizeof(tmp), " %u%% DIS %dW\n", pylontech.soc, bat_wattage_corr);
+        }
         uart_send_mem(tmp, strlen(tmp));
         // END BAT
         snprintf(tmp, sizeof(tmp), "PV %uV %dW%s%s\n", solax.pv1_voltage/10, solax.pv1_wattage, solax.pv1_voltage + solax.pv2_voltage <= SOLAX_DAY_THRESHOLD_V * 10 ? " NIGHT":" DAY", batt_drain_fix_cause==1?" LOW":"");

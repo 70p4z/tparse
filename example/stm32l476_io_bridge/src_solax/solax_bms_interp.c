@@ -28,6 +28,8 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 #define SOLAX_MAX_PV_VOLTAGE_V 600 // from user manual
 
 #define SOLAX_BALANCE_TOLERANCE_W 250 // take into account the inverter self consumption
+#define SOLAX_DAY_THRESHOLD_V 50 // below 50v is considered NIGHT (with high exposure nights, it has been measured as much)
+#define SOLAX_SELF_CONSUMPTION_W 180 // observed inverter consumption when MPPT is working
 
 #define DISPLAY_TIMEOUT 1000
 
@@ -521,13 +523,14 @@ void interp(void) {
             batt_forced_charge = -1;
             batt_forced_soc = -1;
             batt_drain_fix_cause = 0;
+
             // if total PV voltage is below a limit, just AVOID wasting battery energy, 
             // and disable battery charging to force the solax stopping the MPPT draining 
             // energy from the battery to operate.
             // ok but when not connected to grid, could not start! // if (solax.pv1_wattage + solax.pv2_wattage < 100) 
             // OFFGRID or NIGHT could still have that condition true 
             if (solax.pv1_voltage + solax.pv2_voltage < SOLAX_PV_POWER_OPT_THRESHOLD_V*10 
-                && solax.pv1_voltage + solax.pv2_voltage > 1*10 // not NIGHT
+                && solax.pv1_voltage + solax.pv2_voltage > SOLAX_DAY_THRESHOLD_V*10 // not NIGHT
                 && solax.pv1_wattage + solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W)  // requires some insight on the total PV array connection
             {
               batt_drain_fix_cause = 1;
@@ -539,7 +542,7 @@ void interp(void) {
             // // void if OFFGRID (and solar)
             // else if (
             //   // if no solar, then maybe it's night ! don't mess with SoC information during potential discharge
-            //   solax.pv1_voltage + solax.pv2_voltage > 1*10
+            //   solax.pv1_voltage + solax.pv2_voltage > SOLAX_DAY_THRESHOLD_V*10
             //   // if the panels are not covering the inverter self discharge
             //   && solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W) {
             //   // if importing, then panels does not cover the house, disable charging to avoid draining
@@ -550,9 +553,11 @@ void interp(void) {
             // if the solar is LESS than the house consumes, then don't try to charge
             else if (
               // not night
-              solax.pv1_voltage + solax.pv2_voltage > 1*10
-              // not providing enough
-              && solax.pv1_wattage + solax.pv2_wattage < solax.grid_wattage
+              solax.pv1_voltage + solax.pv2_voltage > SOLAX_DAY_THRESHOLD_V*10
+              // battery is emptying in the grid, and panels aren't coping with that
+              && ( solax.pv1_wattage + solax.pv2_wattage < solax.grid_wattage
+                // observed than under a certain pv power, when the grid is connected, then the battery is used to power the mppt
+                 || (solax.grid_wattage && solax.pv1_wattage + solax.pv2_wattage < SOLAX_SELF_CONSUMPTION_W ) )
               ) {
               batt_drain_fix_cause = 4;
               batt_forced_charge = 0;
@@ -596,10 +601,10 @@ void interp(void) {
         uart_select_intf(UART5);
         // wipe screen
         if (solax.grid_export_wattage >= 0) {
-          snprintf(tmp, sizeof(tmp), "GRID<< %dW %d\n", solax.grid_export_wattage, batt_drain_fix_cause);
+          snprintf(tmp, sizeof(tmp), "GRID<< %dW S%d\n", solax.grid_export_wattage, batt_drain_fix_cause);
         }
         else {
-          snprintf(tmp, sizeof(tmp), "GRID>> %dW %s %d\n", -solax.grid_export_wattage, batt_drain_fix_cause==2?"IMPORT":"", batt_drain_fix_cause);
+          snprintf(tmp, sizeof(tmp), "GRID>> %dW %sS%d\n", -solax.grid_export_wattage, batt_drain_fix_cause==2?"IMPORT ":"", batt_drain_fix_cause);
         }
         uart_send_mem(tmp, strlen(tmp));
         if (solax.grid_wattage >= 0) {
@@ -631,7 +636,7 @@ void interp(void) {
         snprintf(tmp, sizeof(tmp), " %u%% %dA %d%%\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10, batt_forced_soc);
         uart_send_mem(tmp, strlen(tmp));
         // END BAT
-        snprintf(tmp, sizeof(tmp), "PV %uV %dW | %uV %dW %s\n", solax.pv1_voltage/10, solax.pv1_wattage, solax.pv2_voltage/10, solax.pv2_wattage, batt_drain_fix_cause==1?"LOW":"");
+        snprintf(tmp, sizeof(tmp), "PV %uV %dW%s%s\n", solax.pv1_voltage/10, solax.pv1_wattage, solax.pv1_voltage + solax.pv2_voltage <= SOLAX_DAY_THRESHOLD_V * 10 ? " NIGHT":" DAY", batt_drain_fix_cause==1?" LOW":"");
         uart_send_mem(tmp, strlen(tmp));
       }
     }

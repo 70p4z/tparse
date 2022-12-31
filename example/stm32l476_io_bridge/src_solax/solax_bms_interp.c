@@ -6,7 +6,7 @@
 
 #ifdef MODE_SOLAX_BMS
 
-#define VERSION "v8"
+#define VERSION "v9"
 
 extern uint8_t tmp[512];
 
@@ -27,7 +27,7 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 
 #define SOLAX_PV_POWER_OPT_THRESHOLD_V 150
 #define SOLAX_PV_POWER_OPT_THRESHOLD_W 25
-#define SOLAX_GRID_EXPORT_OPT_THRESHOLD_W -50
+#define SOLAX_GRID_EXPORT_OPT_THRESHOLD_W 50
 
 #define SOLAX_MAX_PV_VOLTAGE_V 600 // from user manual
 
@@ -633,7 +633,7 @@ void interp(void) {
               {
                 batt_drain_fix_cause = 1;
                 batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
-                batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
+                batt_forced_soc = SOLAX_SELFUSE_MIN_BATTERY_SOC;
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP
                   && solax_pw_mode_change_ready == 0) {
@@ -648,14 +648,15 @@ void interp(void) {
                 // battery is emptying in the grid, and panels aren't coping with that
                 // observed than under a certain pv power, when the grid is connected, then the battery is used to power the mppt
                 // grid tied
-                solax.grid_wattage
+                solax.grid_wattage /* == SELFUSE*/
                 // not enough power from solar to cover solax self consumption (observed threshold)
-                && solax.pv1_wattage + solax.pv2_wattage < SOLAX_SELF_CONSUMPTION_MPPT_W 
-                                                           + SOLAX_SELF_CONSUMPTION_INVERTER_W
+                && solax.pv1_wattage + solax.pv2_wattage 
+                   < SOLAX_SELF_CONSUMPTION_MPPT_W 
+                     + SOLAX_SELF_CONSUMPTION_INVERTER_W
                 ) {
                 batt_drain_fix_cause = 4;
                 batt_forced_charge = 0; // deny charge
-                batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
+                batt_forced_soc = SOLAX_SELFUSE_MIN_BATTERY_SOC; // deny discharge for self-use
 
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP
@@ -668,13 +669,12 @@ void interp(void) {
               }
               else if ( 
                 // grid tied
-                solax.grid_wattage 
+                solax.grid_wattage /* == SELFUSE*/ 
                 && solax.pv1_wattage + solax.pv2_wattage > SOLAX_SELF_CONSUMPTION_INVERTER_W
                 // we're inverting everything to the self use, nothing left for battery charging :(
                 && solax.pv1_wattage + solax.pv2_wattage 
-                   < 
-                   solax.grid_wattage
-                   + SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W
+                   < solax.grid_wattage
+                     + SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W
                 ) {
                 // battery has nothing left to charge, discard it
                 batt_drain_fix_cause = 5;
@@ -701,9 +701,13 @@ void interp(void) {
                 // CHARGE first strategy
                 && ( pylontech.soc >= SOLAX_SELFUSE_MIN_BATTERY_SOC
                          // or more power to be drained from panel (possibly) (and is needed because of grid import)
-                     || (solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W
+                     || (-solax.grid_export_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W
                          // if we charging above max charge minus 10%, then consider there is room for self-use
-                         && pylontech.current >= pylontech.max_charge - 10*pylontech.max_charge/100 ) )
+                         && pylontech.current >= pylontech.max_charge - 10*pylontech.max_charge/100  // (in 0.1A)
+                         // and still power remaining for the battery (considering the import that will be compensated)
+                         && -solax.grid_export_wattage < pylontech.current * pylontech.voltage / 10 / 10 // (in W)
+                                                         - 10 * pylontech.current * pylontech.voltage / 10 / 10 / 100
+                         ) )
                      ) {
                 if (solax_pw_queue_free()
                   && solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE

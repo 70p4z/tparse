@@ -6,7 +6,7 @@
 
 #ifdef MODE_SOLAX_BMS
 
-#define VERSION "v9"
+#define VERSION "vA"
 
 extern uint8_t tmp[512];
 
@@ -632,8 +632,8 @@ void interp(void) {
                   && solax.pv1_wattage + solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W)  // requires some insight on the total PV array connection
               {
                 batt_drain_fix_cause = 1;
-                batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
-                batt_forced_soc = SOLAX_SELFUSE_MIN_BATTERY_SOC;
+                // batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
+                // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP
                   && solax_pw_mode_change_ready == 0) {
@@ -655,8 +655,8 @@ void interp(void) {
                      + SOLAX_SELF_CONSUMPTION_INVERTER_W
                 ) {
                 batt_drain_fix_cause = 4;
-                batt_forced_charge = 0; // deny charge
-                batt_forced_soc = SOLAX_SELFUSE_MIN_BATTERY_SOC; // deny discharge for self-use
+                // batt_forced_charge = 0; // deny charge
+                // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP

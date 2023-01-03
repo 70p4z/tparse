@@ -22,7 +22,7 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 #define SOLAX_PW_TIMEOUT 1000 // give it a second for 0xA0 bytes @ 9600bps
 #define SOLAX_PW_NEXT_TIMEOUT 1000 // every 2 seconds, check it
 #define SOLAX_PW_INVALID_RETRY_TIMEOUT 100 // 100ms before retrying in case of an error on the pocketwifi serial response
-#define SOLAX_PW_MODE_CHANGE_MIN_INTERVAL 15000 // avoid changing mode constantly
+#define SOLAX_PW_MODE_CHANGE_MIN_INTERVAL 10000 // avoid changing mode constantly
 
 
 #define SOLAX_PV_POWER_OPT_THRESHOLD_V 150
@@ -34,9 +34,6 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 #define SOLAX_DAY_THRESHOLD_V 50 // below 50v is considered NIGHT (with high exposure nights, it has been measured as much)
 #define SOLAX_SELF_CONSUMPTION_MPPT_W 140 // observed inverter consumption when MPPT is working
 #define SOLAX_SELF_CONSUMPTION_INVERTER_W 40 // observed inverter consumption with only inverter enabled (not system off)
-
-// should be retrieve from solax params directly
-#define SOLAX_BAT_MIN_SOC_SELFUSE (40-1) // SELFUSE min %
 
 // before 80% of charge of battery, be conservative, and charge first
 #define SOLAX_SELFUSE_MIN_BATTERY_SOC 80
@@ -98,7 +95,7 @@ void master_log_can(char* prefix, uint32_t cid, size_t cid_bitlen, uint8_t* canm
     case CAN_ID_STANDARD_LEN:
       cid_bitlen = 2;
       master_log_hex(&cid, 2);
-      master_log(" e ");
+      master_log(" s ");
       break;
     default:
       master_log_hex(&cid, 4);

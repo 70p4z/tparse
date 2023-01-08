@@ -339,7 +339,8 @@ void interp(void) {
 
           // add 0.9A to cover for the INVERTER wrong current computation 
           // (it includes its own DC consumption into the battery DC link)
-          if (pylontech.max_charge) {
+          // when not full
+          if (pylontech.max_charge && pylontech.soc != 100) {
             // NOTE: when charging from solar (grid charge is cheating), then MPPT is ON
             uint32_t self_consumption_current_dA = (SOLAX_SELF_CONSUMPTION_MPPT_W
                                                     + SOLAX_SELF_CONSUMPTION_INVERTER_W)*100/*cW*/ 

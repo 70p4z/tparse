@@ -477,6 +477,16 @@ void interp(void) {
             batt_forced_soc = -1;
             batt_drain_fix_cause = 0;
 
+            if (pylontech.soc >= 100) {
+              batt_drain_fix_cause = 3;
+              batt_forced_charge = 0;
+              if (solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE) {
+                solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
+                solax_forced_mode = SOLAX_FORCED_MODE_SELF_USE;
+                solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+              }
+            }
+
             // not NIGHT
             if (solax.pv1_voltage + solax.pv2_voltage > SOLAX_DAY_THRESHOLD_V*10 ) {
 

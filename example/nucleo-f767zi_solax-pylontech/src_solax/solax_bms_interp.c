@@ -499,7 +499,7 @@ void interp(void) {
                   && solax.pv1_wattage + solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W)  // requires some insight on the total PV array connection
               {
                 batt_drain_fix_cause = 1;
-                // batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
+                batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP
@@ -522,7 +522,7 @@ void interp(void) {
                      + SOLAX_SELF_CONSUMPTION_INVERTER_W
                 ) {
                 batt_drain_fix_cause = 4;
-                // batt_forced_charge = 0; // deny charge
+                batt_forced_charge = 0; // deny charge
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 
                 if (solax_pw_queue_free() >= 2 
@@ -542,10 +542,12 @@ void interp(void) {
                 && solax.pv1_wattage + solax.pv2_wattage 
                    < solax.grid_wattage
                      + SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W
+                // NOTE: if battery not charging fast (end of charge) then the condition is not respected, and 
+                //       we don't stay in selfuse due to these conditions :(
                 ) {
                 // battery has nothing left to charge, discard it
                 batt_drain_fix_cause = 5;
-                //batt_forced_charge = 0; // allow charge
+                batt_forced_charge = 0;
                 // avoid discharge completely by violating discharge level of the battery
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 
@@ -558,13 +560,8 @@ void interp(void) {
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
-              // condition won't last long in OFFGRID
-              else if (pylontech.soc >= 100) {
-                batt_drain_fix_cause = 3;
-                // batt_forced_charge = 0;
-                // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
-              }
-              else if (solax.pv1_wattage + solax.pv2_wattage > SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W
+              else if (solax.pv1_wattage + solax.pv2_wattage 
+                       /*> SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W*/
                 // CHARGE first strategy
                 && ( pylontech.soc >= SOLAX_SELFUSE_MIN_BATTERY_SOC
                          // or more power to be drained from panel (possibly) (and is needed because of grid import)
@@ -632,8 +629,8 @@ void interp(void) {
       // prepare next sending
       timeout_next_display = uwTick + DISPLAY_TIMEOUT;
       {
-        int32_t bat_wattage_corr = solax.bat_wattage;
-        //+(solax.bat_wattage?(solax.bat_wattage>0?- SOLAX_SELF_CONSUMPTION_INVERTER_W :SOLAX_SELF_CONSUMPTION_W):0);
+        int32_t bat_wattage_corr = solax.bat_wattage
+          +(solax.bat_wattage?(solax.bat_wattage>0?-SOLAX_SELF_CONSUMPTION_INVERTER_W-SOLAX_SELF_CONSUMPTION_MPPT_W:+SOLAX_SELF_CONSUMPTION_INVERTER_W+SOLAX_SELF_CONSUMPTION_MPPT_W):0);
         uart_select_intf(UART5);
         // wipe screen
         if (solax.grid_export_wattage >= 0) {
@@ -644,10 +641,10 @@ void interp(void) {
         }
         uart_send_mem(tmp, strlen(tmp));
         if (solax.grid_wattage >= 0) {
-          snprintf(tmp, sizeof(tmp), "HOUSE<< %dW BAT:%dW\n", solax.grid_wattage, bat_wattage_corr);
+          snprintf(tmp, sizeof(tmp), "HOUSE<< %dW BAT:%dW\n", solax.grid_wattage, solax.bat_wattage);
         }
         else {
-          snprintf(tmp, sizeof(tmp), "HOUSE>> %dW BAT:%dW\n", -solax.grid_wattage, bat_wattage_corr);
+          snprintf(tmp, sizeof(tmp), "HOUSE>> %dW BAT:%dW\n", -solax.grid_wattage, solax.bat_wattage);
         }
         uart_send_mem(tmp, strlen(tmp));
 
@@ -678,7 +675,7 @@ void interp(void) {
         }
         uart_send_mem(tmp, strlen(tmp));
         // END BAT
-        snprintf(tmp, sizeof(tmp), "PV %uV %dW%s%s %d\n", solax.pv1_voltage/10, solax.pv1_wattage, solax.pv1_voltage + solax.pv2_voltage <= SOLAX_DAY_THRESHOLD_V * 10 ? " NIGHT":" DAY", batt_drain_fix_cause==1?" LOW":"", uwTick/1000);
+        snprintf(tmp, sizeof(tmp), "PV %uV %dW%s%s %d\n", solax.pv1_voltage/10, solax.pv1_wattage, solax.pv1_voltage + solax.pv2_voltage <= SOLAX_DAY_THRESHOLD_V * 10 ? " NI":" DA", batt_drain_fix_cause==1?" LO":"", bat_wattage_corr);
         uart_send_mem(tmp, strlen(tmp));
       }
     }

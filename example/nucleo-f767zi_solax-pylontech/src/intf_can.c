@@ -213,10 +213,16 @@ static void Configure_CAN_generic(CAN_TypeDef* _CAN, uint32_t frequency, uint32_
   _CAN->MCR |= CAN_MCR_INRQ;
   while(! (_CAN->MSR & CAN_MSR_INAK));
 
+#define CFG_BTR(sjw, ts2, ts1, presc) (((sjw - 1)<<24) | ((ts2 - 1)<<20) | ((ts1 - 1)<<16) | (presc - 1))
+#if CFG_BTR(2, 3, 4, 4) != 0x01230003
+#error Invalid macro
+#endif // CFG_BTR
   switch(frequency) {
     default:
     case 500000:
-      _CAN->BTR = 0x01230003;
+      //_CAN->BTR = CFG_BTR(2, 3, 4, 4); // 0x01230003 // some disconnect after 30000sec of activity
+      //_CAN->BTR = CFG_BTR(1, 7, 8, 2);
+      _CAN->BTR = CFG_BTR(1, 3, 12, 2);
       break;
     case 1000000:
       //_CAN->BTR = 0x001c0004;

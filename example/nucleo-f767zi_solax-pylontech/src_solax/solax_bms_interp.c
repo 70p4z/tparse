@@ -13,15 +13,16 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
                    iobridge in solax makefile                  regular iobridge
 */
 //#define BMS_PING
+#define BMS_PING_INTERVAL_MS 5000
 
 #define BMS_RECONNECT_DELAY 20000
-
-#define BMS_PING_INTERVAL_MS 5000
 
 #define SOLAX_PW_TIMEOUT 1000 // give it a second for 0xA0 bytes @ 9600bps
 #define SOLAX_PW_NEXT_TIMEOUT 1000 // every 2 seconds, check it
 #define SOLAX_PW_INVALID_RETRY_TIMEOUT 100 // 100ms before retrying in case of an error on the pocketwifi serial response
 #define SOLAX_PW_MODE_CHANGE_MIN_INTERVAL 10000 // avoid changing mode constantly
+#define PYLONTECH_REQUEST_TIMEOUT 500
+
 
 #define SOLAX_PV_POWER_OPT_THRESHOLD_V 150
 #define SOLAX_PV_POWER_OPT_THRESHOLD_W 25
@@ -225,6 +226,7 @@ void interp(void) {
   } pylontech;
   uint32_t timeout_next_display = uwTick;
   uint32_t solax_pw_mode_change_ready;
+  uint32_t pylontech_timeout = 0;
 
   // init the queue
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
@@ -293,6 +295,7 @@ void interp(void) {
           enable_battery = 0;
           bms_reconnect_at = uwTick; // make sure to avoid overflow when no reconnection request for a while
           can_bms_tx_log(cid, cid_bitlen, tmp, len);
+          pylontech_timeout = uwTick + PYLONTECH_REQUEST_TIMEOUT;
         }
       }
     }
@@ -306,6 +309,12 @@ void interp(void) {
       bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
     }
 #endif // BMS_PING
+
+    // timeout the pylontech status to avoid "bad" display
+    if (pylontech_timeout && uwTick - pylontech_timeout < 0x80000000UL ) {
+      memset(&pylontech, 0, sizeof(pylontech));
+      pylontech_timeout = 0;
+    }
 
     if (can_fifo_avail(CAN3)) {
       len = can_fifo_rx(CAN3, &cid, &cid_bitlen, tmp, sizeof(tmp));

@@ -575,6 +575,7 @@ void interp(void) {
                                                          - 10 * pylontech.current * pylontech.voltage / 10 / 10 / 100
                          ) )
                      ) {
+                batt_drain_fix_cause = 6
                 if (solax_pw_queue_free()
                   && solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE
                   && solax_pw_mode_change_ready == 0) {

@@ -21,7 +21,7 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 #define SOLAX_PW_NEXT_TIMEOUT 1000 // every 2 seconds, check it
 #define SOLAX_PW_INVALID_RETRY_TIMEOUT 100 // 100ms before retrying in case of an error on the pocketwifi serial response
 #define SOLAX_PW_MODE_CHANGE_MIN_INTERVAL 10000 // avoid changing mode constantly
-#define PYLONTECH_REQUEST_TIMEOUT 500
+#define PYLONTECH_ACTIVITY_TIMEOUT 500
 
 
 #define SOLAX_PV_POWER_OPT_THRESHOLD_V 150
@@ -255,6 +255,7 @@ void interp(void) {
   can_bms_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
   bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
   bms_reconnect_at = uwTick;
+  pylontech_timeout = uwTick + PYLONTECH_ACTIVITY_TIMEOUT;
 
   while (1) {
     // check for messages from the inverter
@@ -299,7 +300,6 @@ void interp(void) {
           enable_battery = 0;
           bms_reconnect_at = uwTick; // make sure to avoid overflow when no reconnection request for a while
           can_bms_tx_log(cid, cid_bitlen, tmp, len);
-          pylontech_timeout = uwTick + PYLONTECH_REQUEST_TIMEOUT;
         }
       }
     }
@@ -323,6 +323,7 @@ void interp(void) {
     if (can_fifo_avail(CAN3)) {
       len = can_fifo_rx(CAN3, &cid, &cid_bitlen, tmp, sizeof(tmp));
       master_log_can("bms >>>     | ", cid, cid_bitlen, tmp, len);
+      pylontech_timeout = uwTick + PYLONTECH_ACTIVITY_TIMEOUT;
       forward = 0;
       switch(cid) {
         case 0x1873:

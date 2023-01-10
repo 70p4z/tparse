@@ -178,6 +178,42 @@ const char * const solax_forced_mode_str [] = {
   "FC",
   "FD",
 };
+
+int32_t batt_forced_soc = -1;
+int32_t batt_forced_charge = -1;
+uint32_t batt_drain_fix_cause = 0;
+enum {
+  SOLAX_FORCED_MODE_NONE,
+  SOLAX_FORCED_MODE_SELF_USE,
+  SOLAX_FORCED_MODE_BACKUP,
+  SOLAX_FORCED_MODE_MANUAL_STOP,
+  SOLAX_FORCED_MODE_MANUAL_CHARGE,
+  SOLAX_FORCED_MODE_MANUAL_DISCHARGE,
+} solax_forced_mode;
+struct {
+  uint16_t pv1_voltage;
+  uint16_t pv2_voltage;
+  uint16_t pv1_current;
+  uint16_t pv2_current;
+  uint16_t pv1_wattage;
+  uint16_t pv2_wattage;
+  int16_t bat_wattage;
+  uint8_t mode;
+  uint16_t bat_SoC;
+  int16_t bat_temp;
+  int16_t grid_wattage;
+  int16_t grid_export_wattage;
+  int16_t eps_current;
+} solax;
+struct {
+  uint16_t voltage;
+  int16_t current;
+  uint16_t soc;
+  int32_t wattage;
+  int16_t max_charge;
+  int16_t max_discharge;
+} pylontech;
+
 void interp(void) {
   uint32_t forward;
   enum solax_pw_state_e solax_pw_state = SOLAX_PW_IDLE;
@@ -190,44 +226,12 @@ void interp(void) {
   uint32_t enable_battery = 0;
   //uint32_t wait_bms_info = 1;
   //uint8_t bms_info[8];
-  int32_t batt_forced_soc = -1;
-  int32_t batt_forced_charge = -1;
-  uint32_t batt_drain_fix_cause = 0;
-  enum {
-    SOLAX_FORCED_MODE_NONE,
-    SOLAX_FORCED_MODE_SELF_USE,
-    SOLAX_FORCED_MODE_BACKUP,
-    SOLAX_FORCED_MODE_MANUAL_STOP,
-    SOLAX_FORCED_MODE_MANUAL_CHARGE,
-    SOLAX_FORCED_MODE_MANUAL_DISCHARGE,
-  } solax_forced_mode;
-  struct {
-    uint16_t pv1_voltage;
-    uint16_t pv2_voltage;
-    uint16_t pv1_current;
-    uint16_t pv2_current;
-    uint16_t pv1_wattage;
-    uint16_t pv2_wattage;
-    int16_t bat_wattage;
-    uint8_t mode;
-    uint16_t bat_SoC;
-    int16_t bat_temp;
-    int16_t grid_wattage;
-    int16_t grid_export_wattage;
-    int16_t eps_current;
-  } solax;
-  struct {
-    uint16_t voltage;
-    int16_t current;
-    uint16_t soc;
-    int32_t wattage;
-    int16_t max_charge;
-    int16_t max_discharge;
-  } pylontech;
   uint32_t timeout_next_display = uwTick;
   uint32_t solax_pw_mode_change_ready;
   uint32_t pylontech_timeout = 0;
 
+  memset(&solax, 0, sizeof(solax));
+  memset(&pylontech, 0, sizeof(pylontech));
   // init the queue
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
   // ensure starting with SELF USE mode

@@ -737,7 +737,7 @@ void SystemClock_Config(void)
 
   SysTick_Config(80000000/1000);
 #else
-  // use BARE HSI
+  // use BARE HSI (16MHz)
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
   LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_1);
   LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);

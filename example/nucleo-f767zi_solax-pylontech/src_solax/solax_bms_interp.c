@@ -443,7 +443,7 @@ void interp(void) {
             int32_t power_balance_w = solax.pv1_wattage + solax.pv2_wattage - (solax.grid_wattage + pylontech.wattage );
             // check for invalid data (glitch sometimes returned by the inverter)
             if (solax.pv1_voltage > SOLAX_MAX_PV_VOLTAGE_V*10 || solax.pv2_voltage > SOLAX_MAX_PV_VOLTAGE_V*10) {
-              batt_drain_fix_cause = 101;
+              batt_drain_fix_cause = 71;
             invalid:
               tparse_discard(&tp_u4);
               solax_pw_state = SOLAX_PW_INVALID_NEXT;
@@ -452,28 +452,28 @@ void interp(void) {
               break;
             }
             if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 > 150*solax.pv1_wattage/100) {
-              batt_drain_fix_cause = 102;
+              batt_drain_fix_cause = 72;
               goto invalid;
             }
             if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 < 50*solax.pv1_wattage/100) {
-              batt_drain_fix_cause = 103;
+              batt_drain_fix_cause = 73;
               goto invalid; 
             }
             if (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 > 150*solax.pv2_wattage/100) {
-              batt_drain_fix_cause = 104;
+              batt_drain_fix_cause = 74;
               goto invalid; 
             }
             if (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 < 50*solax.pv2_wattage/100) {
-              batt_drain_fix_cause = 105;
+              batt_drain_fix_cause = 75;
               goto invalid; 
             }
             // check power balance is correct (with a +- variance)
             if (power_balance_w < 0 && power_balance_w < - SOLAX_SELF_CONSUMPTION_MPPT_W - SOLAX_SELF_CONSUMPTION_INVERTER_W) {
-              batt_drain_fix_cause = 106;
+              batt_drain_fix_cause = 76;
               goto invalid; 
             }
             if (power_balance_w > 0 && power_balance_w > SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W) {
-              batt_drain_fix_cause = 107;
+              batt_drain_fix_cause = 77;
               goto invalid; 
             }
 
@@ -591,6 +591,8 @@ void interp(void) {
               }
             }
             else {
+              batt_drain_fix_cause = 7;
+              batt_forced_charge = 0;
               // NIGHT
               if (solax_pw_queue_free() 
                 && solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE
@@ -632,8 +634,8 @@ void interp(void) {
       solax_pw_mode_change_ready = 0;
     }
 
-    // display
-    if (uwTick - timeout_next_display < 0x80000000UL) {
+    // display (if no erroneous data)
+    if (uwTick - timeout_next_display < 0x80000000UL && batt_drain_fix_cause < 70) {
       // prepare next sending
       timeout_next_display = uwTick + DISPLAY_TIMEOUT;
       {

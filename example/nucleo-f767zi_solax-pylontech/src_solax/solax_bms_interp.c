@@ -482,18 +482,6 @@ void interp(void) {
             batt_forced_soc = -1;
             batt_drain_fix_cause = 0;
 
-            if (pylontech.soc >= 100) {
-              batt_drain_fix_cause = 3;
-              batt_forced_charge = 0;
-              if (solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE
-                 && solax_pw_queue_free()
-                 && solax_pw_mode_change_ready == 0) {
-                solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-                solax_forced_mode = SOLAX_FORCED_MODE_SELF_USE;
-                solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
-              }
-            }
-
             // not NIGHT
             if (solax.pv1_voltage + solax.pv2_voltage > SOLAX_DAY_THRESHOLD_V*10 ) {
 
@@ -525,8 +513,7 @@ void interp(void) {
                 solax.grid_wattage /* == SELFUSE*/
                 // not enough power from solar to cover solax self consumption (observed threshold)
                 && solax.pv1_wattage + solax.pv2_wattage 
-                   < SOLAX_SELF_CONSUMPTION_MPPT_W 
-                     + SOLAX_SELF_CONSUMPTION_INVERTER_W
+                   < SOLAX_PV_POWER_OPT_THRESHOLD_W
                 ) {
                 batt_drain_fix_cause = 4;
                 batt_forced_charge = 0; // deny charge
@@ -541,13 +528,28 @@ void interp(void) {
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
+              else if (pylontech.soc >= 100) {
+                batt_drain_fix_cause = 3;
+                batt_forced_charge = 0;
+                if (solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE
+                   && solax_pw_queue_free()
+                   && solax_pw_mode_change_ready == 0) {
+                  solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
+                  solax_forced_mode = SOLAX_FORCED_MODE_SELF_USE;
+                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+                }
+              }
+              // NOTE: this is wrong when wattage total is lower (when the house consumption is not high)
               else if ( 
                 // grid tied
                 solax.grid_wattage /* == SELFUSE*/ 
                 && solax.pv1_wattage + solax.pv2_wattage > SOLAX_SELF_CONSUMPTION_INVERTER_W
                 // we're inverting everything to the self use, nothing left for battery charging :(
+                && (solax.grid_export_wattage > -SOLAX_GRID_EXPORT_OPT_THRESHOLD_W 
+                    || solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W )
                 && solax.pv1_wattage + solax.pv2_wattage 
                    < solax.grid_wattage
+                     //+ SOLAX_PV_POWER_OPT_THRESHOLD_W 
                      + SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W
                 // NOTE: if battery not charging fast (end of charge) then the condition is not respected, and 
                 //       we don't stay in selfuse due to these conditions :(

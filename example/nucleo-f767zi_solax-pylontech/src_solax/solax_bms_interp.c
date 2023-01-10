@@ -239,6 +239,8 @@ void interp(void) {
   solax_forced_mode = SOLAX_FORCED_MODE_SELF_USE;
   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
 
+  Configure_I2C_Slave();
+
 #ifdef MODE_FAKE_SOLAX
   while (1) {
     can_solax_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
@@ -695,4 +697,312 @@ void interp(void) {
   } // end infinited loop
 
 }
+
+#define SLAVE_OWN_ADDRESS 0x44
+
+uint8_t i2c_xfer_buffer[128];
+uint32_t i2c_xfer_offset;
+uint32_t i2c_xfer_length;
+void I2C_Slave_Match_Callback(void) {
+  //i2c_xfer_offset = i2c_xfer_length = 0;
+}
+
+void I2C_Slave_Reception_Callback(void) {
+  i2c_xfer_offset = i2c_xfer_length = 0;
+
+  switch(LL_I2C_ReceiveData8(I2C2)) {
+  case 0:
+    // read stats
+
+    if (batt_drain_fix_cause < 70) 
+    {
+      // data encoding version
+      i2c_xfer_length++; // total length, reserve space
+      i2c_xfer_buffer[i2c_xfer_length++] = 1; 
+
+      // solax state
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.mode; 
+      // solax work mode
+      i2c_xfer_buffer[i2c_xfer_length++] = solax_forced_mode;
+
+      // grid export wattage
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.grid_export_wattage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.grid_export_wattage&0xFF;
+      // internal grid wattage
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.grid_wattage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.grid_wattage&0xFF;
+      // pv1 wattage
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.pv1_wattage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv1_wattage&0xFF;
+      // pv2 wattage
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.pv2_wattage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv2_wattage&0xFF;
+      // bat wattage
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.bat_wattage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.bat_wattage&0xFF;
+      // bat effective wattage (0.1A rounding)
+      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.wattage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = pylontech.wattage&0xFF;
+      // bat soc
+      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.soc>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = pylontech.soc&0xFF;
+      // bat max charge
+      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.max_charge>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = pylontech.max_charge&0xFF;
+      // bat max discharge
+      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.max_discharge>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = pylontech.max_discharge&0xFF;
+      // bat forced max charge
+      i2c_xfer_buffer[i2c_xfer_length++] = (batt_forced_charge>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = batt_forced_charge&0xFF;
+      // last rule executed
+      i2c_xfer_buffer[i2c_xfer_length++] = batt_drain_fix_cause;
+
+      // encode total length
+      i2c_xfer_buffer[0] = i2c_xfer_length;
+    }
+    // DESIGN NOTE: TXIS is raised right when a READ transaction match occurs
+    break;
+  // case 1:
+  //   break;
+  // case 2:
+  //   break;
+  }
+}
+
+void I2C_Slave_Ready_To_Transmit_Callback(void) {
+  if (i2c_xfer_offset < i2c_xfer_length) {
+    LL_I2C_TransmitData8(I2C2, i2c_xfer_buffer[i2c_xfer_offset++]);
+  }
+  else {
+    // stuffing
+    LL_I2C_TransmitData8(I2C2, 0xAA);
+  }
+}
+
+void I2C_Slave_Complete_Callback(void) {
+  //i2c_xfer_offset = i2c_xfer_length = 0;
+}
+
+void I2C_Error_Callback(void) {
+  i2c_xfer_offset = i2c_xfer_length = 0;
+}
+
+/**
+  * Brief   This function handles I2C2 (Slave) event interrupt request.
+  * Param   None
+  * Retval  None
+  */
+void I2C2_EV_IRQHandler(void)
+{
+  /* Check ADDR flag value in ISR register */
+  if(LL_I2C_IsActiveFlag_ADDR(I2C2))
+  {
+    /* Verify the Address Match wI2C_Slave_Complete_Callbackith the OWN Slave address */
+    if(LL_I2C_GetAddressMatchCode(I2C2) == SLAVE_OWN_ADDRESS)
+    {
+      I2C_Slave_Match_Callback();
+      // /* Verify the transfer direction, a read direction, Slave enters transmitter mode */
+      // if(LL_I2C_GetTransferDirection(I2C2) == LL_I2C_DIRECTION_READ)
+      // {
+      /* Clear ADDR flag value in ISR register */
+      LL_I2C_ClearFlag_ADDR(I2C2);
+
+      //   /* Enable Transmit Interrupt */
+      //   LL_I2C_EnableIT_TX(I2C2);
+
+      // }
+      // else
+      // {
+      //   /* Clear ADDR flag value in ISR register */
+      //   LL_I2C_ClearFlag_ADDR(I2C2);
+
+      //   /* Call Error function */
+      //   I2C_Error_Callback();
+      // }
+    }
+    else
+    {
+      /* Clear ADDR flag value in ISR register */
+      LL_I2C_ClearFlag_ADDR(I2C2);
+        
+      /* Call Error function */
+      I2C_Error_Callback();
+    }
+  }
+  /* Check NACK flag value in ISR register */
+  else if(LL_I2C_IsActiveFlag_NACK(I2C2))
+  {
+    /* End of Transfer */
+    LL_I2C_ClearFlag_NACK(I2C2);
+  }
+  /* Check RXNE flag value in ISR register */
+  else if(LL_I2C_IsActiveFlag_RXNE(I2C2))
+  {
+    /* Call function Slave Reception Callback */
+    I2C_Slave_Reception_Callback();
+  }
+  /* Check TXIS flag value in ISR register */
+  else if(LL_I2C_IsActiveFlag_TXIS(I2C2))
+  {
+    /* Call function Slave Ready to Transmit Callback */
+    I2C_Slave_Ready_To_Transmit_Callback();
+  }
+  /* Check STOP flag value in ISR register */
+  else if(LL_I2C_IsActiveFlag_STOP(I2C2))
+  {
+    /* Clear STOP flag value in ISR register */
+    LL_I2C_ClearFlag_STOP(I2C2);
+    
+    /* Check TXE flag value in ISR register */
+    if(!LL_I2C_IsActiveFlag_TXE(I2C2))
+    {
+      /* Flush the TXDR register */
+      LL_I2C_ClearFlag_TXE(I2C2);
+    }
+
+    /* Call function Slave Complete Callback */
+    I2C_Slave_Complete_Callback();
+  }
+  /* Check TXE flag value in ISR register */
+  else if(!LL_I2C_IsActiveFlag_TXE(I2C2))
+  {
+    /* Do nothing */
+    /* This Flag will be set by hardware when the TXDR register is empty */
+    /* If needed, use LL_I2C_ClearFlag_TXE() interface to flush the TXDR register  */
+  }
+  // tested in situ that nothing interesting goes here!
+  // else
+  // {
+  //   volatile uint32_t isr = I2C2->ISR;
+  //   /* Call Error function */
+  //   I2C_Error_Callback();
+  // }
+}
+
+/**
+  * Brief   This function handles I2C2 (Slave) error interrupt request.
+  * Param   None
+  * Retval  None
+  */
+void I2C2_ER_IRQHandler(void)
+{
+  /* Call Error function */
+  I2C_Error_Callback();
+}
+
+void Configure_I2C_Slave(void)
+{
+  uint32_t timing = 0;
+
+  /* (1) Enables GPIO clock and configures the I2C2 pins **********************/
+  /*    (SCL on PB.10, SDA on PB.11)                     **********************/
+
+  /* Enable the peripheral clock of GPIOB */
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+
+  /* Configure SCL Pin as : Alternate function, High Speed, Open drain, Pull up */
+  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_10, LL_GPIO_AF_4);
+  LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_10, LL_GPIO_OUTPUT_OPENDRAIN);
+  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_10, LL_GPIO_PULL_UP);
+
+  /* Configure SDA Pin as : Alternate function, High Speed, Open drain, Pull up */
+  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_11, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_11, LL_GPIO_AF_4);
+  LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_11, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_11, LL_GPIO_OUTPUT_OPENDRAIN);
+  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_11, LL_GPIO_PULL_UP);
+
+  /* (2) Enable the I2C2 peripheral clock and I2C2 clock source ***************/
+
+  /* Enable the peripheral clock for I2C2 */
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C2);
+
+  /* Set I2C2 clock source as SYSCLK */
+  LL_RCC_SetI2CClockSource(LL_RCC_I2C2_CLKSOURCE_SYSCLK);
+
+  /* (3) Configure NVIC for I2C2 **********************************************/
+
+  /* Configure Event IT:
+   *  - Set priority for I2C2_EV_IRQn
+   *  - Enable I2C2_EV_IRQn
+   */
+  NVIC_SetPriority(I2C2_EV_IRQn, 0);  
+  NVIC_EnableIRQ(I2C2_EV_IRQn);
+
+  /* Configure Error IT:
+   *  - Set priority for I2C2_ER_IRQn
+   *  - Enable I2C2_ER_IRQn
+   */
+  NVIC_SetPriority(I2C2_ER_IRQn, 0);  
+  NVIC_EnableIRQ(I2C2_ER_IRQn);
+
+  /* (4) Configure I2C2 functional parameters *********************************/
+
+  /* Disable I2C2 prior modifying configuration registers */
+  LL_I2C_Disable(I2C2);
+
+  /* Configure the SDA setup, hold time and the SCL high, low period */
+  LL_I2C_SetTiming(I2C2, 0x00100105);
+
+  /* Configure the Own Address1 :
+   *  - OwnAddress1 is SLAVE_OWN_ADDRESS
+   *  - OwnAddrSize is LL_I2C_OWNADDRESS1_7BIT
+   *  - Own Address1 is enabled
+   */
+  LL_I2C_SetOwnAddress1(I2C2, SLAVE_OWN_ADDRESS, LL_I2C_OWNADDRESS1_7BIT);
+  LL_I2C_EnableOwnAddress1(I2C2);
+
+  /* Enable Clock stretching */
+  /* Reset Value is Clock stretching enabled */
+  //LL_I2C_EnableClockStretching(I2C2);
+
+  /* Configure Digital Noise Filter */
+  /* Reset Value is 0x00            */
+  //LL_I2C_SetDigitalFilter(I2C2, 0x00);
+
+  /* Enable Analog Noise Filter           */
+  /* Reset Value is Analog Filter enabled */
+  //LL_I2C_EnableAnalogFilter(I2C2);
+
+  /* Enable General Call                  */
+  /* Reset Value is General Call disabled */
+  //LL_I2C_EnableGeneralCall(I2C2);
+
+  /* Configure the 7bits Own Address2               */
+  /* Reset Values of :
+   *     - OwnAddress2 is 0x00
+   *     - OwnAddrMask is LL_I2C_OWNADDRESS2_NOMASK
+   *     - Own Address2 is disabled
+   */
+  //LL_I2C_SetOwnAddress2(I2C2, 0x00, LL_I2C_OWNADDRESS2_NOMASK);
+  //LL_I2C_DisableOwnAddress2(I2C2);
+
+  /* Enable Peripheral in I2C mode */
+  /* Reset Value is I2C mode */
+  //LL_I2C_SetMode(I2C2, LL_I2C_MODE_I2C);
+
+  /* (5) Enable I2C2 **********************************************************/
+  LL_I2C_Enable(I2C2);
+
+  /* (6) Enable I2C2 address match/error interrupts:
+   *  - Enable Address Match Interrupt
+   *  - Enable Not acknowledge received interrupt
+   *  - Enable Error interrupts
+   *  - Enable Stop interrupt
+   */
+  LL_I2C_EnableIT_ADDR(I2C2);
+  LL_I2C_EnableIT_NACK(I2C2);
+  LL_I2C_EnableIT_ERR(I2C2);
+  LL_I2C_EnableIT_STOP(I2C2);
+  LL_I2C_EnableIT_RX(I2C2);
+  LL_I2C_EnableIT_TX(I2C2);
+
+
+  NVIC_EnableIRQ(I2C2_EV_IRQn);
+  NVIC_EnableIRQ(I2C2_ER_IRQn);
+}
+
 #endif // MODE_SOLAX_BMS

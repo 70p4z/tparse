@@ -514,6 +514,7 @@ void interp(void) {
                 batt_drain_fix_cause = 1;
                 master_log("cause 1\n");
                 batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
+                batt_forced_soc = 100;
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP
@@ -537,6 +538,7 @@ void interp(void) {
                 batt_drain_fix_cause = 4;
                 master_log("cause 4\n");
                 batt_forced_charge = 0; // deny charge
+                batt_forced_soc = 100;
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 
                 if (solax_pw_queue_free() >= 2 
@@ -552,6 +554,7 @@ void interp(void) {
                 batt_drain_fix_cause = 3;
                 master_log("cause 3\n");
                 batt_forced_charge = 0;
+                batt_forced_soc = 100;
                 if (solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE
                    && solax_pw_queue_free()
                    && solax_pw_mode_change_ready == 0) {
@@ -564,6 +567,8 @@ void interp(void) {
               else if ( 
                 // grid tied
                 solax.grid_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W /* == SELFUSE*/ 
+                // battery charge first stops when reading th BATT MIN SOC for selfuse
+                && pylontech.soc <= SOLAX_SELFUSE_MIN_BATTERY_SOC
                 && solax.pv1_wattage + solax.pv2_wattage > SOLAX_SELF_CONSUMPTION_INVERTER_W
                 // we're inverting everything to the self use, nothing left for battery charging :(
                 && (solax.grid_export_wattage > -SOLAX_GRID_EXPORT_OPT_THRESHOLD_W 
@@ -579,6 +584,7 @@ void interp(void) {
                 batt_drain_fix_cause = 5;
                 master_log("cause 5\n");
                 batt_forced_charge = 0;
+                batt_forced_soc = 100;
                 // avoid discharge completely by violating discharge level of the battery
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 

@@ -62,7 +62,7 @@ def i2c_read_packet(iob, addr, mtu):
     nb -= si
   return reassemble(rarray)
 
-def i2c_exchange(iob, data, mtu=256, addr=0x78, error_as_exception=True, timeout=True, i2c_int_port=0, i2c_int_pin=9):
+def i2c_exchange(iob, data, mtu=255, addr=0x78, error_as_exception=True, timeout=True, i2c_int_port=0, i2c_int_pin=9):
   # check if the I2C has already data to be retrieved
   if iob.i2c_is_interrupt(i2c_int_port, i2c_int_pin):
     d = i2c_read_packet(iob, addr, mtu)

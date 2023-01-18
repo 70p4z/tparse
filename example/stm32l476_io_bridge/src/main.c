@@ -22,7 +22,7 @@
 
 /* Private functions ---------------------------------------------------------*/
 
-uint8_t tmp[300];
+uint8_t tmp[512+32];
 
 uint32_t tparse_al_time(void) {
   return uwTick; /* todo bind the systick count here */;
@@ -506,9 +506,6 @@ __attribute__((weak)) void interp(void) {
         if (previous_sw && ts2<=0) {
           uart_send("ERROR:\n");
         }
-        else {
-          uart_send("OK:\n");
-        }
         // i2cwc <addr> <data> [<retrycount>] 
         addr = tparse_token_u32(tp);
         if (addr >= 0x100 || addr == -1) {
@@ -526,6 +523,9 @@ __attribute__((weak)) void interp(void) {
           ts = tparse_token_u32(tp);
         }
         previous_sw = 0;
+        // only send the ok for the next command when the 
+        // buffer has been moved to avoid race with the host
+        uart_send("OK:\n");
       write_again_c:
         val = i2c_write(addr, tmp, len);
         previous_sw = 1;
@@ -606,6 +606,7 @@ __attribute__((weak)) void interp(void) {
             len = 3; // read only the header
           }
           else {
+            // should take a MTU parameter!
             len = MIN(255,MIN(tlen, sizeof(tmp)));
           }
           ts2 = ts;
@@ -727,7 +728,7 @@ int main(void)
   // Usart for live display
   Configure_UART5(USART_BAUDRATE_UART5);
 
-  Configure_I2C1(1000);
+  Configure_I2C1(400);
 
   Configure_USART1_ISO();
 

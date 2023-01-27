@@ -5,7 +5,7 @@ ifeq ($(BUILD_DIR),)
 BUILD_DIR = build
 endif
 
-DEFINES += VERSION=\"v15\"
+DEFINES += VERSION=\"v16\"
 
 DEFINES += MODE_SOLAX_BMS
 BUILD_DIR = build_solax

@@ -170,7 +170,7 @@ void solax_pw_queue_push(const uint8_t* cmd, uint32_t cmd_len, uint32_t rep_len)
   solax_pw_queue[idx].rep_len = rep_len;
 }
 
-const char * const solax_forced_mode_str [] = {
+const char * const solax_forced_work_mode_str [] = {
   "--",
   "SU",
   "BK",
@@ -183,13 +183,13 @@ int32_t batt_forced_soc = -1;
 int32_t batt_forced_charge = -1;
 uint32_t batt_drain_fix_cause = 0;
 enum {
-  SOLAX_FORCED_MODE_NONE,
-  SOLAX_FORCED_MODE_SELF_USE,
-  SOLAX_FORCED_MODE_BACKUP,
-  SOLAX_FORCED_MODE_MANUAL_STOP,
-  SOLAX_FORCED_MODE_MANUAL_CHARGE,
-  SOLAX_FORCED_MODE_MANUAL_DISCHARGE,
-} solax_forced_mode;
+  SOLAX_FORCED_WORK_MODE_NONE,
+  SOLAX_FORCED_WORK_MODE_SELF_USE,
+  SOLAX_FORCED_WORK_MODE_BACKUP,
+  SOLAX_FORCED_WORK_MODE_MANUAL_STOP,
+  SOLAX_FORCED_WORK_MODE_MANUAL_CHARGE,
+  SOLAX_FORCED_WORK_MODE_MANUAL_DISCHARGE,
+} solax_forced_work_mode;
 struct {
   uint16_t pv1_voltage;
   uint16_t pv2_voltage;
@@ -198,12 +198,18 @@ struct {
   uint16_t pv1_wattage;
   uint16_t pv2_wattage;
   int16_t bat_wattage;
-  uint8_t mode;
+  uint8_t status;
+  uint8_t work_mode;
   uint16_t bat_SoC;
   int16_t bat_temp;
   int16_t grid_wattage;
   int16_t grid_export_wattage;
   int16_t eps_current;
+  uint16_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hour;
+  uint8_t minute;
 } solax;
 struct {
   uint16_t voltage;
@@ -236,7 +242,7 @@ void interp(void) {
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
   // ensure starting with SELF USE mode
   solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-  solax_forced_mode = SOLAX_FORCED_MODE_SELF_USE;
+  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
 
   Configure_I2C_Slave();
@@ -434,12 +440,17 @@ void interp(void) {
             solax.pv2_current = U2LE(tmp, 19);
             solax.pv1_wattage = U2LE(tmp, 21);
             solax.pv2_wattage = U2LE(tmp, 23);
-            solax.mode        = tmp[25];
+            solax.status      = tmp[25];
             solax.bat_wattage = S2LE(tmp, 37);
             solax.bat_temp = S2LE(tmp, 39);
             solax.bat_SoC = U2LE(tmp, 41);
             solax.eps_current = U2LE(tmp, 65);
             solax.grid_export_wattage = S2LE(tmp, 69);
+            solax.minute = tmp[0xCC];
+            solax.hour = tmp[0xCD];
+            solax.day = tmp[0xCE];
+            solax.month = tmp[0xCF];
+            solax.year = tmp[0xD0] + 2000;
 
 
             // if (!solax_checksum_verify(tmp+2,tmp[2]-2)) {
@@ -517,11 +528,11 @@ void interp(void) {
                 batt_forced_soc = 100;
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
                 if (solax_pw_queue_free() >= 2 
-                  && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP
+                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
                   && solax_pw_mode_change_ready == 0) {
                   solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
                   solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-                  solax_forced_mode = SOLAX_FORCED_MODE_MANUAL_STOP;
+                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
@@ -542,11 +553,11 @@ void interp(void) {
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 
                 if (solax_pw_queue_free() >= 2 
-                  && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP
+                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
                   && solax_pw_mode_change_ready == 0) {
                   solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
                   solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-                  solax_forced_mode = SOLAX_FORCED_MODE_MANUAL_STOP;
+                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
@@ -555,11 +566,11 @@ void interp(void) {
                 master_log("cause 3\n");
                 batt_forced_charge = 0;
                 batt_forced_soc = 100;
-                if (solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE
+                if (solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
                    && solax_pw_queue_free()
                    && solax_pw_mode_change_ready == 0) {
                   solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-                  solax_forced_mode = SOLAX_FORCED_MODE_SELF_USE;
+                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
@@ -589,11 +600,11 @@ void interp(void) {
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 
                 if (solax_pw_queue_free() >= 2 
-                  && solax_forced_mode != SOLAX_FORCED_MODE_MANUAL_STOP
+                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
                   && solax_pw_mode_change_ready == 0) {
                   solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
                   solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-                  solax_forced_mode = SOLAX_FORCED_MODE_MANUAL_STOP;
+                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
@@ -616,10 +627,10 @@ void interp(void) {
                 batt_drain_fix_cause = 6;
                 master_log("cause 6\n");
                 if (solax_pw_queue_free()
-                  && solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE
+                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
                   && solax_pw_mode_change_ready == 0) {
                   solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-                  solax_forced_mode = SOLAX_FORCED_MODE_SELF_USE;
+                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
@@ -630,10 +641,10 @@ void interp(void) {
               //batt_forced_charge = 0;
               // NIGHT
               if (solax_pw_queue_free() 
-                && solax_forced_mode != SOLAX_FORCED_MODE_SELF_USE
+                && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
                 && solax_pw_mode_change_ready == 0) {
                 solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-                solax_forced_mode = SOLAX_FORCED_MODE_SELF_USE;
+                solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
                 solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
               }
             }
@@ -680,17 +691,17 @@ void interp(void) {
         uart_select_intf(UART5);
         // wipe screen
         if (solax.grid_export_wattage >= 0) {
-          snprintf(tmp, sizeof(tmp), VERSION "GD< %dW|%s:%d %d\n", solax.grid_export_wattage, solax_forced_mode_str[solax_forced_mode], solax.mode, batt_drain_fix_cause);
+          snprintf(tmp, sizeof(tmp), VERSION "GD< %dW|%s:%d %d\n", solax.grid_export_wattage, solax_forced_work_mode_str[solax_forced_work_mode], solax.status, batt_drain_fix_cause);
         }
         else {
-          snprintf(tmp, sizeof(tmp), VERSION "GD> %dW|%s:%d %d\n", -solax.grid_export_wattage, solax_forced_mode_str[solax_forced_mode], solax.mode, batt_drain_fix_cause);
+          snprintf(tmp, sizeof(tmp), VERSION "GD> %dW|%s:%d %d\n", -solax.grid_export_wattage, solax_forced_work_mode_str[solax_forced_work_mode], solax.status, batt_drain_fix_cause);
         }
         uart_send_mem(tmp, strlen(tmp));
         if (solax.grid_wattage >= 0) {
-          snprintf(tmp, sizeof(tmp), "HOUSE< %dW BAT:%dW\n", solax.grid_wattage, solax.bat_wattage);
+          snprintf(tmp, sizeof(tmp), "HOUSE< %dW\n", solax.grid_wattage);
         }
         else {
-          snprintf(tmp, sizeof(tmp), "HOUSE> %dW BAT:%dW\n", -solax.grid_wattage, solax.bat_wattage);
+          snprintf(tmp, sizeof(tmp), "HOUSE> %dW\n", -solax.grid_wattage);
         }
         uart_send_mem(tmp, strlen(tmp));
 
@@ -714,10 +725,10 @@ void interp(void) {
         uart_send_mem(tmp, strlen(tmp));
         #endif
         if (batt_forced_soc== -1) {
-          snprintf(tmp, sizeof(tmp), " %u%% %dA %dW\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10, bat_wattage_corr);
+          snprintf(tmp, sizeof(tmp), " %u%% %dA\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10);
         }
         else {
-          snprintf(tmp, sizeof(tmp), " %u%% %dA F%u%% %dW\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10, batt_forced_soc, bat_wattage_corr);
+          snprintf(tmp, sizeof(tmp), " %u%% %dA F%u%%\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10, batt_forced_soc);
         }
         uart_send_mem(tmp, strlen(tmp));
         // END BAT
@@ -753,9 +764,9 @@ void I2C_Slave_Reception_Callback(void) {
       i2c_xfer_buffer[i2c_xfer_length++] = 1; 
 
       // solax state
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.mode; 
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.status; 
       // solax work mode
-      i2c_xfer_buffer[i2c_xfer_length++] = solax_forced_mode;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax_forced_work_mode;
 
       // grid export wattage
       i2c_xfer_buffer[i2c_xfer_length++] = (solax.grid_export_wattage>>8)&0xFF;
@@ -789,7 +800,24 @@ void I2C_Slave_Reception_Callback(void) {
       i2c_xfer_buffer[i2c_xfer_length++] = batt_forced_charge&0xFF;
       // last rule executed
       i2c_xfer_buffer[i2c_xfer_length++] = batt_drain_fix_cause;
-
+      // solax work_mode
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.work_mode;
+      // pv1 voltage
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.pv1_voltage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv1_voltage&0xFF;
+      // pv2 voltage
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.pv2_voltage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv2_voltage&0xFF;
+      // eps current
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.eps_current>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_current&0xFF;
+      // timestamp
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.year>>8;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.year&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.month;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.day;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.hour;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.minute;
       // encode total length
       i2c_xfer_buffer[0] = i2c_xfer_length;
     }

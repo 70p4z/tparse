@@ -38,6 +38,7 @@ extern "C" {
 #include "stm32f7xx_ll_system.h"
 #include "stm32f7xx_ll_i2c.h"
 #include "stm32f7xx_ll_exti.h"
+#include "stm32f7xx_ll_iwdg.h"
 
 #ifndef MAX
 #define MAX(x,y) ((x)>(y)?(x):(y))

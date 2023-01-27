@@ -41,20 +41,28 @@ def home_assistant_push(ident, name, value, unit=None):
 while True:
   try:
     write = i2c_msg.write(i2c_addr,b'\x00')
-    read = i2c_msg.read(i2c_addr, 25)
+    read = i2c_msg.read(i2c_addr, 1)
     i2cbus.i2c_rdwr(write, read)
     # convert as byte array
     data = b''
     for v in read:
       data+=bytes([v])
-
+    print(binascii.hexlify(data))
+    length=data[0]
+    write = i2c_msg.write(i2c_addr,b'\x00')
+    read = i2c_msg.read(i2c_addr, length)
+    i2cbus.i2c_rdwr(write, read)
+    data = b''
+    for v in read:
+      data+=bytes([v])
+    print(binascii.hexlify(data))
     #check data format
-    if data[0] != 25 or data[1] != 1:
+    if length < 2 or data[1] != 1:
       print("Unsupported encoding")
       time.sleep(0.2)
       continue
 
-    fields = struct.unpack_from(">BBBBhhhhhhhhhhB", data)
+    fields = struct.unpack_from(">BBBBhhhhhhhhhhBBhhhHBBBB", data)
     IDX_STATE = 2
     IDX_FORCED_MODE = 3
     IDX_GRID_EXPORT = 4
@@ -68,6 +76,15 @@ while True:
     IDX_DISCH = 12
     IDX_FORCED_CH = 13
     IDX_OPT_RULE = 14
+    IDX_MODE = 15
+    IDX_PV1_VOLTAGE=16
+    IDX_PV2_VOLTAGE=17
+    IDX_EPS_CURRENT=18
+    IDX_Y=19
+    IDX_M=20
+    IDX_D=21
+    IDX_HR=22
+    IDX_MN=23
     print (repr(fields))
 
     home_assistant_push("sensor.solax_grid_export", "Grid export",        fields[IDX_GRID_EXPORT], "W")
@@ -78,6 +95,10 @@ while True:
     home_assistant_push("sensor.solax_bms_bat",     "Battery (BMS)",      fields[IDX_BMS_BAT], "W")
     home_assistant_push("sensor.solax_soc",         "Battery Charge",     fields[IDX_SOC], "%")
     home_assistant_push("sensor.solax_opt_rule",    "Solax Optimization", fields[IDX_OPT_RULE])
+    home_assistant_push("sensor.solax_pv1_voltage", "PV array 1 Voltage", fields[IDX_PV1_VOLTAGE]/10.0, "V")
+    home_assistant_push("sensor.solax_pv2_voltage", "PV array 2 Voltage", fields[IDX_PV2_VOLTAGE]/10.0, "V")
+    home_assistant_push("sensor.solax_eps_current", "EPS Current",        fields[IDX_EPS_CURRENT]/10.0, "I")
+    home_assistant_push("sensor.solax_time",        "Local Time",         str(fields[IDX_Y])+'/'+str(fields[IDX_M])+'/'+str(fields[IDX_D])+ ' '+str(fields[IDX_HR])+':'+str(fields[IDX_MN]) )
     
     state = fields[IDX_STATE]
     str_states = {}
@@ -89,7 +110,8 @@ while True:
     str_modes = {}
     if fields[IDX_FORCED_MODE] in str_modes:
       mode = str_modes[fields[IDX_FORCED_MODE]]
-    home_assistant_push("sensor.solax_mode", "Work mode", mode)
+    home_assistant_push("sensor.solax_forced_mode", "Forced work mode", mode)
+    home_assistant_push("sensor.solax_work_mode", "Work mode", fields[IDX_MODE])
   except:
     print(traceback.print_exc())
     sys.exit(-1)

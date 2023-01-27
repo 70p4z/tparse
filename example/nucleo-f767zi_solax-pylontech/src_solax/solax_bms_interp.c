@@ -31,11 +31,13 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 #define SOLAX_MAX_PV_VOLTAGE_V 600 // from user manual
 
 #define SOLAX_DAY_THRESHOLD_V 50 // below 50v is considered NIGHT (with high exposure nights, it has been measured as much)
-#define SOLAX_SELF_CONSUMPTION_MPPT_W 140 // observed inverter consumption when MPPT is working
+#define SOLAX_SELF_CONSUMPTION_MPPT_W 40 // observed inverter consumption when MPPT is working
 #define SOLAX_SELF_CONSUMPTION_INVERTER_W 40 // observed inverter consumption with only inverter enabled (not system off)
 
 // before 80% of charge of battery, be conservative, and charge first
 #define SOLAX_SELFUSE_MIN_BATTERY_SOC 80
+#define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU 30 /* at least 25% of the solar power usable must go to the battery */
+#define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_FS 20
 
 #define DISPLAY_TIMEOUT 1000
 
@@ -525,7 +527,7 @@ void interp(void) {
                 batt_drain_fix_cause = 1;
                 master_log("cause 1\n");
                 batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
-                batt_forced_soc = 100;
+                //batt_forced_soc = 100;
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
@@ -549,7 +551,7 @@ void interp(void) {
                 batt_drain_fix_cause = 4;
                 master_log("cause 4\n");
                 batt_forced_charge = 0; // deny charge
-                batt_forced_soc = 100;
+                // batt_forced_soc = 100;
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 
                 if (solax_pw_queue_free() >= 2 
@@ -565,7 +567,7 @@ void interp(void) {
                 batt_drain_fix_cause = 3;
                 master_log("cause 3\n");
                 batt_forced_charge = 0;
-                batt_forced_soc = 100;
+                // batt_forced_soc = 100;
                 if (solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
                    && solax_pw_queue_free()
                    && solax_pw_mode_change_ready == 0) {
@@ -574,31 +576,43 @@ void interp(void) {
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
+              else if (pylontech.soc < SOLAX_SELFUSE_MIN_BATTERY_SOC) {
+                batt_drain_fix_cause = 8;
+                master_log("cause 8\n");
+                if (solax_pw_queue_free() >= 2 
+                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
+                  && solax_pw_mode_change_ready == 0) {
+                  solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
+                  solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
+                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
+                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+                }
+              }
               // NOTE: this is wrong when wattage total is lower (when the house consumption is not high)
               else if ( 
                 // grid tied
                 solax.grid_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W /* == SELFUSE*/ 
-                // battery charge first stops when reading th BATT MIN SOC for selfuse
-                && pylontech.soc <= SOLAX_SELFUSE_MIN_BATTERY_SOC
-                && solax.pv1_wattage + solax.pv2_wattage > SOLAX_SELF_CONSUMPTION_INVERTER_W
+                // battery charge first stops when reading the BATT MIN SOC for selfuse
+                //&& pylontech.soc <= SOLAX_SELFUSE_MIN_BATTERY_SOC
+                // && solax.pv1_wattage + solax.pv2_wattage > SOLAX_SELF_CONSUMPTION_INVERTER_W
                 // we're inverting everything to the self use, nothing left for battery charging :(
-                && (solax.grid_export_wattage > -SOLAX_GRID_EXPORT_OPT_THRESHOLD_W 
-                    || solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W )
-                && solax.pv1_wattage + solax.pv2_wattage 
-                   < solax.grid_wattage
-                     //+ SOLAX_PV_POWER_OPT_THRESHOLD_W 
-                     + SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W
+                // && (solax.grid_export_wattage > -SOLAX_GRID_EXPORT_OPT_THRESHOLD_W 
+                //     || solax.grid_export_wattage < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W )
+                && ( 
+                  // solax.pv1_wattage + solax.pv2_wattage 
+                  //  < solax.grid_wattage
+                  //    //+ SOLAX_PV_POWER_OPT_THRESHOLD_W 
+                  //    //+ SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W
+                  //  || 
+                  pylontech.current * pylontech.voltage / 10 / 10 
+                    < SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_FS * (solax.pv1_wattage + solax.pv2_wattage) / 100
+                   )
                 // NOTE: if battery not charging fast (end of charge) then the condition is not respected, and 
                 //       we don't stay in selfuse due to these conditions :(
                 ) {
-                // battery has nothing left to charge, discard it
+                // battery has nothing left to charge, discard grid 
                 batt_drain_fix_cause = 5;
                 master_log("cause 5\n");
-                batt_forced_charge = 0;
-                batt_forced_soc = 100;
-                // avoid discharge completely by violating discharge level of the battery
-                // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
-
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
                   && solax_pw_mode_change_ready == 0) {
@@ -611,19 +625,23 @@ void interp(void) {
               else if (solax.pv1_wattage + solax.pv2_wattage 
                        /*> SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W*/
                 // CHARGE first strategy
-                && ( pylontech.soc >= SOLAX_SELFUSE_MIN_BATTERY_SOC
+                && ( (pylontech.soc >= SOLAX_SELFUSE_MIN_BATTERY_SOC
+                      && -solax.grid_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W
+                      && -solax.grid_wattage < pylontech.current * pylontech.voltage / 10 / 10 // (in W)
+                                                         - SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU * pylontech.current * pylontech.voltage / 10 / 10 / 100)
                          // or more power to be drained from panel (possibly) (and is needed because of grid import)
-                     || (-solax.grid_export_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W
+                     || (-solax.grid_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W
                          // if we charging above max charge minus 10%, then consider there is room for self-use
                          && pylontech.current >= pylontech.max_charge - 10*pylontech.max_charge/100  // (in 0.1A)
                          // and still power remaining for the battery (considering the import that will be compensated)
-                         && -solax.grid_export_wattage < pylontech.current * pylontech.voltage / 10 / 10 // (in W)
-                                                         - 10 * pylontech.current * pylontech.voltage / 10 / 10 / 100
+                         && -solax.grid_wattage < pylontech.current * pylontech.voltage / 10 / 10 // (in W)
+                                                         - SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU * pylontech.current * pylontech.voltage / 10 / 10 / 100
                          )
                      // || solar > 180w + (- grid export) => we have some spare to charge batteries
                        )
 
                      ) {
+                // power the grid
                 batt_drain_fix_cause = 6;
                 master_log("cause 6\n");
                 if (solax_pw_queue_free()

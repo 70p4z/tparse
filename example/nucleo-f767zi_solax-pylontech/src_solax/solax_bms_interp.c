@@ -40,6 +40,8 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 #define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_FS 20
 
 #define DISPLAY_TIMEOUT 1000
+// at least a CAN communication must have taken place within that period
+#define TIMEOUT_LAST_ACTIVITY 10000
 
 #define S2LE(buf, off) ((int16_t)((int16_t)((int16_t)((int16_t)(buf)[off+1])<<8l) | (int16_t)((int16_t)(buf)[off]&0xFFl) ))
 #define U2LE(buf, off) ((((buf)[off+1]&0xFFu)<<8) | ((buf)[off]&0xFFu) )
@@ -237,6 +239,7 @@ void interp(void) {
   uint32_t timeout_next_display = uwTick;
   uint32_t solax_pw_mode_change_ready;
   uint32_t pylontech_timeout = 0;
+  uint32_t last_activity_timeout = 0;
 
   memset(&solax, 0, sizeof(solax));
   memset(&pylontech, 0, sizeof(pylontech));
@@ -265,9 +268,47 @@ void interp(void) {
   can_bms_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
   bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
   bms_reconnect_at = uwTick;
+  last_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
   pylontech_timeout = uwTick + PYLONTECH_ACTIVITY_TIMEOUT;
 
+  // startup the watchdog
+  /* Enable the peripheral clock of DBG register (uncomment for debug purpose) */
+  /* ------------------------------------------------------------------------- */
+  /*  LL_DBGMCU_APB1_GRP1_FreezePeriph(LL_DBGMCU_APB1_GRP1_IWDG_STOP); */
+  
+  /* Enable the peripheral clock IWDG */
+  /* -------------------------------- */
+  LL_RCC_LSI_Enable();
+  while (LL_RCC_LSI_IsReady() != 1)
+  {
+  }
+
+  /* Configure the IWDG with window option disabled */
+  /* ------------------------------------------------------- */
+  /* (1) Enable the IWDG by writing 0x0000 CCCC in the IWDG_KR register */
+  /* (2) Enable register access by writing 0x0000 5555 in the IWDG_KR register */
+  /* (3) Write the IWDG prescaler by programming IWDG_PR from 0 to 7 - LL_IWDG_PRESCALER_4 (0) is lowest divider*/
+  /* (4) Write the reload register (IWDG_RLR) */
+  /* (5) Wait for the registers to be updated (IWDG_SR = 0x0000 0000) */
+  /* (6) Refresh the counter value with IWDG_RLR (IWDG_KR = 0x0000 AAAA) */
+  LL_IWDG_Enable(IWDG);                             /* (1) */
+  LL_IWDG_EnableWriteAccess(IWDG);                  /* (2) */
+  LL_IWDG_SetPrescaler(IWDG, LL_IWDG_PRESCALER_4);  /* (3) */
+  LL_IWDG_SetReloadCounter(IWDG, 0xFEE);            /* (4) */
+  while (LL_IWDG_IsReady(IWDG) != 1)                /* (5) */
+  {
+  }
+  LL_IWDG_ReloadCounter(IWDG);                      /* (6) */  
+
   while (1) {
+
+    /* Refresh IWDG down-counter to default value */
+    LL_IWDG_ReloadCounter(IWDG);
+    // reset in case of CAN activity
+    if (uwTick - last_activity_timeout < 0x80000000UL) {
+      NVIC_SystemReset();
+    }
+
     // check for messages from the inverter
     if (can_fifo_avail(CAN1)) {
       len = can_fifo_rx(CAN1, &cid, &cid_bitlen, tmp, sizeof(tmp));
@@ -309,6 +350,7 @@ void interp(void) {
           // reset to reenable battery
           enable_battery = 0;
           bms_reconnect_at = uwTick; // make sure to avoid overflow when no reconnection request for a while
+          last_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
           can_bms_tx_log(cid, cid_bitlen, tmp, len);
         }
       }
@@ -399,6 +441,7 @@ void interp(void) {
       }
       if (forward) {
         can_solax_tx_log(cid, cid_bitlen, tmp, len);
+        last_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
       }
     }
 

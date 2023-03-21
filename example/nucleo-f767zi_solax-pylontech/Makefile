@@ -5,7 +5,7 @@ ifeq ($(BUILD_DIR),)
 BUILD_DIR = build
 endif
 
-DEFINES += VERSION=\"v16\"
+DEFINES += VERSION=\"v1A\"
 
 DEFINES += MODE_SOLAX_BMS
 BUILD_DIR = build_solax
@@ -62,3 +62,6 @@ $(BUILD_DIR)/%.o: %.c Makefile | prepare
 
 $(BUILD_DIR)/%.o: %.s Makefile | prepare
 	$(TARGET)gcc -o "$@" "$<" -c $(CFLAGS) -MT"$@" -MF"$(@:%.o=%.d)" 
+
+log:
+	socat /dev/ttyACM0,raw,echo=0,nonblock,min=0,b921600 STDIO

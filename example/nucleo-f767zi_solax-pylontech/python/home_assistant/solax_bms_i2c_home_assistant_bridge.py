@@ -62,7 +62,7 @@ while True:
       time.sleep(0.2)
       continue
 
-    fields = struct.unpack_from(">BBBBhhhhhhhhhhBBhhhHBBBB", data)
+    fields = struct.unpack_from(">BBBBhhhhhhhhhhBBhhhHBBBBBBHH", data)
     IDX_STATE = 2
     IDX_FORCED_MODE = 3
     IDX_GRID_EXPORT = 4
@@ -85,6 +85,10 @@ while True:
     IDX_D=21
     IDX_HR=22
     IDX_MN=23
+    IDX_PV1_SWITCH_ON=24
+    IDX_PV2_SWITCH_ON=25
+    IDX_EPS_POWER=26
+    IDX_EPS_VOLTAGE=27
     print (repr(fields))
 
     home_assistant_push("sensor.solax_grid_export", "Grid export",        fields[IDX_GRID_EXPORT], "W")
@@ -97,8 +101,10 @@ while True:
     home_assistant_push("sensor.solax_opt_rule",    "Solax Optimization", fields[IDX_OPT_RULE])
     home_assistant_push("sensor.solax_pv1_voltage", "PV array 1 Voltage", fields[IDX_PV1_VOLTAGE]/10.0, "V")
     home_assistant_push("sensor.solax_pv2_voltage", "PV array 2 Voltage", fields[IDX_PV2_VOLTAGE]/10.0, "V")
+    home_assistant_push("sensor.solax_eps_voltage", "EPS Voltage",        fields[IDX_EPS_VOLTAGE]/10.0, "V")
     home_assistant_push("sensor.solax_eps_current", "EPS Current",        fields[IDX_EPS_CURRENT]/10.0, "I")
-    home_assistant_push("sensor.solax_time",        "Local Time",         str(fields[IDX_Y])+'/'+str(fields[IDX_M])+'/'+str(fields[IDX_D])+ ' '+str(fields[IDX_HR])+':'+str(fields[IDX_MN]) )
+    home_assistant_push("sensor.solax_eps",         "EPS",                fields[IDX_EPS_POWER], "W")
+    home_assistant_push("sensor.solax_time",        "Local Time",         str(fields[IDX_Y])+'/'+str(fields[IDX_M]).rjust(2,'0')+'/'+str(fields[IDX_D]).rjust(2,'0')+ ' '+str(fields[IDX_HR]).rjust(2,'0')+':'+str(fields[IDX_MN]).rjust(2,'0') )
     
     state = fields[IDX_STATE]
     str_states = {}

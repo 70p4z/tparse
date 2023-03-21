@@ -207,13 +207,18 @@ struct {
   uint16_t bat_SoC;
   int16_t bat_temp;
   int16_t grid_wattage;
-  int16_t grid_export_wattage;
+  int16_t grid_meter_ct;
   int16_t eps_current;
+  int16_t eps_voltage;
+  int16_t eps_power;
   uint16_t year;
   uint8_t month;
   uint8_t day;
   uint8_t hour;
   uint8_t minute;
+  uint8_t seconds;
+  uint8_t pv1_switch_on;
+  uint8_t pv2_switch_on;
 } solax;
 struct {
   uint16_t voltage;
@@ -489,13 +494,16 @@ void interp(void) {
             solax.bat_wattage = S2LE(tmp, 37);
             solax.bat_temp = S2LE(tmp, 39);
             solax.bat_SoC = U2LE(tmp, 41);
+            solax.eps_power = U2LE(tmp, 61);
+            solax.eps_voltage = U2LE(tmp, 63);
             solax.eps_current = U2LE(tmp, 65);
-            solax.grid_export_wattage = S2LE(tmp, 69);
-            solax.minute = tmp[0xCC];
-            solax.hour = tmp[0xCD];
-            solax.day = tmp[0xCE];
-            solax.month = tmp[0xCF];
-            solax.year = tmp[0xD0] + 2000;
+            solax.grid_meter_ct = S2LE(tmp, 69);
+            solax.seconds = tmp[203];
+            solax.minute = tmp[204];
+            solax.hour = tmp[205];
+            solax.day = tmp[206];
+            solax.month = tmp[207];
+            solax.year = tmp[208] + 2000;
 
 
             // if (!solax_checksum_verify(tmp+2,tmp[2]-2)) {
@@ -831,8 +839,8 @@ void I2C_Slave_Reception_Callback(void) {
       i2c_xfer_buffer[i2c_xfer_length++] = solax_forced_work_mode;
 
       // grid export wattage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.grid_export_wattage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.grid_export_wattage&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.grid_meter_ct>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.grid_meter_ct&0xFF;
       // internal grid wattage
       i2c_xfer_buffer[i2c_xfer_length++] = (solax.grid_wattage>>8)&0xFF;
       i2c_xfer_buffer[i2c_xfer_length++] = solax.grid_wattage&0xFF;
@@ -880,6 +888,15 @@ void I2C_Slave_Reception_Callback(void) {
       i2c_xfer_buffer[i2c_xfer_length++] = solax.day;
       i2c_xfer_buffer[i2c_xfer_length++] = solax.hour;
       i2c_xfer_buffer[i2c_xfer_length++] = solax.minute;
+      // state of PV switch for low voltage cutoff (transient state)
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv1_switch_on;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv2_switch_on;
+      // eps power
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.eps_power>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_power&0xFF;
+      // eps voltage
+      i2c_xfer_buffer[i2c_xfer_length++] = (solax.eps_voltage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_voltage&0xFF;
       // encode total length
       i2c_xfer_buffer[0] = i2c_xfer_length;
     }

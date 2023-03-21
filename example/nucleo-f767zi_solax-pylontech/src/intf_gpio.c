@@ -23,12 +23,14 @@ const struct {
 };
 
 void gpio_set(uint32_t port, uint32_t pin, uint32_t value) {
+#if 0
   // denied?
   for (int i = 0; i< sizeof(gpio_reserved)/ sizeof(gpio_reserved[0]); i++) {
     if (gpio_reserved[i].port == port && gpio_reserved[i].pin == pin) {
       return;
     }
   }
+#endif // 0
   // configure GPIO as output
   GPIO_TypeDef* GPIO = (GPIO_TypeDef*)((uintptr_t)GPIOA_BASE + 0x400*port);
   uint32_t PIN = 1<<pin;

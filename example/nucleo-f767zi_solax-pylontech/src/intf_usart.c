@@ -9,7 +9,7 @@
 
 char uart_usbvcp_buffer[32+512*2];
 char uart3_buffer[32+512*2];
-char uart4_buffer[512];
+char uart4_buffer[1024];
 
 USART_TypeDef* usart_intf;
 

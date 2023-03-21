@@ -57,6 +57,7 @@ extern "C" {
 #define CPU_CLOCK 80000000
 #define USART_BAUDRATE_USBVCP 921600 // pc:usart3
 #define USART_BAUDRATE_UART4 9600    // uart to inverter pocketwifi
+#define USART_BAUDRATE_UART4 115200  // uart to inverter pocketwifi (with 1.28+1.30 the inverter understand either 9600 or 115200)
 #define USART_BAUDRATE_UART5 115200  // uart to log
 #define NO_TIMEOUT 0
 #define TIMEOUT_1S 1000
@@ -67,8 +68,8 @@ void Configure_UART4(uint32_t baudrate);
 void Configure_UART5(uint32_t baudrate);
 extern char uart_usbvcp_buffer[32+512*2];
 extern char uart3_buffer[32+512*2];
-extern char uart4_buffer[512];
-extern uint8_t tmp[512];
+extern char uart4_buffer[1024];
+extern uint8_t tmp[1024];
 void uart_send_mem(const void* _ptr, size_t len);
 void uart_send(const char* string);
 void uart_send_hex(const void* _buf, size_t len);

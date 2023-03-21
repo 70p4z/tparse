@@ -812,14 +812,15 @@ void I2C_Slave_Match_Callback(void) {
 }
 
 void I2C_Slave_Reception_Callback(void) {
-  i2c_xfer_offset = i2c_xfer_length = 0;
+  i2c_xfer_offset = 0;
 
   switch(LL_I2C_ReceiveData8(I2C2)) {
   case 0:
     // read stats
-
+    // don't process when an error has been detected, only ignore optimization rules (< 0x70)
     if (batt_drain_fix_cause < 70) 
     {
+      i2c_xfer_length = 0; // wipe the previous buffer content
       // data encoding version
       i2c_xfer_length++; // total length, reserve space
       i2c_xfer_buffer[i2c_xfer_length++] = 1; 

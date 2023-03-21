@@ -181,7 +181,8 @@ size_t can_fifo_avail(CAN_TypeDef* _CAN) {
 size_t can_fifo_rx(CAN_TypeDef* _CAN, uint32_t * id, size_t * id_bitlen, uint8_t* frame, size_t frame_max_len) {
   uint32_t can_idx = can_get_idx(_CAN);
   // no entry readable in the fifo
-  if (G_can_fifo_rx[can_idx].size == 0) {
+  if (G_can_fifo_rx[can_idx].size == 0 
+    || can_idx >= CAN_INTF_COUNT) {
     *id_bitlen = 0;
     return 0;
   }
@@ -193,7 +194,9 @@ size_t can_fifo_rx(CAN_TypeDef* _CAN, uint32_t * id, size_t * id_bitlen, uint8_t
   __disable_irq();
   // consume fifo entry
   G_can_fifo_rx[can_idx].size--;
-  memmove(&G_can_fifo_rx[can_idx].entries[0], &G_can_fifo_rx[can_idx].entries[1], sizeof(G_can_fifo_rx[can_idx].entries[0])*G_can_fifo_rx[can_idx].size);
+  if (G_can_fifo_rx[can_idx].size < CAN_FIFO_RX_ENTRY_COUNT) {
+    memmove(&G_can_fifo_rx[can_idx].entries[0], &G_can_fifo_rx[can_idx].entries[1], sizeof(G_can_fifo_rx[can_idx].entries[0])*G_can_fifo_rx[can_idx].size);
+  }
   __enable_irq();
   // return consumed entry len
   return frame_max_len;

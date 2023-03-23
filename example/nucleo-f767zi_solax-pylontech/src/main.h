@@ -66,10 +66,14 @@ extern "C" {
 void Configure_USBVCP(uint32_t baudrate);
 void Configure_UART4(uint32_t baudrate);
 void Configure_UART5(uint32_t baudrate);
-extern char uart_usbvcp_buffer[32+512*2];
-extern char uart3_buffer[32+512*2];
-extern char uart4_buffer[1024];
-extern uint8_t tmp[1024];
+#define USBVCP_BUFFER_SIZE_B (32+512*2)
+extern char uart_usbvcp_buffer[USBVCP_BUFFER_SIZE_B];
+#define UART3_BUFFER_SIZE_B (32+512*2)
+extern char uart3_buffer[UART3_BUFFER_SIZE_B];
+#define UART4_BUFFER_SIZE_B 2048
+extern char uart4_buffer[UART4_BUFFER_SIZE_B];
+#define TMP_BUFFER_SIZE_B 1024
+extern uint8_t tmp[TMP_BUFFER_SIZE_B];
 void uart_send_mem(const void* _ptr, size_t len);
 void uart_send(const char* string);
 void uart_send_hex(const void* _buf, size_t len);

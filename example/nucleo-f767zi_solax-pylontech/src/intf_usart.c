@@ -7,9 +7,9 @@
 #define USART_USBVCP_DMA_CHAN_RX LL_DMA_STREAM_1
 #define USART_USBVCP_DMA_REQ_RX LL_DMA_CHANNEL_4
 
-char uart_usbvcp_buffer[32+512*2];
-char uart3_buffer[32+512*2];
-char uart4_buffer[1024];
+char uart_usbvcp_buffer[USBVCP_BUFFER_SIZE_B];
+char uart3_buffer[UART3_BUFFER_SIZE_B];
+char uart4_buffer[UART4_BUFFER_SIZE_B];
 
 USART_TypeDef* usart_intf;
 

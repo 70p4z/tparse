@@ -22,7 +22,7 @@
 
 /* Private functions ---------------------------------------------------------*/
 
-uint8_t tmp[1024];
+uint8_t tmp[TMP_BUFFER_SIZE_B];
 
 uint32_t tparse_al_time(void) {
   return uwTick; /* todo bind the systick count here */;

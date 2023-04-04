@@ -504,6 +504,7 @@ void interp(void) {
 
         case 0x1877:
           // override message to tell the inverter of the battery configuration
+          //memmove(tmp, "\x00\x00\x00\x00\x52\x00\x00\x00", 8); // OK 2/4/6 H48050 // brand BAK
           memmove(tmp, "\x00\x00\x00\x00\x83\x00\x00\x00", 8); // OK 8 H48050 // brand TP202
           len = 8;
           forward = 1;

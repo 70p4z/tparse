@@ -76,6 +76,12 @@ uint32_t tparse_token_p(tparse_ctx_t* ctx, char** token);
  */
 size_t tparse_token(tparse_ctx_t* ctx, char* buf, size_t max_size);
 
+/**
+ * Read greedily from the buffer, without consideration for tokenization
+ * This API (with ::tparse_avail and ::tparse_finger) enables to use the circular buffer handling of tparse
+ */
+size_t tparse_read(tparse_ctx_t* ctx, char* buf, size_t max_size);
+
 /** 
  * Return legth of unparsed data (not considering token delimiters)
  */ 

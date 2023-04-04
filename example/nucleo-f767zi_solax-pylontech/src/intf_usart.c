@@ -258,6 +258,7 @@ void Configure_UART4(uint32_t baudrate)
    */
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
 
+  LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_2);
   LL_DMA_ConfigTransfer(DMA1, LL_DMA_STREAM_2,
             LL_DMA_DIRECTION_PERIPH_TO_MEMORY |
             LL_DMA_PRIORITY_HIGH              |

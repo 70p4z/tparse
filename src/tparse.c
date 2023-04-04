@@ -40,7 +40,7 @@ void tparse_init(tparse_ctx_t* ctx, char* buffer, size_t max_length, char* delim
 void tparse_append(tparse_ctx_t* ctx, char* chunk, size_t length) {
 	size_t l;
 	// take into account multiple overlays ... user ARE intringuing sometimes
-	// TODO when crosisng r_offset => move it
+	// TODO when crossing r_offset => move it
 	while (length) {
 		l = MIN(ctx->max_length - ctx->w_offset, length);
 		memmove(ctx->buffer+ctx->w_offset, chunk, l);
@@ -50,6 +50,7 @@ void tparse_append(tparse_ctx_t* ctx, char* chunk, size_t length) {
 	}
 	ctx->timeout = tparse_al_time();
 }
+
 
 /**
  * Notify of the current write offset by a background process (DMA...).
@@ -165,6 +166,31 @@ uint32_t tparse_token_p(tparse_ctx_t* ctx, char** token) {
 
 size_t tparse_avail(tparse_ctx_t* ctx) {
 	return ( ctx->max_length + ctx->w_offset - ctx->r_offset ) % ctx->max_length;
+}
+
+size_t tparse_read(tparse_ctx_t* ctx, char* buffer, size_t max_length) {
+	size_t read = tparse_avail(ctx);
+	if (max_length < read) {
+		read = max_length;
+	}
+	// read r to end
+	size_t part = ctx->max_length - ctx->r_offset;
+	if (read < part) {
+		part = read;
+	}
+	memmove(buffer, &ctx->buffer[ctx->r_offset], part);
+	ctx->r_offset = (ctx->r_offset + part) % ctx->max_length;
+	buffer += part;
+	// read end to w
+	if (read - part > 0) {
+		part = ctx->w_offset;
+		if (read < part) {
+			part = read;
+		}
+		memmove(buffer, &ctx->buffer[ctx->r_offset], part);
+		ctx->r_offset = (ctx->r_offset + part) % ctx->max_length;
+	}
+	return read;
 }
 
 uint32_t tparse_has_line(tparse_ctx_t* ctx) {

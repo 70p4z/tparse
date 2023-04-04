@@ -97,6 +97,7 @@ while True:
     home_assistant_push("sensor.solax_pv2",         "PV array 2",         fields[IDX_PV2], "W")
     home_assistant_push("sensor.solax_inv_bat",     "Battery (inverter)", fields[IDX_INV_BAT], "W")
     home_assistant_push("sensor.solax_bms_bat",     "Battery (BMS)",      fields[IDX_BMS_BAT], "W")
+    home_assistant_push("sensor.solax_bms_max_charge",     "Battery Max Charge (BMS)",      fields[IDX_CH]/10.0, "A")
     home_assistant_push("sensor.solax_soc",         "Battery Charge",     fields[IDX_SOC], "%")
     home_assistant_push("sensor.solax_opt_rule",    "Solax Optimization", fields[IDX_OPT_RULE])
     home_assistant_push("sensor.solax_pv1_voltage", "PV array 1 Voltage", fields[IDX_PV1_VOLTAGE]/10.0, "V")
@@ -105,6 +106,8 @@ while True:
     home_assistant_push("sensor.solax_eps_current", "EPS Current",        fields[IDX_EPS_CURRENT]/10.0, "I")
     home_assistant_push("sensor.solax_eps",         "EPS",                fields[IDX_EPS_POWER], "W")
     home_assistant_push("sensor.solax_time",        "Local Time",         str(fields[IDX_Y])+'/'+str(fields[IDX_M]).rjust(2,'0')+'/'+str(fields[IDX_D]).rjust(2,'0')+ ' '+str(fields[IDX_HR]).rjust(2,'0')+':'+str(fields[IDX_MN]).rjust(2,'0') )
+    # aggregated value
+    home_assistant_push("sensor.solax_house",       "House",              fields[IDX_EPS_POWER]+fields[IDX_GRID]-fields[IDX_GRID_EXPORT], "W")
     
     state = fields[IDX_STATE]
     str_states = {}
@@ -121,4 +124,4 @@ while True:
   except:
     print(traceback.print_exc())
     sys.exit(-1)
-  time.sleep(1)
+  time.sleep(0.5)

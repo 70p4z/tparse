@@ -23,7 +23,7 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 
 #define SOLAX_PW_TIMEOUT 10000 // give few seconds for 400 bytes @ 9600bps
 #define SOLAX_PW_NEXT_TIMEOUT 1000 // pocket wifi link update
-#define SOLAX_PW_INVALID_RETRY_TIMEOUT 100 // 100ms before retrying in case of an error on the pocketwifi serial response
+#define SOLAX_PW_INVALID_RETRY_TIMEOUT 500 // 100ms before retrying in case of an error on the pocketwifi serial response
 #define SOLAX_PW_MODE_CHANGE_MIN_INTERVAL 10000 // avoid changing mode constantly
 #define PYLONTECH_ACTIVITY_TIMEOUT 500
 
@@ -39,7 +39,7 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 #define SOLAX_SELF_CONSUMPTION_INVERTER_W 40 // observed inverter consumption with only inverter enabled (not system off)
 
 // before 80% of charge of battery, be conservative, and charge first
-#define SOLAX_SELFUSE_MIN_BATTERY_SOC 74
+#define SOLAX_SELFUSE_MIN_BATTERY_SOC 40
 #define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU 30 /* at least 25% of the solar power usable must go to the battery */
 #define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_FS 20
 
@@ -138,7 +138,7 @@ enum solax_pw_state_e {
   SOLAX_PW_INVALID_NEXT,
 };
 
-const uint8_t solax_pw_cmd_change_bitrate = { 0xAA, 0x55, 0x07, 0x01, 0x85, 0x8C, 0x01};
+const uint8_t solax_pw_cmd_change_bitrate[] = { 0xAA, 0x55, 0x07, 0x01, 0x85, 0x8C, 0x01};
 
 const uint8_t solax_pw_cmd_get_stat_0x197[] = { 0xAA, 0x55, 0x07, 0x01, 0x10, 0x17, 0x01};
 const uint8_t solax_pw_cmd_get_stat_0x25F[] = { 0xAA, 0x55, 0x07, 0x01, 0x13, 0x1A, 0x01};
@@ -255,6 +255,7 @@ struct {
   int32_t wattage;
   int16_t max_charge;
   int16_t max_discharge;
+  uint16_t packs;
 } pylontech;
 
 void pv1_switch(uint32_t state) {
@@ -279,6 +280,7 @@ void eps_mode_switch(uint32_t eps_mode_requested) {
 
 void interp(void) {
   uint32_t forward;
+  uint32_t pack=0;
   enum solax_pw_state_e solax_pw_state = SOLAX_PW_IDLE;
   uint32_t bms_reconnect_at;
   uint32_t solax_pw_timeout=0;
@@ -305,7 +307,15 @@ void interp(void) {
   memset(&pylontech, 0, sizeof(pylontech));
   // init the queue
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
-  solax_pw_queue_push(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate), 7);
+  //solax_pw_queue_push(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate), 7);
+  // switch bitrate on the solax, no reply expected
+  Configure_UART4(9600);
+  uart_select_intf(UART4);
+  uart_send_mem(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate));  
+  // wait until bitrate is taken into account
+  LL_mDelay(250);
+  Configure_UART4(115200);
+
   // ensure starting with SELF USE mode
   solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
   solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
@@ -483,21 +493,29 @@ void interp(void) {
           forward = 1;
           break;
         case 0x1871:
-        case 0x1874:
-        case 0x1875:
-        case 0x1876:
         case 0x1878:
           forward = 1;
           break;
+
+        case 0x1875:
+          pylontech.packs = U2LE(tmp,2); 
+          forward = 1;
+          break;
+
         case 0x1877:
           // override message to tell the inverter of the battery configuration
-          memmove(tmp, "\x00\x00\x00\x00\x52\x00\x00\x00", 8); // OK 2H48050, OK 4 H48050
+          memmove(tmp, "\x00\x00\x00\x00\x83\x00\x00\x00", 8); // OK 8 H48050 // brand TP202
           len = 8;
           forward = 1;
           // if (enable_battery == 0) 
           {
             enable_battery = 1;
           }
+          break;
+
+        // discarded
+        case 0x1874:
+        case 0x1876:
           break;
       }
       if (forward) {
@@ -561,7 +579,15 @@ void interp(void) {
       case SOLAX_PW_REQ_SENT:
         // if the reply is complete
         if (tparse_avail(&tp_u4) >= solax_pw_queue[0].rep_len) {
-          tparse_token(&tp_u4, tmp, sizeof(tmp));
+          size_t read = tparse_read(&tp_u4, tmp, solax_pw_queue[0].rep_len);
+          if (read < solax_pw_queue[0].rep_len) {
+            master_log("UART reading error ");
+            master_log_hex(&read, 4);
+            read = tparse_avail(&tp_u4);
+            master_log_hex(&read, 4);
+            master_log("\n");
+            goto invalid;
+          }
           master_log("UART << ");
           master_log_hex(tmp, solax_pw_queue[0].rep_len);
           master_log("\n");
@@ -606,7 +632,7 @@ void interp(void) {
               batt_drain_fix_cause = 71;
               master_log("cause 71\n");
             invalid:
-              tparse_discard(&tp_u4);
+              tparse_reset(&tp_u4);
               solax_pw_state = SOLAX_PW_INVALID_NEXT;
               solax_pw_timeout = uwTick + SOLAX_PW_INVALID_RETRY_TIMEOUT;
               solax_pw_queue_pop();
@@ -846,7 +872,6 @@ void interp(void) {
             }
           }
           // whatever the reply, discard the data after this point
-          tparse_discard(&tp_u4);
           solax_pw_state = SOLAX_PW_WAIT_NEXT; // switch state before possibly scheduling a command to send
           solax_pw_timeout = uwTick + SOLAX_PW_NEXT_TIMEOUT;
           solax_pw_queue_pop();
@@ -857,12 +882,19 @@ void interp(void) {
           master_log_hex(uart4_buffer, sizeof(uart4_buffer));
           solax_pw_state = SOLAX_PW_WAIT_NEXT;
           solax_pw_timeout = uwTick + SOLAX_PW_NEXT_TIMEOUT;
-          tparse_discard(&tp_u4);
+          tparse_reset(&tp_u4);
           solax_pw_queue_pop();
           // discard causes due to timeout of the request
           batt_drain_fix_cause = 0;
           batt_forced_charge = -1;
           batt_forced_soc = -1;
+
+          Configure_UART4(9600);
+          uart_select_intf(UART4);
+          uart_send_mem(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate));  
+          // wait until bitrate is taken into account
+          LL_mDelay(250);
+          Configure_UART4(115200);
         }
         break;
 
@@ -879,6 +911,7 @@ void interp(void) {
       solax_pw_mode_change_ready = 0;
     }
 
+#ifdef USART5_HUMAN_READABLE_SUMMARY_LOG
     // display (if no erroneous data)
     if (uwTick - timeout_next_display < 0x80000000UL && batt_drain_fix_cause < 70) {
       // prepare next sending
@@ -944,6 +977,8 @@ void interp(void) {
         master_log(tmp);
       }
     }
+#endif // USART5_HUMAN_READABLE_SUMMARY_LOG
+
   } // end infinite loop
 
 }

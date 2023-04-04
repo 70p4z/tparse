@@ -19,6 +19,18 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 //#define BMS_PING
 #define BMS_PING_INTERVAL_MS 5000
 
+#define BMS_KIND_BLANK 0x50
+#define BMS_KIND_BAK 0x51
+#define BMS_KIND_REPT 0x52
+#define BMS_KIND_SINOWATT 0x53
+#define BMS_KIND_GOT 0x54
+#define BMS_KIND_BLANK2 0x55
+#define BMS_KIND_TP200 0x81
+#define BMS_KIND_TP201 0x82
+#define BMS_KIND_TP202 0x83
+// change depending on the battery configuration if it doesn't work out
+#define BMS_KIND BMS_KIND_TP202
+
 #define BMS_RECONNECT_DELAY 20000
 
 #define SOLAX_PW_TIMEOUT 10000 // give few seconds for 400 bytes @ 9600bps
@@ -503,15 +515,18 @@ void interp(void) {
           break;
 
         case 0x1877:
+          // wipe BMS flags
+          // memset(tmp, 0, 4); // optional, use them actually, in case of significant error to be notified to the inverter
+          tmp[4] = BMS_KIND;
+          tmp[5] = tmp[6] = tmp[7] = 0; // wipe versions
           // override message to tell the inverter of the battery configuration
-          //memmove(tmp, "\x00\x00\x00\x00\x52\x00\x00\x00", 8); // OK 2/4/6 H48050 // brand BAK
+          //memmove(tmp, "\x00\x00\x00\x00\x52\x00\x00\x00", 8); // OK 2H48050, OK 4 H48050p, OK 6 H48050, NOK 3/5/7/8 => seen as T58
+          //memmove(tmp, "\x00\x00\x00\x00\x82\x00\x00\x00", 8); // NOK 8 H48050 // brand TP201
           memmove(tmp, "\x00\x00\x00\x00\x83\x00\x00\x00", 8); // OK 8 H48050 // brand TP202
           len = 8;
           forward = 1;
-          // if (enable_battery == 0) 
-          {
-            enable_battery = 1;
-          }
+          // we've described the battery to the inverter, enable it now
+          enable_battery = 1;
           break;
 
         // discarded

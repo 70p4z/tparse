@@ -248,7 +248,7 @@ static MunitResult* test_eol(const MunitParameter* params, void* ignored) {
 
   //                                                  v cycling
   tparse_append(&ctx, STR_AND_LEN("dupper stem\nhype totem\nola\n"));
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 12);
   munit_assert_int(tparse_token_size(&ctx), ==, 6);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 6);
   munit_assert_memory_equal(6, "dupper", t);
@@ -258,7 +258,7 @@ static MunitResult* test_eol(const MunitParameter* params, void* ignored) {
   munit_assert_int(tparse_token_size(&ctx), ==, 4);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 4);
   tparse_discard_line(&ctx);
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 4);
   munit_assert_int(tparse_avail(&ctx), ==, 4);
   munit_assert_int(tparse_token_size(&ctx), ==, 3);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 3);
@@ -280,7 +280,7 @@ static MunitResult* test_eoleol(const MunitParameter* params, void* ignored) {
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 0);
 
   tparse_append(&ctx, STR_AND_LEN("super token\n\ntoken2\n"));
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 12);
   munit_assert_int(tparse_avail(&ctx), ==, 20);
   munit_assert_int(tparse_token_size(&ctx), ==, 5);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 5);
@@ -293,7 +293,7 @@ static MunitResult* test_eoleol(const MunitParameter* params, void* ignored) {
   munit_assert_int(tparse_token_size(&ctx), ==, 0);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 0);
   tparse_discard_line(&ctx);
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 7);
   munit_assert_int(tparse_avail(&ctx), ==, 7);
   munit_assert_int(tparse_token_size(&ctx), ==, 6);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 6);
@@ -307,11 +307,11 @@ static MunitResult* test_eoleol(const MunitParameter* params, void* ignored) {
   tparse_reset(&ctx);
   tparse_append(&ctx, STR_AND_LEN("super token\n\ntoken2\n"));
   tparse_discard_line(&ctx);
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
-  munit_assert_int(tparse_avail(&ctx), ==, 8);
+  munit_assert_int(tparse_has_line(&ctx), ==, 1); // current line is empty
+  munit_assert_int(tparse_avail(&ctx), ==, 8); // \ntoken2\n
   munit_assert_int(tparse_token_size(&ctx), ==, 0);
   tparse_discard_line(&ctx);
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 7);
   munit_assert_int(tparse_avail(&ctx), ==, 7);
   munit_assert_int(tparse_token_size(&ctx), ==, 6);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 6);
@@ -391,7 +391,7 @@ static MunitResult* test_non_reg_token_hex_split(const MunitParameter* params, v
     .flags = 0x0
   };
   uint8_t tmp[300];
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 522);
   munit_assert_int(tparse_token_count(&ctx), ==, 2);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 2);
   munit_assert_memory_equal(2, t, "t0");
@@ -413,7 +413,7 @@ static MunitResult* test_non_reg_nl_after_rollover(const MunitParameter* params,
     .flags = 0x1
   };
   uint8_t tmp[300];
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 7);
   munit_assert_int(tparse_token_count(&ctx), ==, 1);
   munit_assert_int(tparse_token_size(&ctx), ==, 6);
   munit_assert_int(tparse_token_p(&ctx, &t), ==, 6|TPARSE_TOKEN_PART);
@@ -433,7 +433,7 @@ static MunitResult* test_non_reg_nl_after_token_copy(const MunitParameter* param
     .flags = 0x1
   };
   uint8_t tmp[300];
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 7);
   munit_assert_int(tparse_token_count(&ctx), ==, 1);
   munit_assert_int(tparse_token_size(&ctx), ==, 6);
   munit_assert_int(tparse_token(&ctx, tmp, sizeof(tmp)), ==, 6);
@@ -453,7 +453,7 @@ static MunitResult* test_non_reg_nl_after_rollover_token_in(const MunitParameter
     .flags = 0x1
   };
   uint8_t tmp[300];
-  munit_assert_int(tparse_has_line(&ctx), ==, 1);
+  munit_assert_int(tparse_has_line(&ctx), ==, 7);
   munit_assert_int(tparse_token_count(&ctx), ==, 1);
   munit_assert_int(tparse_token_size(&ctx), ==, 6);
   static const char* const cmds[] = {

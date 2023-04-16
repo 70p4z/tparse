@@ -46,7 +46,7 @@ uint32_t tparse_al_time(void);
 void tparse_init(tparse_ctx_t* ctx, char* buffer, size_t max_length, char* delim);
 
 /**
- * Manual data feeding usig polling or anything.
+ * Manual data feeding using polling or anything.
  */
 void tparse_append(tparse_ctx_t* ctx, char* chunk, size_t length);
 
@@ -83,14 +83,15 @@ size_t tparse_token(tparse_ctx_t* ctx, char* buf, size_t max_size);
 size_t tparse_read(tparse_ctx_t* ctx, char* buf, size_t max_size);
 
 /** 
- * Return legth of unparsed data (not considering token delimiters)
+ * Return length of unparsed data (not considering token delimiters)
  */ 
 size_t tparse_avail(tparse_ctx_t* ctx);
 
 /**
- * Returns 1 when a full line is available to parse in the buffer
+ * Returns the size of the line when a full line is available to parse in the buffer.
+ * Returned length includes the EOL char (\n).
  */
-uint32_t tparse_has_line(tparse_ctx_t* ctx);
+size_t tparse_has_line(tparse_ctx_t* ctx);
 
 /**
  * Returns 1 if a complete token is available (with an end delimiter). Returns 0 when no next token is present

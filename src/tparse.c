@@ -193,12 +193,14 @@ size_t tparse_read(tparse_ctx_t* ctx, char* buffer, size_t max_length) {
 	return read;
 }
 
-uint32_t tparse_has_line(tparse_ctx_t* ctx) {
+size_t tparse_has_line(tparse_ctx_t* ctx) {
 	uint32_t avail = tparse_avail(ctx);
 	uint32_t r_offset = ctx->r_offset;
+	size_t line_length=0;
 	while(avail--) {
+		line_length++;
 		if (ctx->buffer[r_offset] == '\n') {
-			return 1;
+			return line_length;
 		}
 		r_offset = (r_offset + 1) % ctx->max_length;
 	}
@@ -427,6 +429,7 @@ uint32_t tparse_token_u32_base(tparse_ctx_t* ctx, uint32_t _base) {
 	uint32_t value=0;
 	uint8_t base=_base;
 	uint8_t c;
+	uint32_t neg=0;
 	while (l--) {
 		// select source token part
 		if (sizes[0]) {
@@ -439,10 +442,16 @@ uint32_t tparse_token_u32_base(tparse_ctx_t* ctx, uint32_t _base) {
 		}
 		else {
 			// End Of Token
-			return 0;
+			return -1; // robustness
 		}
+		// starts with 0x...
 		if (value == 0 && len == 1 && c == 'x') {
 			base=16;
+		}
+		// detect signed numbers
+		else if (len==0 && c=='-') {
+			// forcefully the first char!
+			neg=1;
 		}
 		else {
 			switch(base) {
@@ -467,13 +476,16 @@ uint32_t tparse_token_u32_base(tparse_ctx_t* ctx, uint32_t _base) {
 					}
 					else {
 						// non hex char encountered
-						return 0;
+						return -1;
 					}
 					break;
 			}
 			value = value * base + c;
 		}
 		len++;
+	}
+	if (neg) {
+		value = (uint32_t)-value;
 	}
 	return value;
 }

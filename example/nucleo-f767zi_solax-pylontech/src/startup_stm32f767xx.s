@@ -165,8 +165,8 @@ g_pfnVectors:
   .word     TIM4_IRQHandler                   /* TIM4                         */
   .word     I2C1_EV_IRQHandler                /* I2C1 Event                   */
   .word     I2C1_ER_IRQHandler                /* I2C1 Error                   */
-  .word     I2C2_EV_IRQHandler                /* I2C2 Event                   */
-  .word     I2C2_ER_IRQHandler                /* I2C2 Error                   */
+  .word     I2CS_EV_IRQHandler                /* I2C2 Event                   */
+  .word     I2CS_ER_IRQHandler                /* I2C2 Error                   */
   .word     SPI1_IRQHandler                   /* SPI1                         */
   .word     SPI2_IRQHandler                   /* SPI2                         */
   .word     USART1_IRQHandler                 /* USART1                       */
@@ -227,8 +227,8 @@ g_pfnVectors:
   .word     QUADSPI_IRQHandler                /* QUADSPI                      */
   .word     LPTIM1_IRQHandler                 /* LPTIM1                       */
   .word     CEC_IRQHandler                    /* HDMI_CEC                     */
-  .word     I2C4_EV_IRQHandler                /* I2C4 Event                   */
-  .word     I2C4_ER_IRQHandler                /* I2C4 Error                   */
+  .word     I2CS_EV_IRQHandler                /* I2C4 Event                   */
+  .word     I2CS_ER_IRQHandler                /* I2C4 Error                   */
   .word     SPDIF_RX_IRQHandler               /* SPDIF_RX                     */
   .word     0                                 /* Reserved                     */
   .word     DFSDM1_FLT0_IRQHandler            /* DFSDM1 Filter 0 global Interrupt */
@@ -376,11 +376,11 @@ g_pfnVectors:
    .thumb_set I2C1_ER_IRQHandler,NMI_Handler
                    
 /*  
-   .weak      I2C2_EV_IRQHandler   
-   .thumb_set I2C2_EV_IRQHandler,NMI_Handler
+   .weak      I2CS_EV_IRQHandler   
+   .thumb_set I2CS_EV_IRQHandler,NMI_Handler
                   
-   .weak      I2C2_ER_IRQHandler   
-   .thumb_set I2C2_ER_IRQHandler,NMI_Handler
+   .weak      I2CS_ER_IRQHandler   
+   .thumb_set I2CS_ER_IRQHandler,NMI_Handler
 */                           
    .weak      SPI1_IRQHandler            
    .thumb_set SPI1_IRQHandler,NMI_Handler
@@ -559,12 +559,13 @@ g_pfnVectors:
    .weak      CEC_IRQHandler            
    .thumb_set CEC_IRQHandler,NMI_Handler
    
+/*
    .weak      I2C4_EV_IRQHandler            
    .thumb_set I2C4_EV_IRQHandler,NMI_Handler 
  
    .weak      I2C4_ER_IRQHandler            
    .thumb_set I2C4_ER_IRQHandler,NMI_Handler
-   
+*/ 
    .weak      SPDIF_RX_IRQHandler            
    .thumb_set SPDIF_RX_IRQHandler,NMI_Handler
 

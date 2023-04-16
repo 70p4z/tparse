@@ -55,22 +55,32 @@ extern "C" {
 #endif // __bswap_32
 
 #define CPU_CLOCK 80000000
-#define USART_BAUDRATE_USBVCP 921600 // pc:usart3
-#define USART_BAUDRATE_UART4 9600    // uart to inverter pocketwifi
-#define USART_BAUDRATE_UART5 115200  // uart to log
+#define USART_BAUDRATE_USBVCP 921600
 #define NO_TIMEOUT 0
 #define TIMEOUT_1S 1000
 #define CAN_FIFO_RX_ENTRY_COUNT 256
 
+#ifdef BOARD_DEV
+#define UARTPW UART4
+#define DMA_Stream_PW DMA1_Stream2
+#define I2CS I2C2
+#else // BOARD_DEV
+#define UARTPW USART1
+#define DMA_Stream_PW DMA2_Stream2
+#define I2CS I2C4
+#endif // BOARD_DEV
+#define UARTBMS USART6
+#define DMA_Stream_BMS DMA2_Stream1
+
 void Configure_USBVCP(uint32_t baudrate);
-void Configure_UART4(uint32_t baudrate);
-void Configure_UART5(uint32_t baudrate);
+void Configure_UARTPW(uint32_t baudrate);
+void Configure_UARTBMS(uint32_t baudrate);
 #define USBVCP_BUFFER_SIZE_B (32+512*2)
 extern char uart_usbvcp_buffer[USBVCP_BUFFER_SIZE_B];
-#define UART3_BUFFER_SIZE_B (32+512*2)
-extern char uart3_buffer[UART3_BUFFER_SIZE_B];
-#define UART4_BUFFER_SIZE_B 2048
-extern char uart4_buffer[UART4_BUFFER_SIZE_B];
+#define UARTPW_BUFFER_SIZE_B 2048
+extern char uart_pw_buffer[UARTPW_BUFFER_SIZE_B];
+#define UARTBMS_BUFFER_SIZE_B 2048
+extern char uart_bms_buffer[UARTBMS_BUFFER_SIZE_B];
 #define TMP_BUFFER_SIZE_B 1024
 extern uint8_t tmp[TMP_BUFFER_SIZE_B];
 void uart_send_mem(const void* _ptr, size_t len);

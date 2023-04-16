@@ -737,13 +737,7 @@ void SystemClock_Config(void)
 
   SysTick_Config(80000000/1000);
 #else
-  // use BARE HSI (16MHz)
-  LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
-  LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_1);
-  LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
 
-  LL_SetSystemCoreClock(16000000);
-  SysTick_Config(16000000/1000);
 #endif
 }
 
@@ -754,26 +748,6 @@ void SystemClock_Config(void)
   */
 int main(void)
 {
-  /* Configure the system clock to 80 MHz */
-  SystemClock_Config();
-
-  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
-  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
-  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
-
-  // USART used for USBVCP communication
-  Configure_USBVCP(USART_BAUDRATE_USBVCP);
-  // Usart used for external device 
-  Configure_UART4(USART_BAUDRATE_UART4);
-  // Usart for live display
-  Configure_UART5(USART_BAUDRATE_UART5);
-
-  Configure_I2C1(1000);
-
-  Configure_CAN1(500000);
-  Configure_CAN3(500000);
-
   while (1)
   {
     interp();

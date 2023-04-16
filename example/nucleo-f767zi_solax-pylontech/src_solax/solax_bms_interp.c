@@ -9,25 +9,23 @@
 #define USBVCP USART3
 
 // required with version ARM=1.07+DSP=1.09, 
-// not required with ARM=1.28+DSP=1.30
+// not required with ARM=1.28+DSP=1.30 => optimization is far better with this firmware version
 //#define HAVE_LOWLIGHT_OPT 
 
-/**
-SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==CAN==> Pylontech SC0500
-                   iobridge in solax makefile                  regular iobridge
-*/
 //#define BMS_PING
 #define BMS_PING_INTERVAL_MS 5000
+#define BMS_UART_TIMEOUT 10000
+#define BMS_UART_NEXT_INTERVAL 1000
 
 #define BMS_KIND_BLANK 0x50
 #define BMS_KIND_BAK 0x51
-#define BMS_KIND_REPT 0x52
+#define BMS_KIND_REPT 0x52 // 4x H48050
 #define BMS_KIND_SINOWATT 0x53
 #define BMS_KIND_GOT 0x54
 #define BMS_KIND_BLANK2 0x55
 #define BMS_KIND_TP200 0x81
-#define BMS_KIND_TP201 0x82
-#define BMS_KIND_TP202 0x83
+#define BMS_KIND_TP201 0x82 
+#define BMS_KIND_TP202 0x83 // 8x H48050
 // change depending on the battery configuration if it doesn't work out
 #define BMS_KIND BMS_KIND_TP202
 
@@ -71,6 +69,8 @@ SOLAX X1 <==CAN==> nucleo MODE_BMS_CAN <=(USART3)====(USART3)=> nucleo SLAVE <==
 #define S2LE(buf, off) ((int16_t)((int16_t)((int16_t)((int16_t)(buf)[off+1])<<8l) | (int16_t)((int16_t)(buf)[off]&0xFFl) ))
 #define U2LE(buf, off) ((((buf)[off+1]&0xFFu)<<8) | ((buf)[off]&0xFFu) )
 #define U2BE(buf, off) ((((buf)[off]&0xFFu)<<8) | ((buf)[off+1]&0xFFu) )
+
+void Configure_I2C_Slave(void);
 
 // for snprintf to work as expected
 void _sbrk(void) {
@@ -141,6 +141,11 @@ void can_bms_tx_log(uint32_t cid, size_t cid_bitlen, uint8_t* canmsg, size_t can
   master_log_can("    >>> bms | ", cid, cid_bitlen, canmsg, canmsg_len);
   can_tx(CAN3, cid, cid_bitlen, canmsg, canmsg_len);
 }
+
+enum bms_uart_state_e {
+  BMS_UART_STATE_IDLE,
+  BMS_UART_STATE_WAIT,
+};
 
 enum solax_pw_state_e {
   SOLAX_PW_IDLE,
@@ -262,9 +267,12 @@ struct {
 } solax;
 struct {
   uint16_t voltage;
+  uint32_t precise_voltage;
   int16_t current;
+  int32_t precise_current;
   uint16_t soc;
   int32_t wattage;
+  int32_t precise_wattage;
   int16_t max_charge;
   int16_t max_discharge;
   uint16_t packs;
@@ -273,40 +281,57 @@ struct {
 void pv1_switch(uint32_t state) {
   // anode green led 
   // cathode of the optocoupler 1 = off => mosfet defaulty closed, 0 = on => mosfet open
-  gpio_set(1, 0, state); // PB0
+  gpio_set(1, 0, state); // PB0 (led)
+#ifndef BOARD_DEV
+  gpio_set(3, 14, state); // PD14
+#endif // BOARD_DEV
   solax.pv1_switch_on = state; 
 }
 
 void pv2_switch(uint32_t state) {
   // anode blue led 
   // cathode of the optocoupler 1 = off => mosfet defaulty closed, 0 = on => mosfet open
-  gpio_set(1, 7, state); // PB7
+  gpio_set(1, 7, state); // PB7 (led)
+#ifndef BOARD_DEV
+  gpio_set(3, 15, state); // PD14
+#endif // BOARD_DEV
   solax.pv2_switch_on = state;
 }
 
 void eps_mode_switch(uint32_t eps_mode_requested) {
   // switch the physical switch to force EPS mode (disconnect from the grid)
   // gpio = 1 => phototriac closed => contactor coil powered => grid contact are severed (Normally Closed)
-  gpio_set(1, 14, eps_mode_requested); // PB14
+  gpio_set(1, 14, eps_mode_requested); // PB14 led
+#ifndef BOARD_DEV
+  gpio_set(5, 12, eps_mode_requested); // PF12
+#endif // BOARD_DEV
 }
 
 void interp(void) {
   uint32_t forward;
-  uint32_t pack=0;
+  enum bms_uart_state_e bms_uart_state = BMS_UART_STATE_IDLE;
+  uint32_t bms_uart_next = 0;
+  uint32_t bms_uart_timeout = 0;
   enum solax_pw_state_e solax_pw_state = SOLAX_PW_IDLE;
   uint32_t bms_reconnect_at;
   uint32_t solax_pw_timeout=0;
+#ifdef BMS_PING
   uint32_t bms_ping_timeout;
+#endif // BMS_PING
   size_t len;
   uint32_t cid;
   size_t cid_bitlen;
   uint32_t enable_battery = 0;
   //uint32_t wait_bms_info = 1;
   //uint8_t bms_info[8];
+#ifdef USART5_HUMAN_READABLE_SUMMARY_LOG
   uint32_t timeout_next_display = uwTick;
+#endif // USART5_HUMAN_READABLE_SUMMARY_LOG
   uint32_t solax_pw_mode_change_ready;
+#ifdef BMS_TIMEOUT_DETECT
   uint32_t pylontech_timeout = 0;
-  uint32_t last_activity_timeout = 0;
+#endif // BMS_TIMEOUT_DETECT
+  uint32_t last_CAN_activity_timeout = 0;
   uint32_t timeout_pv1_switch_on=0;
   uint32_t timeout_pv1_switch_off=0;
   pv1_switch(1);
@@ -315,18 +340,42 @@ void interp(void) {
   pv2_switch(1);
   uint32_t eps_mode_switch_timeout=0;
 
+  // use BARE HSI (16MHz)
+  LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
+  LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_1);
+  LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
+
+  LL_SetSystemCoreClock(16000000);
+  SysTick_Config(16000000/1000);
+  
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOE);
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOF);
+
+  // USART used for USBVCP communication
+  Configure_USBVCP(USART_BAUDRATE_USBVCP);
+  // Usart for BMS communication (UART6 PC6-TX PC7-RX)
+  Configure_UARTBMS(115200);
+
+  Configure_CAN1(500000);
+  Configure_CAN3(500000);
+
+
   memset(&solax, 0, sizeof(solax));
   memset(&pylontech, 0, sizeof(pylontech));
   // init the queue
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
   //solax_pw_queue_push(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate), 7);
   // switch bitrate on the solax, no reply expected
-  Configure_UART4(9600);
-  uart_select_intf(UART4);
+  Configure_UARTPW(9600);
+  uart_select_intf(UARTPW);
   uart_send_mem(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate));  
   // wait until bitrate is taken into account
   LL_mDelay(250);
-  Configure_UART4(115200);
+  Configure_UARTPW(115200);
 
   // ensure starting with SELF USE mode
   solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
@@ -342,17 +391,23 @@ void interp(void) {
   }
 #endif // MODE_FAKE_SOLAX
 
-  tparse_ctx_t tp_u4;
-  tparse_init(&tp_u4, uart4_buffer, sizeof(uart4_buffer), "");
+  tparse_ctx_t tp_solax_pw;
+  tparse_init(&tp_solax_pw, uart_pw_buffer, sizeof(uart_pw_buffer), "");
+  tparse_ctx_t tp_bms;
+  tparse_init(&tp_bms, uart_bms_buffer, sizeof(uart_bms_buffer), " \n");
 
   master_log("Reset\n");
 
   // sent ping to the BMS to wake it up at reset moment
   can_bms_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
+#ifdef BMS_PING
   bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
+#endif // BMS_PING
   bms_reconnect_at = uwTick;
-  last_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+  last_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+#ifdef BMS_TIMEOUT_DETECT
   pylontech_timeout = uwTick + PYLONTECH_ACTIVITY_TIMEOUT;
+#endif // BMS_TIMEOUT_DETECT
 
   // startup the watchdog
   /* Enable the peripheral clock of DBG register (uncomment for debug purpose) */
@@ -388,7 +443,7 @@ void interp(void) {
     /* Refresh IWDG down-counter to default value */
     LL_IWDG_ReloadCounter(IWDG);
     // reset in case of CAN activity
-    if (uwTick - last_activity_timeout < 0x80000000UL) {
+    if (uwTick - last_CAN_activity_timeout < 0x80000000UL) {
       NVIC_SystemReset();
     }
 
@@ -433,7 +488,7 @@ void interp(void) {
           // reset to reenable battery
           enable_battery = 0;
           bms_reconnect_at = uwTick; // make sure to avoid overflow when no reconnection request for a while
-          last_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+          last_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
           can_bms_tx_log(cid, cid_bitlen, tmp, len);
         }
       }
@@ -461,7 +516,9 @@ void interp(void) {
     if (can_fifo_avail(CAN3)) {
       len = can_fifo_rx(CAN3, &cid, &cid_bitlen, tmp, sizeof(tmp));
       master_log_can("bms >>>     | ", cid, cid_bitlen, tmp, len);
+#ifdef BMS_TIMEOUT_DETECT
       pylontech_timeout = uwTick + PYLONTECH_ACTIVITY_TIMEOUT;
+#endif // BMS_TIMEOUT_DETECT
       forward = 0;
       switch(cid) {
         case 0x1873:
@@ -536,8 +593,66 @@ void interp(void) {
       }
       if (forward) {
         can_solax_tx_log(cid, cid_bitlen, tmp, len);
-        last_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+        last_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
       }
+    }
+
+    // update data from the bms usart link
+    tparse_finger(&tp_bms, sizeof(uart_bms_buffer) - DMA_Stream_BMS->NDTR);
+    /*
+    pylon>pwr
+    pwr
+    @
+    AverageTempr   : 22291       
+    DC Volt        : 402111      
+    Bat Volt       : 401777      
+
+    Volt   Curr   Tempr  BTlow  BThigh BVlow  BVhigh UTlow  UThigh UVlow  UVhigh Base.St  Volt.St  Curr.St  Temp.St  CoulombAH                CoulombWH              Time                 B.V.St   B.T.St   U.V.St   U.T.St   Err Code
+    402855 613    34000  21000  23000  3354   3360   26000  27000  50323  50390  Charge   Normal   Normal   Normal    84%          42041 mAH  83%           15960 WH 2000-01-03 23:52:40  Normal   Normal   Normal   Normal   0x0
+    Command completed successfully
+    $$
+    */
+    last_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+    switch(bms_uart_state) {
+      case BMS_UART_STATE_IDLE:
+        // wait until transmit moment is reached
+        if (uwTick - bms_uart_next >= 0x80000000UL) {
+          break;
+        }
+        tparse_discard(&tp_bms);
+        master_log("UARTBMS >> pwr\n");
+        // send request to the bms
+        uart_select_intf(USART6);
+        uart_send_mem("pwr\n",4);
+        bms_uart_state = BMS_UART_STATE_WAIT;
+        bms_uart_next = uwTick + BMS_UART_NEXT_INTERVAL;
+        bms_uart_timeout = uwTick + BMS_UART_TIMEOUT;
+        break;
+      case BMS_UART_STATE_WAIT:
+        // line received?
+        if (tparse_has_line(&tp_bms)) {
+          master_log("UARTBMS line\n");
+
+          // data line
+          uint32_t val = tparse_token_u32(&tp_bms);
+          // if it's the value line and not the text line
+          if (val != -1UL) { 
+            pylontech.precise_voltage = (int32_t)val;
+            pylontech.precise_current = (int32_t)tparse_token_u32(&tp_bms);
+            pylontech.precise_wattage = ((int32_t)pylontech.precise_current/(int32_t)10*(int32_t)pylontech.precise_voltage/(int32_t)10)/(int32_t)10000;
+            snprintf(tmp, sizeof(tmp), "  voltage: %d\n  current: %d\n  wattage: %d\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
+            master_log(tmp);
+            bms_uart_timeout = 0; // disable timeout
+            bms_uart_state = BMS_UART_STATE_IDLE; // enable next request sending
+          }
+          tparse_discard_line(&tp_bms);
+        }
+        // timeout waiting for the command, reset the state and prepare a new command
+        if ( bms_uart_timeout && (uwTick - bms_uart_timeout < 0x80000000UL)) {
+          bms_uart_next = 0;
+          bms_uart_state = BMS_UART_STATE_IDLE;
+        }
+        break;
     }
 
     if (timeout_pv1_switch_on && uwTick - timeout_pv1_switch_on < 0x80000000UL) {
@@ -569,7 +684,7 @@ void interp(void) {
 #endif // WORKAROUND_SOLAX_INJECTION_SURGE
 
     // handle solax PocketWifi port to get the pv arrays status
-    tparse_finger(&tp_u4, sizeof(uart4_buffer) - DMA1_Stream2->NDTR);
+    tparse_finger(&tp_solax_pw, sizeof(uart_pw_buffer) - DMA_Stream_PW->NDTR);
     switch(solax_pw_state) {
       case SOLAX_PW_IDLE:
         // is no command scheduled for sending?
@@ -581,12 +696,12 @@ void interp(void) {
         break;
 
       case SOLAX_PW_SEND:
-        tparse_discard(&tp_u4);
+        tparse_discard(&tp_solax_pw);
         master_log("UART >> ");
         master_log_hex(solax_pw_queue[0].cmd, solax_pw_queue[0].cmd_len);
         master_log("\n");
         // send info request to solax
-        uart_select_intf(UART4);
+        uart_select_intf(UARTPW);
         uart_send_mem(solax_pw_queue[0].cmd, solax_pw_queue[0].cmd_len);
         solax_pw_state = SOLAX_PW_REQ_SENT;
         solax_pw_timeout = uwTick + SOLAX_PW_TIMEOUT;
@@ -594,12 +709,12 @@ void interp(void) {
 
       case SOLAX_PW_REQ_SENT:
         // if the reply is complete
-        if (tparse_avail(&tp_u4) >= solax_pw_queue[0].rep_len) {
-          size_t read = tparse_read(&tp_u4, tmp, solax_pw_queue[0].rep_len);
+        if (tparse_avail(&tp_solax_pw) >= solax_pw_queue[0].rep_len) {
+          size_t read = tparse_read(&tp_solax_pw, tmp, solax_pw_queue[0].rep_len);
           if (read < solax_pw_queue[0].rep_len) {
             master_log("UART reading error ");
             master_log_hex(&read, 4);
-            read = tparse_avail(&tp_u4);
+            read = tparse_avail(&tp_solax_pw);
             master_log_hex(&read, 4);
             master_log("\n");
             goto invalid;
@@ -635,20 +750,20 @@ void interp(void) {
 
             // if (!solax_checksum_verify(tmp+2,tmp[2]-2)) {
             //   batt_drain_fix_cause = 100;
-            //   tparse_discard(&tp_u4);
+            //   tparse_discard(&tp_solax_pw);
             //   solax_pw_state = SOLAX_PW_INVALID_NEXT;
             //   solax_pw_timeout = uwTick + SOLAX_PW_INVALID_RETRY_TIMEOUT;
             //   break;
             // }
 
-
-            int32_t power_balance_w = solax.pv1_wattage + solax.pv2_wattage - (solax.grid_wattage + pylontech.wattage );
+            int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
+            int32_t power_balance_w = solax.pv1_wattage + solax.pv2_wattage - (solax.grid_wattage + pylontech_wattage );
             // check for invalid data (glitch sometimes returned by the inverter)
             if (solax.pv1_voltage > SOLAX_MAX_PV_VOLTAGE_V*10 || solax.pv2_voltage > SOLAX_MAX_PV_VOLTAGE_V*10) {
               batt_drain_fix_cause = 71;
               master_log("cause 71\n");
             invalid:
-              tparse_reset(&tp_u4);
+              tparse_reset(&tp_solax_pw);
               solax_pw_state = SOLAX_PW_INVALID_NEXT;
               solax_pw_timeout = uwTick + SOLAX_PW_INVALID_RETRY_TIMEOUT;
               solax_pw_queue_pop();
@@ -895,22 +1010,22 @@ void interp(void) {
         // timing out first entry if any
         else if (solax_pw_queue_free() != SOLAX_PW_QUEUE_SIZE && (uwTick - solax_pw_timeout < 0x80000000UL)) {
           master_log("UART TIMEOUT");
-          master_log_hex(uart4_buffer, sizeof(uart4_buffer));
+          master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
           solax_pw_state = SOLAX_PW_WAIT_NEXT;
           solax_pw_timeout = uwTick + SOLAX_PW_NEXT_TIMEOUT;
-          tparse_reset(&tp_u4);
+          tparse_reset(&tp_solax_pw);
           solax_pw_queue_pop();
           // discard causes due to timeout of the request
           batt_drain_fix_cause = 0;
           batt_forced_charge = -1;
           batt_forced_soc = -1;
 
-          Configure_UART4(9600);
-          uart_select_intf(UART4);
+          Configure_UARTPW(9600);
+          uart_select_intf(UARTPW);
           uart_send_mem(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate));  
           // wait until bitrate is taken into account
           LL_mDelay(250);
-          Configure_UART4(115200);
+          Configure_UARTPW(115200);
         }
         break;
 
@@ -955,11 +1070,12 @@ void interp(void) {
         uart_send_mem(tmp, strlen(tmp));
         master_log(tmp);
         // BEGIN BATT
-        if (pylontech.wattage >= 0) {
-          snprintf(tmp, sizeof(tmp), "BAT< %dW", pylontech.wattage);
+        int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
+        if (pylontech_wattage >= 0) {
+          snprintf(tmp, sizeof(tmp), "BAT< %dW", pylontech_wattage);
         }
         else {
-          snprintf(tmp, sizeof(tmp), "BAT> %dW", -pylontech.wattage);
+          snprintf(tmp, sizeof(tmp), "BAT> %dW", -pylontech_wattage);
         }
         uart_select_intf(UART5);
         uart_send_mem(tmp, strlen(tmp));
@@ -1011,7 +1127,7 @@ void I2C_Slave_Match_Callback(void) {
 void I2C_Slave_Reception_Callback(void) {
   i2c_xfer_offset = 0;
 
-  switch(LL_I2C_ReceiveData8(I2C2)) {
+  switch(LL_I2C_ReceiveData8(I2CS)) {
   case 0:
     // read stats
     // don't process when an error has been detected, only ignore optimization rules (< 0x70)
@@ -1042,9 +1158,10 @@ void I2C_Slave_Reception_Callback(void) {
       // bat wattage
       i2c_xfer_buffer[i2c_xfer_length++] = (solax.bat_wattage>>8)&0xFF;
       i2c_xfer_buffer[i2c_xfer_length++] = solax.bat_wattage&0xFF;
-      // bat effective wattage (0.1A rounding)
-      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.wattage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = pylontech.wattage&0xFF;
+      // bat effective wattage (0.1A rounding if no precise wattage provided)
+      int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
+      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech_wattage>>8)&0xFF;
+      i2c_xfer_buffer[i2c_xfer_length++] = pylontech_wattage&0xFF;
       // bat soc
       i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.soc>>8)&0xFF;
       i2c_xfer_buffer[i2c_xfer_length++] = pylontech.soc&0xFF;
@@ -1100,11 +1217,11 @@ void I2C_Slave_Reception_Callback(void) {
 
 void I2C_Slave_Ready_To_Transmit_Callback(void) {
   if (i2c_xfer_offset < i2c_xfer_length) {
-    LL_I2C_TransmitData8(I2C2, i2c_xfer_buffer[i2c_xfer_offset++]);
+    LL_I2C_TransmitData8(I2CS, i2c_xfer_buffer[i2c_xfer_offset++]);
   }
   else {
     // stuffing
-    LL_I2C_TransmitData8(I2C2, 0xAA);
+    LL_I2C_TransmitData8(I2CS, 0xAA);
   }
 }
 
@@ -1117,33 +1234,33 @@ void I2C_Error_Callback(void) {
 }
 
 /**
-  * Brief   This function handles I2C2 (Slave) event interrupt request.
+  * Brief   This function handles I2CS (Slave) event interrupt request.
   * Param   None
   * Retval  None
   */
-void I2C2_EV_IRQHandler(void)
+void I2CS_EV_IRQHandler(void)
 {
   /* Check ADDR flag value in ISR register */
-  if(LL_I2C_IsActiveFlag_ADDR(I2C2))
+  if(LL_I2C_IsActiveFlag_ADDR(I2CS))
   {
     /* Verify the Address Match wI2C_Slave_Complete_Callbackith the OWN Slave address */
-    if(LL_I2C_GetAddressMatchCode(I2C2) == SLAVE_OWN_ADDRESS)
+    if(LL_I2C_GetAddressMatchCode(I2CS) == SLAVE_OWN_ADDRESS)
     {
       I2C_Slave_Match_Callback();
       // /* Verify the transfer direction, a read direction, Slave enters transmitter mode */
-      // if(LL_I2C_GetTransferDirection(I2C2) == LL_I2C_DIRECTION_READ)
+      // if(LL_I2C_GetTransferDirection(I2CS) == LL_I2C_DIRECTION_READ)
       // {
       /* Clear ADDR flag value in ISR register */
-      LL_I2C_ClearFlag_ADDR(I2C2);
+      LL_I2C_ClearFlag_ADDR(I2CS);
 
       //   /* Enable Transmit Interrupt */
-      //   LL_I2C_EnableIT_TX(I2C2);
+      //   LL_I2C_EnableIT_TX(I2CS);
 
       // }
       // else
       // {
       //   /* Clear ADDR flag value in ISR register */
-      //   LL_I2C_ClearFlag_ADDR(I2C2);
+      //   LL_I2C_ClearFlag_ADDR(I2CS);
 
       //   /* Call Error function */
       //   I2C_Error_Callback();
@@ -1152,48 +1269,48 @@ void I2C2_EV_IRQHandler(void)
     else
     {
       /* Clear ADDR flag value in ISR register */
-      LL_I2C_ClearFlag_ADDR(I2C2);
+      LL_I2C_ClearFlag_ADDR(I2CS);
         
       /* Call Error function */
       I2C_Error_Callback();
     }
   }
   /* Check NACK flag value in ISR register */
-  else if(LL_I2C_IsActiveFlag_NACK(I2C2))
+  else if(LL_I2C_IsActiveFlag_NACK(I2CS))
   {
     /* End of Transfer */
-    LL_I2C_ClearFlag_NACK(I2C2);
+    LL_I2C_ClearFlag_NACK(I2CS);
   }
   /* Check RXNE flag value in ISR register */
-  else if(LL_I2C_IsActiveFlag_RXNE(I2C2))
+  else if(LL_I2C_IsActiveFlag_RXNE(I2CS))
   {
     /* Call function Slave Reception Callback */
     I2C_Slave_Reception_Callback();
   }
   /* Check TXIS flag value in ISR register */
-  else if(LL_I2C_IsActiveFlag_TXIS(I2C2))
+  else if(LL_I2C_IsActiveFlag_TXIS(I2CS))
   {
     /* Call function Slave Ready to Transmit Callback */
     I2C_Slave_Ready_To_Transmit_Callback();
   }
   /* Check STOP flag value in ISR register */
-  else if(LL_I2C_IsActiveFlag_STOP(I2C2))
+  else if(LL_I2C_IsActiveFlag_STOP(I2CS))
   {
     /* Clear STOP flag value in ISR register */
-    LL_I2C_ClearFlag_STOP(I2C2);
+    LL_I2C_ClearFlag_STOP(I2CS);
     
     /* Check TXE flag value in ISR register */
-    if(!LL_I2C_IsActiveFlag_TXE(I2C2))
+    if(!LL_I2C_IsActiveFlag_TXE(I2CS))
     {
       /* Flush the TXDR register */
-      LL_I2C_ClearFlag_TXE(I2C2);
+      LL_I2C_ClearFlag_TXE(I2CS);
     }
 
     /* Call function Slave Complete Callback */
     I2C_Slave_Complete_Callback();
   }
   /* Check TXE flag value in ISR register */
-  else if(!LL_I2C_IsActiveFlag_TXE(I2C2))
+  else if(!LL_I2C_IsActiveFlag_TXE(I2CS))
   {
     /* Do nothing */
     /* This Flag will be set by hardware when the TXDR register is empty */
@@ -1202,18 +1319,18 @@ void I2C2_EV_IRQHandler(void)
   // tested in situ that nothing interesting goes here!
   // else
   // {
-  //   volatile uint32_t isr = I2C2->ISR;
+  //   volatile uint32_t isr = I2CS->ISR;
   //   /* Call Error function */
   //   I2C_Error_Callback();
   // }
 }
 
 /**
-  * Brief   This function handles I2C2 (Slave) error interrupt request.
+  * Brief   This function handles I2CS (Slave) error interrupt request.
   * Param   None
   * Retval  None
   */
-void I2C2_ER_IRQHandler(void)
+void I2CS_ER_IRQHandler(void)
 {
   /* Call Error function */
   I2C_Error_Callback();
@@ -1223,9 +1340,9 @@ void Configure_I2C_Slave(void)
 {
   uint32_t timing = 0;
 
-  /* (1) Enables GPIO clock and configures the I2C2 pins **********************/
-  /*    (SCL on PB.10, SDA on PB.11)                     **********************/
+  /* (1) Enables GPIO clock and configures the I2CS pins **********************/
 
+  #ifdef BOARD_DEV
   /* Enable the peripheral clock of GPIOB */
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
 
@@ -1243,15 +1360,13 @@ void Configure_I2C_Slave(void)
   LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_11, LL_GPIO_OUTPUT_OPENDRAIN);
   LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_11, LL_GPIO_PULL_UP);
 
-  /* (2) Enable the I2C2 peripheral clock and I2C2 clock source ***************/
+  /* (2) Enable the I2CS peripheral clock and I2CS clock source ***************/
 
-  /* Enable the peripheral clock for I2C2 */
+  /* Enable the peripheral clock for I2CS */
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C2);
-
   /* Set I2C2 clock source as SYSCLK */
   LL_RCC_SetI2CClockSource(LL_RCC_I2C2_CLKSOURCE_SYSCLK);
-
-  /* (3) Configure NVIC for I2C2 **********************************************/
+  /* (3) Configure NVIC for I2CS **********************************************/
 
   /* Configure Event IT:
    *  - Set priority for I2C2_EV_IRQn
@@ -1266,38 +1381,76 @@ void Configure_I2C_Slave(void)
    */
   NVIC_SetPriority(I2C2_ER_IRQn, 0);  
   NVIC_EnableIRQ(I2C2_ER_IRQn);
+  #else
+  /* Enable the peripheral clock of GPIOB */
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOF);
 
-  /* (4) Configure I2C2 functional parameters *********************************/
+  /* Configure SCL Pin as : Alternate function, High Speed, Open drain, Pull up */
+  LL_GPIO_SetPinMode(GPIOF, LL_GPIO_PIN_14, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOF, LL_GPIO_PIN_14, LL_GPIO_AF_4);
+  LL_GPIO_SetPinSpeed(GPIOF, LL_GPIO_PIN_14, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOF, LL_GPIO_PIN_14, LL_GPIO_OUTPUT_OPENDRAIN);
+  LL_GPIO_SetPinPull(GPIOF, LL_GPIO_PIN_14, LL_GPIO_PULL_UP);
 
-  /* Disable I2C2 prior modifying configuration registers */
-  LL_I2C_Disable(I2C2);
+  /* Configure SDA Pin as : Alternate function, High Speed, Open drain, Pull up */
+  LL_GPIO_SetPinMode(GPIOF, LL_GPIO_PIN_15, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOF, LL_GPIO_PIN_15, LL_GPIO_AF_4);
+  LL_GPIO_SetPinSpeed(GPIOF, LL_GPIO_PIN_15, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOF, LL_GPIO_PIN_15, LL_GPIO_OUTPUT_OPENDRAIN);
+  LL_GPIO_SetPinPull(GPIOF, LL_GPIO_PIN_15, LL_GPIO_PULL_UP);
+
+
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C4);
+  /* Set I2C4 clock source as SYSCLK */
+  LL_RCC_SetI2CClockSource(LL_RCC_I2C4_CLKSOURCE_SYSCLK);
+  /* (3) Configure NVIC for I2CS **********************************************/
+
+  /* Configure Event IT:
+   *  - Set priority for I2C4_EV_IRQn
+   *  - Enable I2C4_EV_IRQn
+   */
+  NVIC_SetPriority(I2C4_EV_IRQn, 0);  
+  NVIC_EnableIRQ(I2C4_EV_IRQn);
+
+  /* Configure Error IT:
+   *  - Set priority for I2C4_ER_IRQn
+   *  - Enable I2C4_ER_IRQn
+   */
+  NVIC_SetPriority(I2C4_ER_IRQn, 0);  
+  NVIC_EnableIRQ(I2C4_ER_IRQn);
+  #endif
+
+  /* (4) Configure I2CS functional parameters *********************************/
+
+  /* Disable I2CS prior modifying configuration registers */
+  LL_I2C_Disable(I2CS);
 
   /* Configure the SDA setup, hold time and the SCL high, low period */
-  LL_I2C_SetTiming(I2C2, 0x00100105);
+  LL_I2C_SetTiming(I2CS, 0x00100105);
 
   /* Configure the Own Address1 :
    *  - OwnAddress1 is SLAVE_OWN_ADDRESS
    *  - OwnAddrSize is LL_I2C_OWNADDRESS1_7BIT
    *  - Own Address1 is enabled
    */
-  LL_I2C_SetOwnAddress1(I2C2, SLAVE_OWN_ADDRESS, LL_I2C_OWNADDRESS1_7BIT);
-  LL_I2C_EnableOwnAddress1(I2C2);
+  LL_I2C_SetOwnAddress1(I2CS, SLAVE_OWN_ADDRESS, LL_I2C_OWNADDRESS1_7BIT);
+  LL_I2C_EnableOwnAddress1(I2CS);
 
   /* Enable Clock stretching */
   /* Reset Value is Clock stretching enabled */
-  //LL_I2C_EnableClockStretching(I2C2);
+  //LL_I2C_EnableClockStretching(I2CS);
 
   /* Configure Digital Noise Filter */
   /* Reset Value is 0x00            */
-  //LL_I2C_SetDigitalFilter(I2C2, 0x00);
+  //LL_I2C_SetDigitalFilter(I2CS, 0x00);
 
   /* Enable Analog Noise Filter           */
   /* Reset Value is Analog Filter enabled */
-  //LL_I2C_EnableAnalogFilter(I2C2);
+  //LL_I2C_EnableAnalogFilter(I2CS);
 
   /* Enable General Call                  */
   /* Reset Value is General Call disabled */
-  //LL_I2C_EnableGeneralCall(I2C2);
+  //LL_I2C_EnableGeneralCall(I2CS);
 
   /* Configure the 7bits Own Address2               */
   /* Reset Values of :
@@ -1305,32 +1458,37 @@ void Configure_I2C_Slave(void)
    *     - OwnAddrMask is LL_I2C_OWNADDRESS2_NOMASK
    *     - Own Address2 is disabled
    */
-  //LL_I2C_SetOwnAddress2(I2C2, 0x00, LL_I2C_OWNADDRESS2_NOMASK);
-  //LL_I2C_DisableOwnAddress2(I2C2);
+  //LL_I2C_SetOwnAddress2(I2CS, 0x00, LL_I2C_OWNADDRESS2_NOMASK);
+  //LL_I2C_DisableOwnAddress2(I2CS);
 
   /* Enable Peripheral in I2C mode */
   /* Reset Value is I2C mode */
-  //LL_I2C_SetMode(I2C2, LL_I2C_MODE_I2C);
+  //LL_I2C_SetMode(I2CS, LL_I2C_MODE_I2C);
 
-  /* (5) Enable I2C2 **********************************************************/
-  LL_I2C_Enable(I2C2);
+  /* (5) Enable I2CS **********************************************************/
+  LL_I2C_Enable(I2CS);
 
-  /* (6) Enable I2C2 address match/error interrupts:
+  /* (6) Enable I2CS address match/error interrupts:
    *  - Enable Address Match Interrupt
    *  - Enable Not acknowledge received interrupt
    *  - Enable Error interrupts
    *  - Enable Stop interrupt
    */
-  LL_I2C_EnableIT_ADDR(I2C2);
-  LL_I2C_EnableIT_NACK(I2C2);
-  LL_I2C_EnableIT_ERR(I2C2);
-  LL_I2C_EnableIT_STOP(I2C2);
-  LL_I2C_EnableIT_RX(I2C2);
-  LL_I2C_EnableIT_TX(I2C2);
+  LL_I2C_EnableIT_ADDR(I2CS);
+  LL_I2C_EnableIT_NACK(I2CS);
+  LL_I2C_EnableIT_ERR(I2CS);
+  LL_I2C_EnableIT_STOP(I2CS);
+  LL_I2C_EnableIT_RX(I2CS);
+  LL_I2C_EnableIT_TX(I2CS);
 
 
+#ifdef BOARD_DEV
   NVIC_EnableIRQ(I2C2_EV_IRQn);
   NVIC_EnableIRQ(I2C2_ER_IRQn);
+#else // BOARD_DEV
+  NVIC_EnableIRQ(I2C4_EV_IRQn);
+  NVIC_EnableIRQ(I2C4_ER_IRQn);
+#endif // BOARD_DEV
 }
 
 #endif // MODE_SOLAX_BMS

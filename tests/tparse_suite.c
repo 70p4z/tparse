@@ -198,6 +198,41 @@ static MunitResult* test_u32(const MunitParameter* params, void* ignored) {
   return MUNIT_OK;
 }
 
+static MunitResult* test_s32(const MunitParameter* params, void* ignored) {
+  tparse_ctx_t ctx;
+  char* t;
+  uint8_t buf[128];
+
+  memset(buffer, 0, sizeof(buffer));
+  tparse_init(&ctx, buffer, 32, " \n\r");
+  munit_assert_int(tparse_avail(&ctx), ==, 0);
+  munit_assert_int(tparse_token_size(&ctx), ==, 0);
+  munit_assert_int(tparse_token_p(&ctx, &t), ==, 0);
+
+  tparse_append(&ctx, STR_AND_LEN("12 -2567\n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 12);
+  munit_assert_int(tparse_token_u32(&ctx), ==, -2567);
+
+  //                                                     v circular limit
+  tparse_append(&ctx, STR_AND_LEN("13 256 3546 -324264 1456644322\n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 13);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 256);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 3546);
+  munit_assert_int(tparse_token_u32(&ctx), ==, -324264);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 1456644322);
+
+  tparse_append(&ctx, STR_AND_LEN("11 0x2576\n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 11);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 0x2576);
+
+  tparse_append(&ctx, STR_AND_LEN("11 0 -1\n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 11);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 0);
+  munit_assert_int(tparse_token_u32(&ctx), ==, -1);
+
+  return MUNIT_OK;
+}
+
 static MunitResult* test_eol(const MunitParameter* params, void* ignored) {
   tparse_ctx_t ctx;
   char* t;
@@ -472,6 +507,7 @@ static MunitTest tests_tparse_suite[] = {
   { /* name */ (char*) "/hex",  test_hex, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/in",  test_in, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/u32",  test_u32, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/s32",  test_s32, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/eol",  test_eol, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/eoleol",  test_eoleol, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/discard_no_eol",  test_discard_no_eol, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },

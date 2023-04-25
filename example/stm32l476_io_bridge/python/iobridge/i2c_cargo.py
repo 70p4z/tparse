@@ -25,7 +25,30 @@ import math
 import struct
 from iobridge.iobridge import IOBridge
 
-INS_CARGO = 0x0C
+INS_REQUEST_MTU  = 0x1 # U2BE:HOST_MTU
+INS_REPLY_MTU    = 0x2 # U2BE:MIN(HOST_MTU,SE_MTU)
+INS_STATUS_IDLE  = 0x3 # none
+INS_STATUS_BUSY  = 0x4 # U4BE:remaining_time_ms
+INS_SUSPEND      = 0x5 # none
+INS_SUSPEND_CTX  = 0x6 # BA:suspend_ctx
+INS_RESUME       = 0x7 # BA:suspend_ctx
+INS_GC_GET_ID    = 0x8 # none
+INS_ID           = 0x9 # BA[8]:SE_ID
+INS_SET_ADDRESS  = 0xA # BA[8]:SE_ID U1:7bit_I2C@
+INS_BOOT_INFO    = 0xB # BA[8]:BOOT_INFO
+INS_CARGO        = 0xC # BA:upper layer payload
+INS_MASTER_INFO  = 0xD # BA:MCU_INFO[Ver_major,Ver_minor,Ver_patch,RFU]
+INS_FLASHBACK    = 0xF # none
+
+def i2c_negociate_mtu(iob, mtu_req=255, addr=0x78, i2c_int_port=0, i2c_int_pin=9):
+  iob.i2c_write(addr, struct.pack(">BHH", INS_REQUEST_MTU, 2, mtu_req))
+  time.sleep(0.01)
+  data = iob.i2c_read(addr, 3)
+  if data[0] != INS_REPLY_MTU or struct.unpack_from(">BH", data)[1] != 2:
+    raise BaseException("MTU request not replied with a MTU reply")
+  data = iob.i2c_read(addr, 2)
+  return struct.unpack_from(">H", data)[0]
+
 def fragment(packet, mtu=128):
   to_split = struct.pack(">BH", INS_CARGO, len(packet)) + packet
   f = []
@@ -127,8 +150,8 @@ if __name__ == '__main__':
     # wait atr
     iob.i2c_wait_interrupt()
 
-  # TODO negociate MTU with the device
-  mtu = args.mtu
+  # negociate MTU with the device
+  mtu = i2c_negociate_mtu(args.mtu)
 
   for line in sys.stdin:
     line = line.rstrip("\n").rstrip("\r")

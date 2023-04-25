@@ -638,7 +638,8 @@ void interp(void) {
           // if it's the value line and not the text line
           if (val != -1UL) { 
             pylontech.precise_voltage = (int32_t)val;
-            pylontech.precise_current = (int32_t)tparse_token_u32(&tp_bms);
+            pylontech.precise_current = - /*current is accounted positive when leaving the battery!*/  
+                                          (int32_t)tparse_token_u32(&tp_bms);
             pylontech.precise_wattage = ((int32_t)pylontech.precise_current/(int32_t)10*(int32_t)pylontech.precise_voltage/(int32_t)10)/(int32_t)10000;
             snprintf(tmp, sizeof(tmp), "  voltage: %d\n  current: %d\n  wattage: %d\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
             master_log(tmp);

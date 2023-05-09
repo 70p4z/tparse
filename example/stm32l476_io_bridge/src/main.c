@@ -57,6 +57,8 @@ tparse_ctx_t* tparse_check_command(void) {
 __attribute__((weak)) void interp(void) {
   uint32_t previous_sw;
   uint8_t sw[2];
+  uint32_t flags= 0;
+  #define FLAGS_CAN_INTRX 1
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -89,6 +91,34 @@ __attribute__((weak)) void interp(void) {
     uint32_t timeout;
     uint32_t t;
     size_t ts,ts2;
+
+    // check flags for interrupt mode
+    if (flags & FLAGS_CAN_INTRX) {
+      if (can_fifo_avail()) {
+        // can rx
+        len = can_fifo_rx(&addr, &ts, tmp, sizeof(tmp));
+        if (ts == 0) {
+          uart_send("ERROR: no frame available\n");
+          break;
+        }
+        uart_send("INTCRX:");
+        addr = __bswap_32(addr); // change endianess (LE cpu => BE uart)
+        uart_send_hex(&addr, 4);
+        switch(ts) {
+          case CAN_ID_STANDARD_LEN:
+            uart_send(",s,");
+            break;
+          case CAN_ID_EXTENDED_LEN:
+            uart_send(",e,");
+            break;
+          default:
+            uart_send(",U,");
+            break;
+        }
+        uart_send_hex(tmp, len);
+        uart_send("\n");
+      }
+    }
 
     tparse_ctx_t *tp = tparse_check_command();
 
@@ -474,12 +504,21 @@ __attribute__((weak)) void interp(void) {
         break;
       case __COUNTER__:
         // can config
+        // ccfg
+        // CAN bus frequency 
         val = tparse_token_u32(tp);
         if (val > SystemCoreClock/4) {
           uart_send("ERROR: invalid frequency parameter\n");
           break;
         }
         Configure_CAN(val, 0);
+        // CAN bus interrupt reception mode?
+        flags &= ~FLAGS_CAN_INTRX;
+        if (tparse_token_size(tp)) {
+          if (tparse_token_u32(tp) > 0) {
+            flags |= FLAGS_CAN_INTRX;
+          }
+        }
         uart_send("OK:\n");
         break;
       case __COUNTER__:
@@ -596,10 +635,11 @@ __attribute__((weak)) void interp(void) {
             for(;;) {
               if ((uwTick - t) < 0x80000000UL) {
                 uart_send("TIMEOUT:\n");
-                break;
+                goto end_cmd;
               }
               // check ISO7816 IO (PA9 D8) and INT I2C (PA6 D12) 
               if (!gpio_get(port, pin)) {
+                // there is data signalled, start reading them out
                 break;
               }
             }
@@ -620,7 +660,7 @@ __attribute__((weak)) void interp(void) {
             val = 'z' + val;
             uart_send_dma((uint8_t*)&val, 1);
             uart_send_dma("\n", 1);
-            break;
+            goto end_cmd;
           }
           //interp header
           if (tlen == 0) {
@@ -643,6 +683,7 @@ __attribute__((weak)) void interp(void) {
         uart_send_dma("\n", 1); // we're DMA enabled in that transfer;
         break;
       }
+    end_cmd:
       // discard any remnant of the processed line
       tparse_discard_line(tp);
     }

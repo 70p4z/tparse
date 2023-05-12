@@ -254,13 +254,14 @@ void Configure_USART3(uint32_t baudrate)
 }
 #endif
 
-#ifndef BOARD_DEV
+#ifdef BOARD_DEV
 void Configure_UARTPW(uint32_t baudrate)
 {
   /* DMA used for USART4 Transmission and Reception
    * RX: DMA1 Stream 2 Channel 4
    */
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_UART4);
 
   // disable before reconf
   LL_USART_Enable(UARTPW);
@@ -352,6 +353,8 @@ void Configure_UARTPW(uint32_t baudrate)
    * RX: USART1 DMA2 Stream 2 Channel 4
    */
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2);
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
+
 
   // disable before reconf
   LL_USART_Enable(UARTPW);
@@ -377,14 +380,14 @@ void Configure_UARTPW(uint32_t baudrate)
 
   /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
   LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_0_7(GPIOB, LL_GPIO_PIN_6, LL_GPIO_AF_8);
+  LL_GPIO_SetAFPin_0_7(GPIOB, LL_GPIO_PIN_6, LL_GPIO_AF_7);
   LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
   LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL);
   LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_6, LL_GPIO_PULL_UP);
 
   /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
   LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_15, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_15, LL_GPIO_AF_8);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_15, LL_GPIO_AF_4);
   LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_15, LL_GPIO_SPEED_FREQ_HIGH);
   LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_15, LL_GPIO_OUTPUT_PUSHPULL);
   LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_15, LL_GPIO_PULL_UP);
@@ -444,6 +447,7 @@ void Configure_UARTBMS(uint32_t baudrate)
    * USART6 RX: DMA2 Stream 1 Channel 5
    */
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2);
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART6);
 
   LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_1);
   LL_DMA_ConfigTransfer(DMA2, LL_DMA_STREAM_1,

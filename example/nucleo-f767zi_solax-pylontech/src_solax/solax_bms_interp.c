@@ -334,10 +334,8 @@ void interp(void) {
   uint32_t last_CAN_activity_timeout = 0;
   uint32_t timeout_pv1_switch_on=0;
   uint32_t timeout_pv1_switch_off=0;
-  pv1_switch(1);
   uint32_t timeout_pv2_switch_on=0;
   uint32_t timeout_pv2_switch_off=0;
-  pv2_switch(1);
   uint32_t eps_mode_switch_timeout=0;
 
   // use BARE HSI (16MHz)
@@ -355,6 +353,9 @@ void interp(void) {
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOE);
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOF);
 
+  pv1_switch(1);
+  pv2_switch(1);
+
   // USART used for USBVCP communication
   Configure_USBVCP(USART_BAUDRATE_USBVCP);
   // Usart for BMS communication (UART6 PC6-TX PC7-RX)
@@ -362,7 +363,6 @@ void interp(void) {
 
   Configure_CAN1(500000);
   Configure_CAN3(500000);
-
 
   memset(&solax, 0, sizeof(solax));
   memset(&pylontech, 0, sizeof(pylontech));

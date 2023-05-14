@@ -398,6 +398,9 @@ void interp(void) {
 
   master_log("Reset\n");
 
+  // // OTO debug failing mcp2551
+  // can_solax_tx_log(0x1801, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
+
   // sent ping to the BMS to wake it up at reset moment
   can_bms_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
 #ifdef BMS_PING
@@ -638,8 +641,7 @@ void interp(void) {
           // if it's the value line and not the text line
           if (val != -1UL) { 
             pylontech.precise_voltage = (int32_t)val;
-            pylontech.precise_current = - /*current is accounted positive when leaving the battery!*/  
-                                          (int32_t)tparse_token_u32(&tp_bms);
+            pylontech.precise_current = (int32_t)tparse_token_u32(&tp_bms);
             pylontech.precise_wattage = ((int32_t)pylontech.precise_current/(int32_t)10*(int32_t)pylontech.precise_voltage/(int32_t)10)/(int32_t)10000;
             snprintf(tmp, sizeof(tmp), "  voltage: %d\n  current: %d\n  wattage: %d\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
             master_log(tmp);
@@ -1011,7 +1013,7 @@ void interp(void) {
         // timing out first entry if any
         else if (solax_pw_queue_free() != SOLAX_PW_QUEUE_SIZE && (uwTick - solax_pw_timeout < 0x80000000UL)) {
           master_log("UART TIMEOUT");
-          master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
+          //master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
           solax_pw_state = SOLAX_PW_WAIT_NEXT;
           solax_pw_timeout = uwTick + SOLAX_PW_NEXT_TIMEOUT;
           tparse_reset(&tp_solax_pw);

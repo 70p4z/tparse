@@ -20,6 +20,7 @@
 import binascii
 import random
 import threading
+import time
 
 class UsartIface:
 

@@ -28,7 +28,8 @@ import os
 LOGLEVEL = os.environ.get('LOGLEVEL', 'DEBUG').upper()
 LOGFORMAT = '%(asctime)s %(levelname)s %(threadName)s %(message)s'
 logging.basicConfig(level=LOGLEVEL, format=LOGFORMAT)
-default_logger = logging.getLogger("").setLevel(LOGLEVEL)
+default_logger = logging.getLogger("")
+default_logger.setLevel(LOGLEVEL)
 
 class IOBridgeException(BaseException):
 	pass

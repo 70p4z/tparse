@@ -19,22 +19,40 @@
 
 import binascii
 import random
+import threading
 
 class UsartIface:
 
-	def send_challenge(self):
+	def get_challenge(self):
 		try:
 			rng = binascii.hexlify(random.randbytes(4))
 		except:
 			rng = b'\x01\x02\x03\x04'
-		self.serial.write(b'\ninfo ' + rng + b'\n')
 		return rng
 
-	def __init__(self, serial):
+	# after 5 seconds, the challenge must have been accepted
+	def __init__(self, serial, max_timeout=5):
 		self.serial = serial
 		# ungarble and flush incoming data
-		lastrng = rng = self.send_challenge()
-		while True:
-			l = self.serial.readline()
-			if l.startswith(b'INFO:' + rng) or l.startswith(b'INFO:' + lastrng):
-				break;
+		rng = self.get_challenge()
+		self.challenge_received = False
+		def recv_challenge():
+			while True:
+				l = self.serial.readline()
+				if l.startswith(b'INFO:' + rng):
+					self.challenge_received = True
+					break
+		recv_thread = threading.Thread(target=recv_challenge)
+		recv_thread.start()
+		timeout = time.time() + max_timeout
+		retry_time = time.time() + max_timeout/10
+
+		# resend the challenge until received
+		self.serial.write(b'\ninfo ' + rng + b'\n')
+		while time.time() < timeout and not self.challenge_received:
+			if time.time() >= retry_time:
+				retry_time = time.time() + max_timeout/10
+				self.serial.write(b'\ninfo ' + rng + b'\n')
+			time.sleep(0.05)
+
+		recv_thread.join()

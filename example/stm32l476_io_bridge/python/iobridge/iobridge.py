@@ -28,9 +28,7 @@ import os
 LOGLEVEL = os.environ.get('LOGLEVEL', 'DEBUG').upper()
 LOGFORMAT = '%(asctime)s %(levelname)s %(threadName)s %(message)s'
 logging.basicConfig(level=LOGLEVEL, format=LOGFORMAT)
-
-default_logger = logging.getLogger("")
-
+default_logger = logging.getLogger("").setLevel(LOGLEVEL)
 
 class IOBridgeException(BaseException):
 	pass
@@ -41,6 +39,7 @@ class IOBridge(UsartIface):
 		self.logger = logger
 		if not logger:
 			self.logger = default_logger
+		self.logger.debug("IOBridge init")
 
 	def exchange(self, cmd):
 		if self.logger:

@@ -99,6 +99,8 @@ size_t i2c_read(uint8_t addr, uint8_t* buf, size_t maxlen);
 size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len);
 
 void Configure_CAN(CAN_TypeDef* _CAN, uint32_t frequency, uint32_t auto_retransmit);
+void Configure_CAN1(uint32_t frequency);
+void Configure_CAN3(uint32_t frequency);
 #define CAN_ID_STANDARD_LEN 11
 #define CAN_ID_EXTENDED_LEN 29
 size_t can_fifo_avail(CAN_TypeDef* _CAN);

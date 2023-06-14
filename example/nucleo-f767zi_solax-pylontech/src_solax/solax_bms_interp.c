@@ -8,6 +8,10 @@
 
 #define USBVCP USART3
 
+#define SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+//#define SOLAX_DONT_STOP_98_PCT // don't fix that to avoid killing the batteries' chemistry too fast
+//#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
+
 // required with version ARM=1.07+DSP=1.09, 
 // not required with ARM=1.28+DSP=1.30 => optimization is far better with this firmware version
 //#define HAVE_LOWLIGHT_OPT 
@@ -19,13 +23,13 @@
 
 #define BMS_KIND_BLANK 0x50
 #define BMS_KIND_BAK 0x51
-#define BMS_KIND_REPT 0x52 // 4x H48050
+#define BMS_KIND_REPT 0x52 // ok 4x H48050
 #define BMS_KIND_SINOWATT 0x53
 #define BMS_KIND_GOT 0x54
 #define BMS_KIND_BLANK2 0x55
 #define BMS_KIND_TP200 0x81
 #define BMS_KIND_TP201 0x82 
-#define BMS_KIND_TP202 0x83 // 8x H48050
+#define BMS_KIND_TP202 0x83 // ok 8x H48050
 // change depending on the battery configuration if it doesn't work out
 #define BMS_KIND BMS_KIND_TP202
 
@@ -36,6 +40,7 @@
 #define SOLAX_PW_INVALID_RETRY_TIMEOUT 500 // 100ms before retrying in case of an error on the pocketwifi serial response
 #define SOLAX_PW_MODE_CHANGE_MIN_INTERVAL 10000 // avoid changing mode constantly
 #define PYLONTECH_ACTIVITY_TIMEOUT 500
+#define PYLONTECH_REPLY_TIMEOUT 2000 // auto reply with cache after 2sec
 
 
 #define SOLAX_PV_POWER_OPT_THRESHOLD_V 150
@@ -69,6 +74,7 @@
 #define S2LE(buf, off) ((int16_t)((int16_t)((int16_t)((int16_t)(buf)[off+1])<<8l) | (int16_t)((int16_t)(buf)[off]&0xFFl) ))
 #define U2LE(buf, off) ((((buf)[off+1]&0xFFu)<<8) | ((buf)[off]&0xFFu) )
 #define U2BE(buf, off) ((((buf)[off]&0xFFu)<<8) | ((buf)[off+1]&0xFFu) )
+#define U4BE_ENCODE(buf, off, value) {(buf)[(off)+0] = ((value)>>24)&0xFF;(buf)[(off)+1] = ((value)>>16)&0xFF;(buf)[(off)+2] = ((value)>>8)&0xFF;(buf)[(off)+3] = ((value))&0xFF;}
 
 void Configure_I2C_Slave(void);
 
@@ -214,9 +220,33 @@ void solax_pw_queue_push(const uint8_t* cmd, uint32_t cmd_len, uint32_t rep_len)
   if (idx >= SOLAX_PW_QUEUE_SIZE) {
     return;
   }
-  solax_pw_queue[idx].cmd = cmd;
+  solax_pw_queue[idx].cmd = (uint8_t*)cmd;
   solax_pw_queue[idx].cmd_len = cmd_len;
   solax_pw_queue[idx].rep_len = rep_len;
+}
+
+#define PYLONTECH_CACHE_COUNT 8 // 1871:1878
+struct {
+  uint32_t used:1;
+  uint32_t can_id:31;
+  uint8_t can_msg[8];
+} pylontech_cached_infos[PYLONTECH_CACHE_COUNT];
+
+void pylontech_cache_clear(void) {
+  memset(&pylontech_cached_infos, 0, sizeof(pylontech_cached_infos));
+}
+
+// assume message is always 8 bytes long
+void pylontech_cache_append(uint32_t _can_id, uint8_t* _can_msg) {
+  
+  for (uint8_t i=0; i<PYLONTECH_CACHE_COUNT; i++) {
+    if (!pylontech_cached_infos[i].used) {
+      memmove(pylontech_cached_infos[i].can_msg, _can_msg, 8);
+      pylontech_cached_infos[i].can_id = _can_id;
+      pylontech_cached_infos[i].used = 1;
+      return;
+    }
+  }
 }
 
 const char * const solax_forced_work_mode_str [] = {
@@ -313,7 +343,9 @@ void interp(void) {
   uint32_t bms_uart_next = 0;
   uint32_t bms_uart_timeout = 0;
   enum solax_pw_state_e solax_pw_state = SOLAX_PW_IDLE;
+#ifdef SUPPORT_PYLONTECH_RECONNECT
   uint32_t bms_reconnect_at;
+#endif // SUPPORT_PYLONTECH_RECONNECT  
   uint32_t solax_pw_timeout=0;
 #ifdef BMS_PING
   uint32_t bms_ping_timeout;
@@ -328,10 +360,9 @@ void interp(void) {
   uint32_t timeout_next_display = uwTick;
 #endif // USART5_HUMAN_READABLE_SUMMARY_LOG
   uint32_t solax_pw_mode_change_ready;
-#ifdef BMS_TIMEOUT_DETECT
   uint32_t pylontech_timeout = 0;
-#endif // BMS_TIMEOUT_DETECT
-  uint32_t last_CAN_activity_timeout = 0;
+  uint32_t last_INV_CAN_activity_timeout = 0;
+  uint32_t last_BMS_CAN_activity_timeout = 0;
   uint32_t timeout_pv1_switch_on=0;
   uint32_t timeout_pv1_switch_off=0;
   uint32_t timeout_pv2_switch_on=0;
@@ -406,11 +437,12 @@ void interp(void) {
 #ifdef BMS_PING
   bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
 #endif // BMS_PING
+#ifdef SUPPORT_PYLONTECH_RECONNECT  
   bms_reconnect_at = uwTick;
-  last_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
-#ifdef BMS_TIMEOUT_DETECT
-  pylontech_timeout = uwTick + PYLONTECH_ACTIVITY_TIMEOUT;
-#endif // BMS_TIMEOUT_DETECT
+#endif // SUPPORT_PYLONTECH_RECONNECT
+  last_INV_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+  last_BMS_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+  pylontech_timeout = uwTick + PYLONTECH_REPLY_TIMEOUT;
 
   // startup the watchdog
   /* Enable the peripheral clock of DBG register (uncomment for debug purpose) */
@@ -445,13 +477,15 @@ void interp(void) {
 
     /* Refresh IWDG down-counter to default value */
     LL_IWDG_ReloadCounter(IWDG);
-    // reset in case of CAN activity
-    if (uwTick - last_CAN_activity_timeout < 0x80000000UL) {
+    // reset in case of CAN activity timeout
+    if (uwTick - last_INV_CAN_activity_timeout < 0x80000000UL
+      || uwTick - last_BMS_CAN_activity_timeout < 0x80000000UL) {
       NVIC_SystemReset();
     }
 
     // check for messages from the inverter
     if (can_fifo_avail(CAN1)) {
+      last_INV_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY; // we've received something
       len = can_fifo_rx(CAN1, &cid, &cid_bitlen, tmp, sizeof(tmp));
       master_log_can("inv >>>     | ", cid, cid_bitlen, tmp, len);
       // other request from the inverter are discarded
@@ -467,6 +501,7 @@ void interp(void) {
             }
             can_solax_tx_log(0x1801, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
             break;
+#ifdef SUPPORT_PYLONTECH_RECONNECT
           case 2:
             // disconnect request (fault seen from the inverter's side)
             // if sent to the BMS, the SC0500 goes to slumber and no command can wake it up, 
@@ -484,14 +519,21 @@ void interp(void) {
           case 5:
             // ping?
             break;
+#endif // SUPPORT_PYLONTECH_RECONNECT
         }
 
         // only forward when the bms is allowed (not timing out for juice cut)
-        if (forward && uwTick - bms_reconnect_at < 0x80000000UL) {
+        if (forward 
+#ifdef SUPPORT_PYLONTECH_RECONNECT
+          && uwTick - bms_reconnect_at < 0x80000000UL
+#endif // SUPPORT_PYLONTECH_RECONNECT
+          ) {
           // reset to reenable battery
           enable_battery = 0;
+          pylontech_timeout = uwTick + PYLONTECH_REPLY_TIMEOUT;
+#ifdef SUPPORT_PYLONTECH_RECONNECT
           bms_reconnect_at = uwTick; // make sure to avoid overflow when no reconnection request for a while
-          last_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+#endif // SUPPORT_PYLONTECH_RECONNECT
           can_bms_tx_log(cid, cid_bitlen, tmp, len);
         }
       }
@@ -507,21 +549,25 @@ void interp(void) {
     }
 #endif // BMS_PING
 
-#ifdef BMS_TIMEOUT_DETECT
-    // timeout the pylontech status to avoid "bad" display
+    // pylontech timeout, serve the cached infos
     if (pylontech_timeout && uwTick - pylontech_timeout < 0x80000000UL ) {
       master_log("bms can timeout\n");
-      memset(&pylontech, 0, sizeof(pylontech));
+      // avoid retriggering timeout
       pylontech_timeout = 0;
+      // reply with cache infos
+      for (uint8_t i=0; i< PYLONTECH_CACHE_COUNT; i++) {
+        if (pylontech_cached_infos[i].used) {
+          can_solax_tx_log(pylontech_cached_infos[i].can_id, CAN_ID_EXTENDED_LEN, 
+                           pylontech_cached_infos[i].can_msg, 8);
+        }
+      }
     }
-#endif // BMS_TIMEOUT_DETECT
 
     if (can_fifo_avail(CAN3)) {
       len = can_fifo_rx(CAN3, &cid, &cid_bitlen, tmp, sizeof(tmp));
       master_log_can("bms >>>     | ", cid, cid_bitlen, tmp, len);
-#ifdef BMS_TIMEOUT_DETECT
-      pylontech_timeout = uwTick + PYLONTECH_ACTIVITY_TIMEOUT;
-#endif // BMS_TIMEOUT_DETECT
+      last_BMS_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
+      pylontech_timeout = 0;
       forward = 0;
       switch(cid) {
         case 0x1873:
@@ -530,41 +576,74 @@ void interp(void) {
           pylontech.current = S2LE(tmp,2);
           pylontech.soc = U2LE(tmp,4);
           pylontech.wattage = ((int32_t)pylontech.voltage)*((int32_t)pylontech.current)/((int32_t)100); // unit 0.1V x 0.1A
+#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+          if (pylontech.soc > 97) {
+            // force percentage for the solax, to avoid the fetch from batteries effect
+            tmp[4] = 97;
+            tmp[5] = 0;
+          }
+#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX
           if (batt_forced_soc >= 0) {
+            master_log("force batt soc\n");
             tmp[4] = batt_forced_soc&0xFF;
             tmp[5] = 0;
           }
+#ifdef SOLAX_DONT_STOP_98_PCT
+          // when in EPS mode, the solax does not charge up to 100 percent, but stops at 98%
+          if (pylontech.soc < 99) {
+            master_log("adjust batt soc\n");
+            pylontech.soc = MIN(98, pylontech.soc);
+          }
+#endif // SOLAX_DONT_STOP_98_PCT
           forward = 1;
           break;
         case 0x1872:
           pylontech.max_charge = S2LE(tmp, 4);
           pylontech.max_discharge = S2LE(tmp, 6);
 
-          // add 0.9A to cover for the INVERTER wrong current computation 
-          // (it includes its own DC consumption into the battery DC link)
-          // when not full
-          if (pylontech.max_charge && pylontech.soc != 100) {
-            // NOTE: when charging from solar (grid charge is cheating), then MPPT is ON
-            uint32_t self_consumption_current_dA = (SOLAX_SELF_CONSUMPTION_MPPT_W
-                                                    + SOLAX_SELF_CONSUMPTION_INVERTER_W)*100/*cW*/ 
-                                                   / pylontech.voltage/*dV*/;
-            tmp[4] = (pylontech.max_charge+self_consumption_current_dA)&0xFF;
-            tmp[5] = ((pylontech.max_charge+self_consumption_current_dA)>>8)&0xFF;
+          // // add 0.9A to cover for the INVERTER wrong current computation 
+          // // (it includes its own DC consumption into the battery DC link)
+          // // when not full
+          // if (pylontech.max_charge && pylontech.soc != 100) {
+          //   // NOTE: when charging from solar (grid charge is cheating), then MPPT is ON
+          //   uint32_t self_consumption_current_dA = (SOLAX_SELF_CONSUMPTION_MPPT_W
+          //                                           + SOLAX_SELF_CONSUMPTION_INVERTER_W)*100/*cW*/ 
+          //                                          / pylontech.voltage/*dV*/;
+          //   tmp[4] = (pylontech.max_charge+self_consumption_current_dA)&0xFF;
+          //   tmp[5] = ((pylontech.max_charge+self_consumption_current_dA)>>8)&0xFF;
+          // }
+          // min current = 1A
+          if (pylontech.max_charge) {
+            pylontech.max_charge = MAX(pylontech.max_charge, 10);
+            //master_log("adjust max charge\n");
+            tmp[4] = pylontech.max_charge&0xFF;
+            tmp[5] = (pylontech.max_charge>>8)&0xFF;
           }
-
+#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+          // disable charge above 97%
+          if (pylontech.soc > 97) {
+            tmp[4] = 0;
+            tmp[5] = 0;
+          }
+#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX
           // force disabling charge, in order to avoid driving the battery to retrieve too less energy from the PVs.
           if (batt_forced_charge >= 0) {
+            master_log("force batt charge\n");
             tmp[4] = batt_forced_charge&0xFF;
             tmp[5] = (batt_forced_charge>>8)&0xFF;
           }
           // disallow discharge when battery is too low
           if (pylontech.soc <= 10) {
+            master_log("soc < 10\n");
             tmp[6] = 0;
             tmp[7] = 0;
           }
           forward = 1;
           break;
         case 0x1871:
+          // wipe the pylontech cache to refresh it
+          pylontech_cache_clear();
+          __attribute__((fallthrough));
         case 0x1878:
           forward = 1;
           break;
@@ -595,8 +674,8 @@ void interp(void) {
           break;
       }
       if (forward) {
+        pylontech_cache_append(cid, tmp);
         can_solax_tx_log(cid, cid_bitlen, tmp, len);
-        last_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
       }
     }
 
@@ -615,7 +694,6 @@ void interp(void) {
     Command completed successfully
     $$
     */
-    last_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
     switch(bms_uart_state) {
       case BMS_UART_STATE_IDLE:
         // wait until transmit moment is reached
@@ -638,13 +716,13 @@ void interp(void) {
 
           // data line
           uint32_t val = tparse_token_u32(&tp_bms);
-          // if it's the value line and not the text line
+          // if it's the value line and not a text line
           if (val != -1UL) { 
             pylontech.precise_voltage = (int32_t)val;
             pylontech.precise_current = (int32_t)tparse_token_u32(&tp_bms);
             pylontech.precise_wattage = ((int32_t)pylontech.precise_current/(int32_t)10*(int32_t)pylontech.precise_voltage/(int32_t)10)/(int32_t)10000;
-            snprintf(tmp, sizeof(tmp), "  voltage: %d\n  current: %d\n  wattage: %d\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
-            master_log(tmp);
+            snprintf((char*)tmp, sizeof(tmp), "  voltage: %ld\n  current: %ld\n  wattage: %ld\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
+            master_log((char*)tmp);
             bms_uart_timeout = 0; // disable timeout
             bms_uart_state = BMS_UART_STATE_IDLE; // enable next request sending
           }
@@ -713,7 +791,7 @@ void interp(void) {
       case SOLAX_PW_REQ_SENT:
         // if the reply is complete
         if (tparse_avail(&tp_solax_pw) >= solax_pw_queue[0].rep_len) {
-          size_t read = tparse_read(&tp_solax_pw, tmp, solax_pw_queue[0].rep_len);
+          size_t read = tparse_read(&tp_solax_pw, (char*)tmp, solax_pw_queue[0].rep_len);
           if (read < solax_pw_queue[0].rep_len) {
             master_log("UART reading error ");
             master_log_hex(&read, 4);
@@ -759,8 +837,8 @@ void interp(void) {
             //   break;
             // }
 
-            int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
-            int32_t power_balance_w = solax.pv1_wattage + solax.pv2_wattage - (solax.grid_wattage + pylontech_wattage );
+            //int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
+            //int32_t power_balance_w = solax.pv1_wattage + solax.pv2_wattage - (solax.grid_wattage + pylontech_wattage );
             // check for invalid data (glitch sometimes returned by the inverter)
             if (solax.pv1_voltage > SOLAX_MAX_PV_VOLTAGE_V*10 || solax.pv2_voltage > SOLAX_MAX_PV_VOLTAGE_V*10) {
               batt_drain_fix_cause = 71;
@@ -772,6 +850,7 @@ void interp(void) {
               solax_pw_queue_pop();
               break;
             }
+            /* this is triggered too easily when fluctuating power
             if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 > 150*solax.pv1_wattage/100) {
               batt_drain_fix_cause = 72;
               master_log("cause 72\n");
@@ -792,6 +871,7 @@ void interp(void) {
               master_log("cause 75\n");
               goto invalid; 
             }
+            */
             /*
             // check power balance is correct (with a +- variance)
             if (power_balance_w < 0 && power_balance_w < - SOLAX_SELF_CONSUMPTION_MPPT_W - SOLAX_SELF_CONSUMPTION_INVERTER_W) {
@@ -1206,6 +1286,10 @@ void I2C_Slave_Reception_Callback(void) {
       // eps voltage
       i2c_xfer_buffer[i2c_xfer_length++] = (solax.eps_voltage>>8)&0xFF;
       i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_voltage&0xFF;
+      // time since restart
+      U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_length, uwTick);
+      i2c_xfer_length+=4;
+      i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_voltage&0xFF;
       // encode total length
       i2c_xfer_buffer[0] = i2c_xfer_length;
     }
@@ -1341,7 +1425,6 @@ void I2CS_ER_IRQHandler(void)
 
 void Configure_I2C_Slave(void)
 {
-  uint32_t timing = 0;
 
   /* (1) Enables GPIO clock and configures the I2CS pins **********************/
 

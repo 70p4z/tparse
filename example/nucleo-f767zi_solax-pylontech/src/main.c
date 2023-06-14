@@ -34,7 +34,7 @@ extern uint8_t n2h(uint8_t c);
 tparse_ctx_t tp_vcp;
 tparse_ctx_t tp_u3;
 
-tparse_ctx_t* tparse_c262000heck_command(void) {
+tparse_ctx_t* tparse_check_command(void) {
   tparse_finger(&tp_vcp, sizeof(uart_usbvcp_buffer) - DMA1_Stream1->CNDTR);
   tparse_finger(&tp_u3, sizeof(uart3_buffer) - DMA1_Channel2->CNDTR);
   uint32_t len;

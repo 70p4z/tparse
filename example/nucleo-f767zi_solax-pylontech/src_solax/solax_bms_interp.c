@@ -151,6 +151,7 @@ void can_bms_tx_log(uint32_t cid, size_t cid_bitlen, uint8_t* canmsg, size_t can
 enum bms_uart_state_e {
   BMS_UART_STATE_IDLE,
   BMS_UART_STATE_WAIT,
+  BMS_UART_STATE_WAIT_USER,
 };
 
 enum solax_pw_state_e {
@@ -426,6 +427,8 @@ void interp(void) {
   tparse_init(&tp_solax_pw, uart_pw_buffer, sizeof(uart_pw_buffer), "");
   tparse_ctx_t tp_bms;
   tparse_init(&tp_bms, uart_bms_buffer, sizeof(uart_bms_buffer), " \n");
+  tparse_ctx_t tp_master;
+  tparse_init(&tp_master, uart_usbvcp_buffer, sizeof(uart_usbvcp_buffer), "\n");
 
   master_log("Reset\n");
 
@@ -679,6 +682,7 @@ void interp(void) {
       }
     }
 
+    tparse_finger(&tp_master, sizeof(uart_usbvcp_buffer) - DMA_Stream_USBVCP->NDTR);
     // update data from the bms usart link
     tparse_finger(&tp_bms, sizeof(uart_bms_buffer) - DMA_Stream_BMS->NDTR);
     /*
@@ -696,42 +700,68 @@ void interp(void) {
     */
     switch(bms_uart_state) {
       case BMS_UART_STATE_IDLE:
-        // wait until transmit moment is reached
-        if (uwTick - bms_uart_next >= 0x80000000UL) {
-          break;
+        if (tparse_has_line(&tp_master)) {
+          size_t read = tparse_peek_line(&tp_master, (char*)tmp, sizeof(tmp));
+          master_log("UARTBMSUSER >> ");
+          master_log_mem(tmp, read);
+          uart_select_intf(USART6);
+          uart_send_mem(tmp, read);
+          bms_uart_state = BMS_UART_STATE_WAIT_USER;
+          tparse_token_u32(&tp_bms);
+          tparse_discard_line(&tp_master);
         }
-        tparse_discard(&tp_bms);
-        master_log("UARTBMS >> pwr\n");
-        // send request to the bms
-        uart_select_intf(USART6);
-        uart_send_mem("pwr\n",4);
-        bms_uart_state = BMS_UART_STATE_WAIT;
-        bms_uart_next = uwTick + BMS_UART_NEXT_INTERVAL;
+        else {
+          // wait until transmit moment is reached
+          if (bms_uart_next && (uwTick - bms_uart_next >= 0x80000000UL)) {
+            break;
+          }
+          tparse_discard(&tp_bms);
+          master_log("UARTBMS >> pwr\n");
+          // send request to the bms
+          uart_select_intf(USART6);
+          uart_send_mem("pwr\n",4);
+          bms_uart_state = BMS_UART_STATE_WAIT;
+          bms_uart_next = uwTick + BMS_UART_NEXT_INTERVAL;
+        }
         bms_uart_timeout = uwTick + BMS_UART_TIMEOUT;
         break;
       case BMS_UART_STATE_WAIT:
+      case BMS_UART_STATE_WAIT_USER:
         // line received?
         if (tparse_has_line(&tp_bms)) {
-          master_log("UARTBMS line\n");
+          size_t read = tparse_peek_line(&tp_bms, (char*)tmp, sizeof(tmp));
+          master_log("UARTBMS << ");
+          master_log_mem(tmp,read);
 
-          // data line
-          uint32_t val = tparse_token_u32(&tp_bms);
-          // if it's the value line and not a text line
-          if (val != -1UL) { 
-            pylontech.precise_voltage = (int32_t)val;
-            pylontech.precise_current = (int32_t)tparse_token_u32(&tp_bms);
-            pylontech.precise_wattage = ((int32_t)pylontech.precise_current/(int32_t)10*(int32_t)pylontech.precise_voltage/(int32_t)10)/(int32_t)10000;
-            snprintf((char*)tmp, sizeof(tmp), "  voltage: %ld\n  current: %ld\n  wattage: %ld\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
-            master_log((char*)tmp);
-            bms_uart_timeout = 0; // disable timeout
-            bms_uart_state = BMS_UART_STATE_IDLE; // enable next request sending
+          if (bms_uart_state == BMS_UART_STATE_WAIT) {
+            uint32_t val = tparse_token_u32(&tp_bms);
+            // if it's the line starting with integer and not a text line
+            if (val != -1UL) { 
+              pylontech.precise_voltage = (int32_t)val;
+              pylontech.precise_current = (int32_t)tparse_token_u32(&tp_bms);
+              pylontech.precise_wattage = ((int32_t)pylontech.precise_current/(int32_t)10*(int32_t)pylontech.precise_voltage/(int32_t)10)/(int32_t)10000;
+              snprintf((char*)tmp, sizeof(tmp), "  voltage: %ld\n  current: %ld\n  wattage: %ld\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
+              master_log((char*)tmp);
+              bms_uart_timeout = 0; // disable timeout
+              bms_uart_state = BMS_UART_STATE_IDLE; // enable next request sending
+            }
+            tparse_discard_line(&tp_bms);
           }
-          tparse_discard_line(&tp_bms);
+          else {
+            tparse_token_u32(&tp_bms);
+            if (strstr(tmp, "$$")) {
+              // last line of the command, THANKS pylontech for that delimiter
+              bms_uart_next = 0;
+              bms_uart_state = BMS_UART_STATE_IDLE;
+            }
+            tparse_discard_line(&tp_bms);
+          }
         }
         // timeout waiting for the command, reset the state and prepare a new command
         if ( bms_uart_timeout && (uwTick - bms_uart_timeout < 0x80000000UL)) {
           bms_uart_next = 0;
           bms_uart_state = BMS_UART_STATE_IDLE;
+          pylontech.precise_wattage = 0; // avoid relaying outdated data
         }
         break;
     }

@@ -72,6 +72,7 @@ extern "C" {
 #define UARTBMS USART6
 #define DMA_Stream_BMS DMA2_Stream1
 
+#define DMA_Stream_USBVCP DMA1_Stream1
 void Configure_USBVCP(uint32_t baudrate);
 void Configure_UARTPW(uint32_t baudrate);
 void Configure_UARTBMS(uint32_t baudrate);

@@ -94,6 +94,11 @@ size_t tparse_avail(tparse_ctx_t* ctx);
 size_t tparse_has_line(tparse_ctx_t* ctx);
 
 /**
+ * Copy the current received line (return 0 until an end of line is reached)
+ */
+size_t tparse_peek_line(tparse_ctx_t* ctx, char* buffer, size_t max_length);
+
+/**
  * Returns 1 if a complete token is available (with an end delimiter). Returns 0 when no next token is present
  */
 size_t tparse_token_size(tparse_ctx_t* ctx);
@@ -120,9 +125,14 @@ uint32_t tparse_token_u32_base(tparse_ctx_t* ctx, uint32_t _base);
 uint32_t tparse_token_u32(tparse_ctx_t* ctx);
 
 /** 
- * Discard everything until end of line
+ * Discard everything until end of line, at least a token must have been consumed on the line
  */
 void tparse_discard_line(tparse_ctx_t* ctx);
+
+/**
+ * Mark the line as consumed, whatever consumed or not
+ */
+void tparse_consume_line(tparse_ctx_t* ctx);
 
 /**
  * Discard all received data from the uart

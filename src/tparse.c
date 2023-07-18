@@ -207,6 +207,29 @@ size_t tparse_has_line(tparse_ctx_t* ctx) {
 	return 0;
 }
 
+size_t tparse_peek_line(tparse_ctx_t* ctx, char* buffer, size_t max_length) {
+	uint32_t avail = tparse_avail(ctx);
+	uint32_t r_offset = ctx->r_offset;
+	size_t line_length=0;
+	while(avail--) {
+		char c = ctx->buffer[r_offset];
+		if (line_length<max_length) {
+			*buffer = c;
+			*buffer++;
+		}
+		line_length++;
+		if (c == '\n') {
+			if (line_length<max_length) {
+				*buffer = '\0'; // EOL if still space
+				line_length++;
+			}
+			return line_length;
+		}
+		r_offset = (r_offset + 1) % ctx->max_length;
+	}
+	return 0;
+}
+
 uint32_t tparse_eol_reached(tparse_ctx_t* ctx) {
 	return ctx->flags & TPARSE_EOL;
 }

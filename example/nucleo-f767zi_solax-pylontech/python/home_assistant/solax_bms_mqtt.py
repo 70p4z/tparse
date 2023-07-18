@@ -44,7 +44,7 @@ def mqtt_start():
     if rc==0:
       mqtt_setup()
 
-  mqtt_client = mqtt.Client('solax_inverter')
+  mqtt_client = mqtt.Client('solax_inverter',clean_session=True)
   mqtt_client.on_connect=on_connect
   while True:
     try:

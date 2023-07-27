@@ -215,7 +215,7 @@ size_t tparse_peek_line(tparse_ctx_t* ctx, char* buffer, size_t max_length) {
 		char c = ctx->buffer[r_offset];
 		if (line_length<max_length) {
 			*buffer = c;
-			*buffer++;
+			buffer++;
 		}
 		line_length++;
 		if (c == '\n') {

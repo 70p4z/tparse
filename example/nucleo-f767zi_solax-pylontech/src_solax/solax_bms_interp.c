@@ -16,6 +16,8 @@
 // not required with ARM=1.28+DSP=1.30 => optimization is far better with this firmware version
 //#define HAVE_LOWLIGHT_OPT 
 
+#define EXPIRED(time) (((uint32_t)uwTick - (uint32_t)(time)) < (uint32_t)0x80000000)
+
 //#define BMS_PING
 #define BMS_PING_INTERVAL_MS 5000
 #define BMS_UART_TIMEOUT 10000
@@ -358,7 +360,7 @@ void interp(void) {
   //uint32_t wait_bms_info = 1;
   //uint8_t bms_info[8];
 #ifdef USART5_HUMAN_READABLE_SUMMARY_LOG
-  uint32_t timeout_next_display = uwTick;
+  uint32_t timeout_next_display = 0;
 #endif // USART5_HUMAN_READABLE_SUMMARY_LOG
   uint32_t solax_pw_mode_change_ready;
   uint32_t pylontech_timeout = 0;
@@ -412,7 +414,6 @@ void interp(void) {
   // ensure starting with SELF USE mode
   solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
   solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
-  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
 
   Configure_I2C_Slave();
 
@@ -437,6 +438,8 @@ void interp(void) {
 
   // sent ping to the BMS to wake it up at reset moment
   can_bms_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
+
+  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
 #ifdef BMS_PING
   bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
 #endif // BMS_PING
@@ -446,6 +449,9 @@ void interp(void) {
   last_INV_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
   last_BMS_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
   pylontech_timeout = uwTick + PYLONTECH_REPLY_TIMEOUT;
+#ifdef USART5_HUMAN_READABLE_SUMMARY_LOG
+  timeout_next_display = uwTick;
+#endif // USART5_HUMAN_READABLE_SUMMARY_LOG
 
   // startup the watchdog
   /* Enable the peripheral clock of DBG register (uncomment for debug purpose) */
@@ -481,8 +487,9 @@ void interp(void) {
     /* Refresh IWDG down-counter to default value */
     LL_IWDG_ReloadCounter(IWDG);
     // reset in case of CAN activity timeout
-    if (uwTick - last_INV_CAN_activity_timeout < 0x80000000UL
-      || uwTick - last_BMS_CAN_activity_timeout < 0x80000000UL) {
+    if (EXPIRED(last_INV_CAN_activity_timeout)
+      || EXPIRED(last_BMS_CAN_activity_timeout)) {
+      master_log("INV or CAN activity timeout\n");
       NVIC_SystemReset();
     }
 
@@ -528,7 +535,7 @@ void interp(void) {
         // only forward when the bms is allowed (not timing out for juice cut)
         if (forward 
 #ifdef SUPPORT_PYLONTECH_RECONNECT
-          && uwTick - bms_reconnect_at < 0x80000000UL
+          && EXPIRED(bms_reconnect_at)
 #endif // SUPPORT_PYLONTECH_RECONNECT
           ) {
           // reset to reenable battery
@@ -545,7 +552,7 @@ void interp(void) {
 #ifdef BMS_PING
     // check for messages from the bms
      // time for a ping
-    if (uwTick - bms_ping_timeout < 0x80000000UL) {
+    if (EXPIRED(bms_ping_timeout)) {
       can_bms_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
       //can_solax_tx_log(0x1801, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
       bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
@@ -553,7 +560,7 @@ void interp(void) {
 #endif // BMS_PING
 
     // pylontech timeout, serve the cached infos
-    if (pylontech_timeout && uwTick - pylontech_timeout < 0x80000000UL ) {
+    if (pylontech_timeout && EXPIRED(pylontech_timeout)) {
       master_log("bms can timeout\n");
       // avoid retriggering timeout
       pylontech_timeout = 0;
@@ -712,7 +719,7 @@ void interp(void) {
         }
         else {
           // wait until transmit moment is reached
-          if (bms_uart_next && (uwTick - bms_uart_next >= 0x80000000UL)) {
+          if (bms_uart_next && !EXPIRED(bms_uart_next)) {
             break;
           }
           tparse_discard(&tp_bms);
@@ -749,7 +756,7 @@ void interp(void) {
           }
           else {
             tparse_token_u32(&tp_bms);
-            if (strstr(tmp, "$$")) {
+            if (strstr((const char *)tmp, "$$")) {
               // last line of the command, THANKS pylontech for that delimiter
               bms_uart_next = 0;
               bms_uart_state = BMS_UART_STATE_IDLE;
@@ -758,7 +765,7 @@ void interp(void) {
           }
         }
         // timeout waiting for the command, reset the state and prepare a new command
-        if ( bms_uart_timeout && (uwTick - bms_uart_timeout < 0x80000000UL)) {
+        if ( bms_uart_timeout && EXPIRED(bms_uart_timeout)) {
           bms_uart_next = 0;
           bms_uart_state = BMS_UART_STATE_IDLE;
           pylontech.precise_wattage = 0; // avoid relaying outdated data
@@ -766,14 +773,14 @@ void interp(void) {
         break;
     }
 
-    if (timeout_pv1_switch_on && uwTick - timeout_pv1_switch_on < 0x80000000UL) {
+    if (timeout_pv1_switch_on && EXPIRED(timeout_pv1_switch_on)) {
       pv1_switch(1);
       master_log("pv1 switch on\n");
       timeout_pv1_switch_on = 0;
       timeout_pv1_switch_off = uwTick + SOLAX_PV_SWITCHON_TIMEOUT;
     }
 
-    if (timeout_pv2_switch_on && uwTick - timeout_pv2_switch_on < 0x80000000UL) {
+    if (timeout_pv2_switch_on && EXPIRED(timeout_pv2_switch_on)) {
       pv2_switch(1); 
       master_log("pv2 switch on\n");
       timeout_pv2_switch_on = 0;
@@ -784,11 +791,11 @@ void interp(void) {
     // likely the charge is coming to an end, avoid surges of the panels into the grid by ensuring offgrid mode
     if (pylontech.max_charge < pylontech.max_discharge 
       //&& pylontech.soc > SOLAX_EPS_MODE_SWITCH_MIN_SOC
-      && uwTick - eps_mode_switch_timeout < 0x80000000UL) {
+      && EXPIRED(eps_mode_switch_timeout)) {
       eps_mode_switch(1);
       eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
     }
-    else if (uwTick - eps_mode_switch_timeout < 0x80000000UL) {
+    else if (EXPIRED(eps_mode_switch_timeout)) {
       eps_mode_switch(0);
       eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
     }
@@ -933,7 +940,7 @@ void interp(void) {
 
               // cutoff for the given duration
               if (
-                (!timeout_pv1_switch_off || uwTick - timeout_pv1_switch_off < 0x80000000UL)
+                (!timeout_pv1_switch_off || EXPIRED(timeout_pv1_switch_off))
                 && (solax.pv1_voltage < SOLAX_PV_CUTOFF_VOLTAGE_V*10 
                    || (solax.pv1_wattage && solax.pv1_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W))) {
                 master_log("pv1 switch off\n");
@@ -944,7 +951,7 @@ void interp(void) {
 
               // cutoff for the given duration
               if (
-                (!timeout_pv2_switch_off || uwTick - timeout_pv2_switch_off < 0x80000000UL)
+                (!timeout_pv2_switch_off || EXPIRED(timeout_pv2_switch_off))
                 && ( solax.pv2_voltage < SOLAX_PV_CUTOFF_VOLTAGE_V*10 
                     || ( solax.pv2_wattage && solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W))) {
                 master_log("pv2 switch off\n");
@@ -1121,7 +1128,7 @@ void interp(void) {
           solax_pw_queue_pop();
         }
         // timing out first entry if any
-        else if (solax_pw_queue_free() != SOLAX_PW_QUEUE_SIZE && (uwTick - solax_pw_timeout < 0x80000000UL)) {
+        else if (solax_pw_queue_free() != SOLAX_PW_QUEUE_SIZE && EXPIRED(solax_pw_timeout)) {
           master_log("UART TIMEOUT");
           //master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
           solax_pw_state = SOLAX_PW_WAIT_NEXT;
@@ -1145,19 +1152,19 @@ void interp(void) {
       case SOLAX_PW_INVALID_NEXT:
       case SOLAX_PW_WAIT_NEXT:
         // skip to next command sending immediately, this is not a new attempt/request
-        if (uwTick - solax_pw_timeout < 0x80000000UL || solax_pw_queue_free() != SOLAX_PW_QUEUE_SIZE) {
+        if (EXPIRED(solax_pw_timeout) || solax_pw_queue_free() != SOLAX_PW_QUEUE_SIZE) {
           solax_pw_state = SOLAX_PW_IDLE;
         }
         break;
     }
 
-    if (uwTick - solax_pw_mode_change_ready < 0x80000000UL) {
+    if (EXPIRED(solax_pw_mode_change_ready)) {
       solax_pw_mode_change_ready = 0;
     }
 
 #ifdef USART5_HUMAN_READABLE_SUMMARY_LOG
     // display (if no erroneous data)
-    if (uwTick - timeout_next_display < 0x80000000UL && batt_drain_fix_cause < 70) {
+    if (EXPIRED(timeout_next_display) && batt_drain_fix_cause < 70) {
       // prepare next sending
       timeout_next_display = uwTick + DISPLAY_TIMEOUT;
       {

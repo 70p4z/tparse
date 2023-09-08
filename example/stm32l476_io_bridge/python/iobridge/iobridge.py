@@ -25,7 +25,7 @@ from iobridge.usartiface import UsartIface
 import logging
 import os
 
-LOGLEVEL = os.environ.get('LOGLEVEL', 'DEBUG').upper()
+LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
 LOGFORMAT = '%(asctime)s %(levelname)s %(threadName)s %(message)s'
 logging.basicConfig(level=LOGLEVEL, format=LOGFORMAT)
 default_logger = logging.getLogger("")

@@ -633,8 +633,10 @@ void interp(void) {
 #endif // SOLAX_DONT_STOP_98_PCT
 #ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
           // still some spare charge power
-          if (pylontech.soc > 97 && pylontech.max_charge > 0) {
+          // and the battery is drained to compensate the grid load
+          if (pylontech.soc > 97 && pylontech.max_charge > 0 && pylontech.wattage < 0) {
             if (battdrain_fix_idle_timeout == 0) {
+              master_log("start battdrain fix\n");
               battdrain_fix_timeout = uwTick + SOLAX_OVER_97_PCT_BATTDRAIN_FIX_TIMEOUT;
               // when the next surge is processed
               battdrain_fix_idle_timeout = uwTick + SOLAX_OVER_97_PCT_BATTDRAIN_FIX_IDLE_TIMEOUT;
@@ -646,9 +648,11 @@ void interp(void) {
             }
             // during the fix period, fake the battery percentage to force inverter adjust PV panel power
             else if (battdrain_fix_timeout != 0 && !EXPIRED(battdrain_fix_timeout)) {
+              master_log("continue battdrain fix\n");
               goto force_97pct_to_pump_PV_to_Bat;
             }
             else {
+              master_log("end battdrain fix\n");
               battdrain_fix_timeout = 0;
             }
           }
@@ -742,6 +746,7 @@ void interp(void) {
 #ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
     // accept new battdrain fix try when fix idle period is finished
     if (battdrain_fix_idle_timeout && EXPIRED(battdrain_fix_idle_timeout)) {
+      master_log("end battdrain fix idle\n");
       battdrain_fix_timeout = 0;
       battdrain_fix_idle_timeout = 0;
     }

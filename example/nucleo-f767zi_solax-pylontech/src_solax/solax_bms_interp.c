@@ -8,9 +8,13 @@
 
 #define USBVCP USART3
 
-#define SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+
+#define SOLAX_OVER_97_PCT_BATTDRAIN_FIX // avoid batt drain for 1% when solar is available, force PV->EPS instead
+#define SOLAX_OVER_97_PCT_BATTDRAIN_FIX_TIMEOUT 5000
+#define SOLAX_OVER_97_PCT_BATTDRAIN_FIX_IDLE_TIMEOUT 60000 // interval before redoing a 5s 97% to make the inverter pump more from the panel to adjust the charge
 //#define SOLAX_DONT_STOP_98_PCT // don't fix that to avoid killing the batteries' chemistry too fast
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
+// #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
 
 // required with version ARM=1.07+DSP=1.09, 
 // not required with ARM=1.28+DSP=1.30 => optimization is far better with this firmware version
@@ -280,7 +284,19 @@ struct {
   uint16_t pv1_wattage;
   uint16_t pv2_wattage;
   int16_t bat_wattage;
+  #define INVERTER_STATUS_WAITING 0
+  #define INVERTER_STATUS_CHECKING 1
+  #define INVERTER_STATUS_NORMAL 2
+  #define INVERTER_STATUS_FAULT 3
+  #define INVERTER_STATUS_ERROR 4
+  #define INVERTER_STATUS_UPDATE 5
+  #define INVERTER_STATUS_EPS_WAIT 6
+  #define INVERTER_STATUS_EPS 7
+  #define INVERTER_STATUS_SELFTEST 8
+  #define INVERTER_STATUS_IDLE 9
+  #define INVERTER_STATUS_STANDBY 10
   uint8_t status;
+  uint8_t powered_on; // inverter_status != standby
   uint8_t work_mode;
   uint16_t bat_SoC;
   int16_t bat_temp;
@@ -356,7 +372,9 @@ void interp(void) {
   size_t len;
   uint32_t cid;
   size_t cid_bitlen;
+#ifdef SOLAX_REPLY_0x0100A001_AND_0x1801
   uint32_t enable_battery = 0;
+#endif // SOLAX_REPLY_0x0100A001_AND_0x1801
   //uint32_t wait_bms_info = 1;
   //uint8_t bms_info[8];
 #ifdef USART5_HUMAN_READABLE_SUMMARY_LOG
@@ -371,6 +389,10 @@ void interp(void) {
   uint32_t timeout_pv2_switch_on=0;
   uint32_t timeout_pv2_switch_off=0;
   uint32_t eps_mode_switch_timeout=0;
+#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+  uint32_t battdrain_fix_timeout=0;
+  uint32_t battdrain_fix_idle_timeout=0;
+#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX
 
   // use BARE HSI (16MHz)
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
@@ -432,9 +454,6 @@ void interp(void) {
   tparse_init(&tp_master, uart_usbvcp_buffer, sizeof(uart_usbvcp_buffer), "\n");
 
   master_log("Reset\n");
-
-  // // OTO debug failing mcp2551
-  // can_solax_tx_log(0x1801, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
 
   // sent ping to the BMS to wake it up at reset moment
   can_bms_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
@@ -503,13 +522,16 @@ void interp(void) {
         forward = 0;
         switch(tmp[0]) {
           case 1:
+            solax.powered_on = tmp[2];
             // get data
             forward = 1;
+#ifdef SOLAX_REPLY_0x0100A001_AND_0x1801
             if (enable_battery==1) {
               can_solax_tx_log(0x0100A001, CAN_ID_EXTENDED_LEN, NULL, 0);
               enable_battery = 2;
             }
             can_solax_tx_log(0x1801, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
+#endif // SOLAX_REPLY_0x0100A001_AND_0x1801
             break;
 #ifdef SUPPORT_PYLONTECH_RECONNECT
           case 2:
@@ -538,8 +560,10 @@ void interp(void) {
           && EXPIRED(bms_reconnect_at)
 #endif // SUPPORT_PYLONTECH_RECONNECT
           ) {
+#ifdef SOLAX_REPLY_0x0100A001_AND_0x1801
           // reset to reenable battery
           enable_battery = 0;
+#endif // SOLAX_REPLY_0x0100A001_AND_0x1801
           pylontech_timeout = uwTick + PYLONTECH_REPLY_TIMEOUT;
 #ifdef SUPPORT_PYLONTECH_RECONNECT
           bms_reconnect_at = uwTick; // make sure to avoid overflow when no reconnection request for a while
@@ -586,13 +610,15 @@ void interp(void) {
           pylontech.current = S2LE(tmp,2);
           pylontech.soc = U2LE(tmp,4);
           pylontech.wattage = ((int32_t)pylontech.voltage)*((int32_t)pylontech.current)/((int32_t)100); // unit 0.1V x 0.1A
-#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX_OLD
           if (pylontech.soc > 97) {
             // force percentage for the solax, to avoid the fetch from batteries effect
-            tmp[4] = 97;
+            // force the inverter to believe battery is fully full and 
+            // try to avoid draining from it, and drain from PV instead
+            tmp[4] = 100; 
             tmp[5] = 0;
           }
-#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX_OLD
           if (batt_forced_soc >= 0) {
             master_log("force batt soc\n");
             tmp[4] = batt_forced_soc&0xFF;
@@ -605,37 +631,58 @@ void interp(void) {
             pylontech.soc = MIN(98, pylontech.soc);
           }
 #endif // SOLAX_DONT_STOP_98_PCT
+#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+          // still some spare charge power
+          if (pylontech.soc > 97 && pylontech.max_charge > 0) {
+            if (battdrain_fix_idle_timeout == 0) {
+              battdrain_fix_timeout = uwTick + SOLAX_OVER_97_PCT_BATTDRAIN_FIX_TIMEOUT;
+              // when the next surge is processed
+              battdrain_fix_idle_timeout = uwTick + SOLAX_OVER_97_PCT_BATTDRAIN_FIX_IDLE_TIMEOUT;
+            force_97pct_to_pump_PV_to_Bat:
+              // when in EPS mode, and battery is > 97%, the inverter
+              // absorb the 
+              tmp[4] = 97;
+              tmp[5] = 0;
+            }
+            // during the fix period, fake the battery percentage to force inverter adjust PV panel power
+            else if (battdrain_fix_timeout != 0 && !EXPIRED(battdrain_fix_timeout)) {
+              goto force_97pct_to_pump_PV_to_Bat;
+            }
+            else {
+              battdrain_fix_timeout = 0;
+            }
+          }
+#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX
           forward = 1;
           break;
         case 0x1872:
           pylontech.max_charge = S2LE(tmp, 4);
           pylontech.max_discharge = S2LE(tmp, 6);
 
-          // // add 0.9A to cover for the INVERTER wrong current computation 
-          // // (it includes its own DC consumption into the battery DC link)
-          // // when not full
-          // if (pylontech.max_charge && pylontech.soc != 100) {
-          //   // NOTE: when charging from solar (grid charge is cheating), then MPPT is ON
-          //   uint32_t self_consumption_current_dA = (SOLAX_SELF_CONSUMPTION_MPPT_W
-          //                                           + SOLAX_SELF_CONSUMPTION_INVERTER_W)*100/*cW*/ 
-          //                                          / pylontech.voltage/*dV*/;
-          //   tmp[4] = (pylontech.max_charge+self_consumption_current_dA)&0xFF;
-          //   tmp[5] = ((pylontech.max_charge+self_consumption_current_dA)>>8)&0xFF;
-          // }
-          // min current = 1A
-          if (pylontech.max_charge) {
-            pylontech.max_charge = MAX(pylontech.max_charge, 10);
-            //master_log("adjust max charge\n");
-            tmp[4] = pylontech.max_charge&0xFF;
-            tmp[5] = (pylontech.max_charge>>8)&0xFF;
+          // cover the inverter self consumption which is substracted from the BAT DC charge
+          // this bug is kind of weird if you ask me
+          if (pylontech.max_charge && pylontech.soc != 100) {
+            // NOTE: when charging from solar (grid charge is cheating), then MPPT is ON
+            uint32_t self_consumption_current_dA = (SOLAX_SELF_CONSUMPTION_MPPT_W
+                                                    + SOLAX_SELF_CONSUMPTION_INVERTER_W)*100/*cW*/ 
+                                                   / pylontech.voltage/*dV*/;
+            tmp[4] = (pylontech.max_charge+self_consumption_current_dA)&0xFF;
+            tmp[5] = ((pylontech.max_charge+self_consumption_current_dA)>>8)&0xFF;
           }
-#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+          // // min current = 1A
+          // if (pylontech.max_charge) {
+          //   //pylontech.max_charge = MAX(pylontech.max_charge, 10);
+          //   //master_log("adjust max charge\n");
+          //   tmp[4] = pylontech.max_charge&0xFF;
+          //   tmp[5] = (pylontech.max_charge>>8)&0xFF;
+          // }
+#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX_OLD
           // disable charge above 97%
           if (pylontech.soc > 97) {
             tmp[4] = 0;
             tmp[5] = 0;
           }
-#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX_OLD
           // force disabling charge, in order to avoid driving the battery to retrieve too less energy from the PVs.
           if (batt_forced_charge >= 0) {
             master_log("force batt charge\n");
@@ -660,22 +707,25 @@ void interp(void) {
 
         case 0x1875:
           pylontech.packs = U2LE(tmp,2); 
+          // TODO: ensure contactor is set to 1 (tmp[1] = 1)
           forward = 1;
           break;
 
         case 0x1877:
           // wipe BMS flags
-          // memset(tmp, 0, 4); // optional, use them actually, in case of significant error to be notified to the inverter
+          //memset(tmp, 0, 4); // optional, use them actually, in case of significant error to be notified to the inverter
           tmp[4] = BMS_KIND;
           tmp[5] = tmp[6] = tmp[7] = 0; // wipe versions
           // override message to tell the inverter of the battery configuration
           //memmove(tmp, "\x00\x00\x00\x00\x52\x00\x00\x00", 8); // OK 2H48050, OK 4 H48050p, OK 6 H48050, NOK 3/5/7/8 => seen as T58
           //memmove(tmp, "\x00\x00\x00\x00\x82\x00\x00\x00", 8); // NOK 8 H48050 // brand TP201
-          memmove(tmp, "\x00\x00\x00\x00\x83\x00\x00\x00", 8); // OK 8 H48050 // brand TP202
+          //memmove(tmp, "\x00\x00\x00\x00\x83\x00\x00\x00", 8); // OK 8 H48050 // brand TP202
           len = 8;
           forward = 1;
+#ifdef SOLAX_REPLY_0x0100A001_AND_0x1801
           // we've described the battery to the inverter, enable it now
           enable_battery = 1;
+#endif // SOLAX_REPLY_0x0100A001_AND_0x1801
           break;
 
         // discarded
@@ -688,6 +738,14 @@ void interp(void) {
         can_solax_tx_log(cid, cid_bitlen, tmp, len);
       }
     }
+
+#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
+    // accept new battdrain fix try when fix idle period is finished
+    if (battdrain_fix_idle_timeout && EXPIRED(battdrain_fix_idle_timeout)) {
+      battdrain_fix_timeout = 0;
+      battdrain_fix_idle_timeout = 0;
+    }
+#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX
 
     tparse_finger(&tp_master, sizeof(uart_usbvcp_buffer) - DMA_Stream_USBVCP->NDTR);
     // update data from the bms usart link

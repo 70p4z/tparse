@@ -9,6 +9,7 @@
 #define USBVCP USART3
 
 
+#define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define SOLAX_OVER_97_PCT_BATTDRAIN_FIX // avoid batt drain for 1% when solar is available, force PV->EPS instead
 #define SOLAX_OVER_97_PCT_BATTDRAIN_FIX_TIMEOUT 5000
 #define SOLAX_OVER_97_PCT_BATTDRAIN_FIX_IDLE_TIMEOUT 60000 // interval before redoing a 5s 97% to make the inverter pump more from the panel to adjust the charge
@@ -68,9 +69,8 @@
 #define SOLAX_PV_CUTOFF_TIMEOUT 2000
 #define SOLAX_PV_SWITCHON_TIMEOUT 3000
 
-#define WORKAROUND_SOLAX_INJECTION_SURGE
 // not more than a switch into EPS mode per 10 minute, to avoid wearing the physical switch (not a SSR)
-#define SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS 600000 // 20 years durability for a 1M toggling cycles device
+#define SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS 600000 // 10min interval 20 years durability for a 1M toggling cycles device
 #define SOLAX_EPS_MODE_SWITCH_MIN_SOC 80 // won't switch EPS if not at least charged at 80% (normally)
 
 #define DISPLAY_TIMEOUT 1000
@@ -79,6 +79,7 @@
 
 #define S2LE(buf, off) ((int16_t)((int16_t)((int16_t)((int16_t)(buf)[off+1])<<8l) | (int16_t)((int16_t)(buf)[off]&0xFFl) ))
 #define U2LE(buf, off) ((((buf)[off+1]&0xFFu)<<8) | ((buf)[off]&0xFFu) )
+#define U4LE(buf, off) ((U2LE(buf, off+2)<<16) | (U2LE(buf, off)&0xFFFFu))
 #define U2BE(buf, off) ((((buf)[off]&0xFFu)<<8) | ((buf)[off+1]&0xFFu) )
 #define U4BE_ENCODE(buf, off, value) {(buf)[(off)+0] = ((value)>>24)&0xFF;(buf)[(off)+1] = ((value)>>16)&0xFF;(buf)[(off)+2] = ((value)>>8)&0xFF;(buf)[(off)+3] = ((value))&0xFF;}
 
@@ -122,7 +123,7 @@ void master_log_hex(void* _buffer, size_t length) {
 
 void master_log_can(char* prefix, uint32_t cid, size_t cid_bitlen, uint8_t* canmsg, size_t canmsg_len) {
   master_log(prefix);
-  master_log(" 0x");
+  master_log("0x");
   // BE to LE for printing
   cid = __bswap_32(cid);
   switch(cid_bitlen) {
@@ -522,6 +523,13 @@ void interp(void) {
         forward = 0;
         switch(tmp[0]) {
           case 1:
+            {
+              uint8_t b[4];
+              U4BE_ENCODE(b, 0, uwTick);
+              master_log("            | Timestamp: ");
+              master_log_hex(b, 4);
+              master_log("\n");
+            }
             solax.powered_on = tmp[2];
             // get data
             forward = 1;
@@ -600,6 +608,7 @@ void interp(void) {
     if (can_fifo_avail(CAN3)) {
       len = can_fifo_rx(CAN3, &cid, &cid_bitlen, tmp, sizeof(tmp));
       master_log_can("bms >>>     | ", cid, cid_bitlen, tmp, len);
+      tmp[16]=0; // EOS for human readable log
       last_BMS_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY;
       pylontech_timeout = 0;
       forward = 0;
@@ -610,6 +619,12 @@ void interp(void) {
           pylontech.current = S2LE(tmp,2);
           pylontech.soc = U2LE(tmp,4);
           pylontech.wattage = ((int32_t)pylontech.voltage)*((int32_t)pylontech.current)/((int32_t)100); // unit 0.1V x 0.1A
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Vbat=%d.%dV\tIbat=%d.%dA\tWbat=%ldW\tSoC=%d\tEbat=%d.%dkWh\n", 
+                   pylontech.voltage/10,pylontech.voltage%10,
+                   pylontech.current/10,pylontech.current%10,
+                   pylontech.wattage,
+                   pylontech.soc,
+                   U2LE(tmp,6)/100,U2LE(tmp,6)%100);
 #ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX_OLD
           if (pylontech.soc > 97) {
             // force percentage for the solax, to avoid the fetch from batteries effect
@@ -662,6 +677,11 @@ void interp(void) {
         case 0x1872:
           pylontech.max_charge = S2LE(tmp, 4);
           pylontech.max_discharge = S2LE(tmp, 6);
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Vbatmax=%d.%dV\tVbatmin=%d.%dV\tIcmax=%d.%dA\tIdmax=%d.%dA\n", 
+                   S2LE(tmp, 0)/10,S2LE(tmp, 0)%10,
+                   S2LE(tmp, 2)/10,S2LE(tmp, 2)%10,
+                   pylontech.max_charge/10,pylontech.max_charge%10,
+                   pylontech.max_discharge/10,pylontech.max_discharge%10);
 
           // cover the inverter self consumption which is substracted from the BAT DC charge
           // this bug is kind of weird if you ask me
@@ -706,16 +726,29 @@ void interp(void) {
           pylontech_cache_clear();
           __attribute__((fallthrough));
         case 0x1878:
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Format=%d\tUnk=%d\tFlagsBMS<<16=%04x\tCapacity=%dWh\n", 
+                   tmp[0],
+                   tmp[1],
+                   U2LE(tmp, 2),
+                   U4LE(tmp, 4));
           forward = 1;
           break;
 
         case 0x1875:
           pylontech.packs = U2LE(tmp,2); 
-          // TODO: ensure contactor is set to 1 (tmp[1] = 1)
+          // TODO: ensure contactor is set to 1 (tmp[4] = 1)
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Tbms=%d.%d°C\tBatCount=%d\tContact=%d\tChargeReq=%d\tUnk=%d\n", 
+                   S2LE(tmp, 0)/10,S2LE(tmp, 0)%10,
+                   pylontech.packs,
+                   tmp[4],
+                   tmp[5],
+                   U2LE(tmp, 6));
           forward = 1;
           break;
 
         case 0x1877:
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | FlagsBMS=%04x\n", 
+                   U2LE(tmp, 0));
           // wipe BMS flags
           //memset(tmp, 0, 4); // optional, use them actually, in case of significant error to be notified to the inverter
           tmp[4] = BMS_KIND;
@@ -734,13 +767,26 @@ void interp(void) {
 
         // discarded
         case 0x1874:
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Tcellmax=%d.%d°C\tTcellmin=%d.%d°C\tVcellmax=%d.%dV\tVcellmin=%d.%dV\n", 
+                   S2LE(tmp, 0)/10,S2LE(tmp, 0)%10,
+                   S2LE(tmp, 2)/10,S2LE(tmp, 2)%10,
+                   S2LE(tmp, 4)/10,S2LE(tmp, 4)%10,
+                   S2LE(tmp, 6)/10,S2LE(tmp, 6)%10);
+          break;
         case 0x1876:
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Id_lim=%d\tIdmax=%d.%dA\tIc_lim=%d\tIcmax=%d.%dA\n", 
+                   U2LE(tmp, 0),
+                   S2LE(tmp, 2)/10,S2LE(tmp, 2)%10,
+                   U2LE(tmp, 4),
+                   S2LE(tmp, 6)/10,S2LE(tmp, 6)%10);
           break;
       }
       if (forward) {
         pylontech_cache_append(cid, tmp);
         can_solax_tx_log(cid, cid_bitlen, tmp, len);
       }
+      // log decoded message content
+      master_log((char*)tmp+16);
     }
 
 #ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX
@@ -1389,7 +1435,6 @@ void I2C_Slave_Reception_Callback(void) {
       // time since restart
       U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_length, uwTick);
       i2c_xfer_length+=4;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_voltage&0xFF;
       // encode total length
       i2c_xfer_buffer[0] = i2c_xfer_length;
     }

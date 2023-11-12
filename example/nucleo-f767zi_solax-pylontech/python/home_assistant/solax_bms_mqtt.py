@@ -189,8 +189,6 @@ while True:
       print("Unsupported encoding")
       time.sleep(0.2)
       continue
-#(54, 1, 2, 1, -1934, 183, 206, 0, 0, 0, 40, 250, 250, -1, 0, 0, 3208, 0, 0, 2023, 11, 12, 15, 13, 0, 0, 0, 0, 1240465, 0, 1, 1, 0, 2)
-# 
 
     fields = struct.unpack_from(">BBBBhhhhhhhhhhBBhhhHBBBBBBHHIHBBB", data)
     IDX_STATE = 2

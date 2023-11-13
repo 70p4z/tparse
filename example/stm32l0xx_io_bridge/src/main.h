@@ -53,7 +53,7 @@ extern "C" {
       (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 #endif // __bswap_32
 
-#define CPU_CLOCK 32000000
+#define CPU_CLOCK 16000000
 #define USART_BAUDRATE_USART2 921600
 #define USART_BAUDRATE_USART3 921600
 #define USART_BAUDRATE_UART4 9600

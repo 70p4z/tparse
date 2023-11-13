@@ -714,9 +714,9 @@ __attribute__((weak)) void interp(void) {
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow : 
-  *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 32000000
-  *            HCLK(Hz)                       = 32000000
+  *            System Clock source            = HSI
+  *            SYSCLK(Hz)                     = 16000000
+  *            HCLK(Hz)                       = 16000000
   *            AHB Prescaler                  = 1
   *            APB1 Prescaler                 = 1
   *            APB2 Prescaler                 = 1
@@ -731,42 +731,7 @@ void SystemClock_Config(void)
   
   /* Enable Power Control clock */
   __HAL_RCC_PWR_CLK_ENABLE();
-  
-  #if 0
-  /* The voltage scaling allows optimizing the power consumption when the device is 
-     clocked below the maximum system frequency, to update the voltage scaling value 
-     regarding system frequency refer to product datasheet.  */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-  
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.PLL.PLLSource   = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLState    = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLMUL      = RCC_PLL_MUL4;
-  RCC_OscInitStruct.PLL.PLLDIV      = RCC_PLL_DIV2;
-  RCC_ClkInitStruct.SYSCLKSource    = RCC_SYSCLKSOURCE_PLLCLK;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct)!= HAL_OK)
-  {
-    /* Initialization Error */
-    while(1); 
-  }
-  #endif
 
-  #if 0
-  /* Enable HSE Oscillator */
-  RCC_OscInitStruct.OscillatorType  = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState        = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLSource   = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLState    = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLMUL      = RCC_PLL_MUL8;
-  RCC_OscInitStruct.PLL.PLLDIV      = RCC_PLL_DIV4;
-  RCC_ClkInitStruct.SYSCLKSource    = RCC_SYSCLKSOURCE_PLLCLK;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct)!= HAL_OK)
-  {
-    /* Initialization Error */
-    while(1); 
-  }
-  #else
   /* Enable HSE Oscillator */
   RCC_OscInitStruct.OscillatorType  = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState        = RCC_HSI_ON;
@@ -777,7 +742,6 @@ void SystemClock_Config(void)
     /* Initialization Error */
     while(1); 
   }
-  #endif
   
   /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 
      clocks dividers */

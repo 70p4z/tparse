@@ -133,46 +133,49 @@ size_t iso_atr(uint8_t* atr, size_t atr_max_len, uint32_t force_TA_1) {
     // specific mode
     iso_usart_TA(TA1);
   }
-  else if (TA1 != 0x11 && TA1 != 0) {
+  else if ((TA1 != 0x11 && TA1 != 0) || force_TA_1 != 0) {
     if (force_TA_1 != 0) {
-      TA1 = force_TA_1;
+      TA1 = force_TA_1&0xFF;
     }
 
-    // negociable mode and non default value
-    iso_delay_ms(5);
-#define PPS0 0xFF
-  // PPS
-    pps[0] = PPS0;
-    pps[1] = 0x10;
-    pps[2] = TA1;
-    pps[3] = PPS0^0x10^TA1;
-    iso_usart_send(pps, 4);
-    // PPSS/PPS0
-    if (iso_usart_recv(ppsr, 2, TIMEOUT_1S) != 2
-        || ppsr[0] != PPS0) {
-      return 0;
-    }
-    // interpret PPS0
-    switch(ppsr[1]) {
-      // unsupported value
-      default:
+    // pps to be skipped?
+    if (force_TA_1 == 0 || !(force_TA_1& 0x100)) {
+      // negociable mode and non default value
+      iso_delay_ms(5);
+  #define PPS0 0xFF
+    // PPS
+      pps[0] = PPS0;
+      pps[1] = 0x10;
+      pps[2] = TA1;
+      pps[3] = PPS0^0x10^TA1;
+      iso_usart_send(pps, 4);
+      // PPSS/PPS0
+      if (iso_usart_recv(ppsr, 2, TIMEOUT_1S) != 2
+          || ppsr[0] != PPS0) {
         return 0;
-      // refused
-      case 0:
-        // PCK
-        if (iso_usart_recv(ppsr+2, 1, TIMEOUT_1S) != 1) {
+      }
+      // interpret PPS0
+      switch(ppsr[1]) {
+        // unsupported value
+        default:
           return 0;
-        }
-        TA1 = 0x11; // in case error, use default PPS
-        break;
-      // accepted
-      case 0x10:
-        // PPSA/PCK
-        if (iso_usart_recv(ppsr+2, 2, TIMEOUT_1S) != 2) {
-          return 0;
-        }
-        TA1 = ppsr[2];
-        break;
+        // refused
+        case 0:
+          // PCK
+          if (iso_usart_recv(ppsr+2, 1, TIMEOUT_1S) != 1) {
+            return 0;
+          }
+          TA1 = 0x11; // in case error, use default PPS
+          break;
+        // accepted
+        case 0x10:
+          // PPSA/PCK
+          if (iso_usart_recv(ppsr+2, 2, TIMEOUT_1S) != 2) {
+            return 0;
+          }
+          TA1 = ppsr[2];
+          break;
+      }
     }
     iso_usart_TA(TA1);
   }

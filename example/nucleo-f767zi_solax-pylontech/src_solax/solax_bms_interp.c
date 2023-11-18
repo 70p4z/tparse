@@ -11,7 +11,7 @@
 // ensure 5 seconds steady state before making up a decision
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 5 
-#define GRID_CONNECT_SOC    40
+#define GRID_CONNECT_SOC    40 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
 #define GRID_DISCONNECT_SOC 85
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
@@ -350,7 +350,7 @@ struct {
 void pv1_switch(uint32_t state) {
   // anode green led 
   // cathode of the optocoupler 1 = off => mosfet defaulty closed, 0 = on => mosfet open
-  gpio_set(1, 0, state); // PB0 (led)
+  gpio_set(1, 0, state); // PB0 (green led)
 #ifndef BOARD_DEV
   gpio_set(3, 14, state); // PD14
 #endif // BOARD_DEV
@@ -360,7 +360,7 @@ void pv1_switch(uint32_t state) {
 void pv2_switch(uint32_t state) {
   // anode blue led 
   // cathode of the optocoupler 1 = off => mosfet defaulty closed, 0 = on => mosfet open
-  gpio_set(1, 7, state); // PB7 (led)
+  gpio_set(1, 7, state); // PB7 (blue led)
 #ifndef BOARD_DEV
   gpio_set(3, 15, state); // PD14
 #endif // BOARD_DEV
@@ -375,12 +375,11 @@ void eps_mode_switch(uint32_t eps_mode_requested) {
   eps_forced_state = eps_mode_requested;
   // switch the physical switch to force EPS mode (disconnect from the grid)
   // gpio = 1 => phototriac closed => contactor coil powered => grid contact are severed (Normally Closed)
-  gpio_set(1, 14, eps_mode_requested); // PB14 led
+  gpio_set(1, 14, eps_mode_requested); // PB14 (red led)
 #ifndef BOARD_DEV
   gpio_set(5, 12, eps_mode_requested); // PF12
 #endif // BOARD_DEV
 }
-
 
 void interp(void) {
   uint32_t forward;
@@ -882,20 +881,6 @@ void interp(void) {
     }
 
 #ifdef WORKAROUND_SOLAX_INJECTION_SURGE
-#if 0 
-    not working
-    // likely the charge is coming to an end, avoid surges of the panels into the grid by ensuring offgrid mode
-    if (pylontech.max_charge < pylontech.max_discharge 
-      //&& pylontech.soc > SOLAX_EPS_MODE_SWITCH_MIN_SOC
-      && EXPIRED(eps_mode_switch_timeout)) {
-      //eps_mode_switch(1);
-      eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
-    }
-    else if (EXPIRED(eps_mode_switch_timeout)) {
-      //eps_mode_switch(0);
-      eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
-    }
-#endif
     // only do this after the inverter status is stable and ready for connection
     if (solax.status_count > GRID_SWITCH_STATE_COUNT) {
       // when max charge value is degraded, then severs the grid connection
@@ -1211,62 +1196,8 @@ void interp(void) {
                   solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
                 }
               }
-#if 0
-              // NOTE: this is wrong when wattage total is lower (when the house consumption is not high)
-              else if ( 
-                // grid tied
-                solax.grid_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W /* == SELFUSE*/ 
-                // battery charge first stops when reading the BATT MIN SOC for selfuse
-                //&& pylontech.soc <= SOLAX_SELFUSE_MIN_BATTERY_SOC
-                // && solax.pv1_wattage + solax.pv2_wattage > SOLAX_SELF_CONSUMPTION_INVERTER_W
-                // we're inverting everything to the self use, nothing left for battery charging :(
-                // && (solax.grid_meter_ct > -SOLAX_GRID_EXPORT_OPT_THRESHOLD_W 
-                //     || solax.grid_meter_ct < SOLAX_GRID_EXPORT_OPT_THRESHOLD_W )
-                && ( 
-                  // solax.pv1_wattage + solax.pv2_wattage 
-                  //  < solax.grid_wattage
-                  //    //+ SOLAX_PV_POWER_OPT_THRESHOLD_W 
-                  //    //+ SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W
-                  //  || 
-                  pylontech.current * pylontech.voltage / 10 / 10 
-                    < SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_FS * (solax.pv1_wattage + solax.pv2_wattage) / 100
-                   )
-                // NOTE: if battery not charging fast (end of charge) then the condition is not respected, and 
-                //       we don't stay in selfuse due to these conditions :(
-                ) {
-                // battery has nothing left to charge, discard grid 
-                batt_drain_fix_cause = 5;
-                master_log("cause 5\n");
-                if (solax_pw_queue_free() >= 2 
-                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
-                  && solax_pw_mode_change_ready == 0) {
-                  solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
-                  solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
-                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
-                }
-              }
-#endif
               // when battery reached the requested charge level, enter self use
-              else if (solax.pv1_wattage + solax.pv2_wattage 
-                       /*> SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W*/
-                // CHARGE first strategy
-                && ( (pylontech.soc > SOLAX_SELFUSE_MIN_BATTERY_SOC /* charged enough */
-
-                     //  && -solax.grid_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W /* NOT SELFUSE */
-                     //  && -solax.grid_wattage < pylontech.current * pylontech.voltage / 10 / 10 // (in W)
-                     //                                     - SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU * pylontech.current * pylontech.voltage / 10 / 10 / 100)
-                     //     // or more power to be drained from panel (possibly) (and is needed because of grid import)
-                     // || (-solax.grid_wattage > SOLAX_GRID_EXPORT_OPT_THRESHOLD_W
-                     //     // if we charging above max charge minus 10%, then consider there is room for self-use
-                     //     && pylontech.current >= pylontech.max_charge - 10*pylontech.max_charge/100  // (in 0.1A)
-                     //     // and still power remaining for the battery (considering the import that will be compensated)
-                     //     && -solax.grid_wattage < pylontech.current * pylontech.voltage / 10 / 10 // (in W)
-                     //                                     - SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU * pylontech.current * pylontech.voltage / 10 / 10 / 100
-                          )
-                     // // || solar > 180w + (- grid export) => we have some spare to charge batteries
-                       )
-                     ) {
+              else if (pylontech.soc > SOLAX_SELFUSE_MIN_BATTERY_SOC) {
                 // power the grid
                 batt_drain_fix_cause = 6;
                 master_log("cause 6\n");

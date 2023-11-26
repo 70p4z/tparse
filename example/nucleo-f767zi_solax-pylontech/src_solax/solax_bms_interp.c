@@ -11,7 +11,7 @@
 // ensure 5 seconds steady state before making up a decision
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 5 
-#define GRID_CONNECT_SOC    40 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
+#define GRID_CONNECT_SOC    80 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
 #define GRID_DISCONNECT_SOC 85
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
@@ -683,23 +683,10 @@ void interp(void) {
             uint32_t self_consumption_current_dA = (SOLAX_SELF_CONSUMPTION_MPPT_W
                                                     + SOLAX_SELF_CONSUMPTION_INVERTER_W)*100/*cW*/ 
                                                    / pylontech.voltage/*dV*/;
-            tmp[4] = (pylontech.max_charge+self_consumption_current_dA)&0xFF;
-            tmp[5] = ((pylontech.max_charge+self_consumption_current_dA)>>8)&0xFF;
+            pylontech.max_charge+=self_consumption_current_dA;
+            tmp[4] = (pylontech.max_charge)&0xFF;
+            tmp[5] = ((pylontech.max_charge)>>8)&0xFF;
           }
-          // // min current = 1A
-          // if (pylontech.max_charge) {
-          //   //pylontech.max_charge = MAX(pylontech.max_charge, 10);
-          //   //master_log("adjust max charge\n");
-          //   tmp[4] = pylontech.max_charge&0xFF;
-          //   tmp[5] = (pylontech.max_charge>>8)&0xFF;
-          // }
-#ifdef SOLAX_OVER_97_PCT_BATTDRAIN_FIX_OLD
-          // disable charge above 97%
-          if (pylontech.soc > 97) {
-            tmp[4] = 0;
-            tmp[5] = 0;
-          }
-#endif // SOLAX_OVER_97_PCT_BATTDRAIN_FIX_OLD
           // force disabling charge, in order to avoid driving the battery to retrieve too less energy from the PVs.
           if (batt_forced_charge >= 0) {
             master_log("force batt charge\n");
@@ -709,11 +696,13 @@ void interp(void) {
           // disallow discharge when battery is too low
           if (pylontech.soc <= 10) {
             master_log("soc < 10\n");
+            // disable discharge
             tmp[6] = 0;
             tmp[7] = 0;
           }
           forward = 1;
           break;
+          
         case 0x1871:
           // wipe the pylontech cache to refresh it
           pylontech_cache_clear();
@@ -767,7 +756,7 @@ void interp(void) {
                    S2LE(tmp, 6)/10,S2LE(tmp, 6)%10);
           break;
         case 0x1876:
-          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Idlim=%d\tIdmax=%d.%dA\tIclim=%d\tIcmax=%d.%dA\n", 
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | dlim=%d\tIdlim=%d.%dA\tclim=%d\tIclim=%d.%dA\n", 
                    U2LE(tmp, 0),
                    S2LE(tmp, 2)/10,S2LE(tmp, 2)%10,
                    U2LE(tmp, 4),
@@ -879,74 +868,6 @@ void interp(void) {
       timeout_pv2_switch_on = 0;
       timeout_pv2_switch_off = uwTick + SOLAX_PV_SWITCHON_TIMEOUT;
     }
-
-#ifdef WORKAROUND_SOLAX_INJECTION_SURGE
-    // only do this after the inverter status is stable and ready for connection
-    if (solax.status_count > GRID_SWITCH_STATE_COUNT) {
-      // when max charge value is degraded, then severs the grid connection
-      if (pylontech.max_charge < pylontech.max_discharge && pylontech.soc >= GRID_DISCONNECT_SOC) {
-        switch(solax.status) {
-        case INVERTER_STATUS_EPS:
-        case INVERTER_STATUS_EPS_WAIT:
-          // we have already severed connection with the grid, 
-        case INVERTER_STATUS_WAITING:
-        case INVERTER_STATUS_CHECKING:
-        case INVERTER_STATUS_SELFTEST:
-          // no action
-          break;
-        // failing states, must reenable grid!!
-        case INVERTER_STATUS_IDLE:
-        case INVERTER_STATUS_ERROR:
-        case INVERTER_STATUS_FAULT:
-        case INVERTER_STATUS_STANDBY:
-        case INVERTER_STATUS_UPDATE:
-          if (eps_mode_switch_auto) {
-            master_log("Connect GRID (1)\n");
-            eps_mode_switch(0);
-            solax.status_count = 0; // avoid glitching too frequently
-          }
-          break;
-        case INVERTER_STATUS_NORMAL:
-          if (eps_mode_switch_auto) {
-            if (eps_mode_switch_timeout && EXPIRED(eps_mode_switch_timeout)) {
-              master_log("Disconnect GRID, force EPS\n");
-              eps_mode_switch(1);
-              solax.status_count = 0; // avoid glitching too frequently
-            }
-          }
-          break;
-        }
-      }
-      // when SoC is lower than a value, then 
-      else if (pylontech.soc < GRID_CONNECT_SOC) {
-        if (eps_mode_switch_auto) {
-          // restablish the GRID connection, 
-          master_log("Connect GRID (2)\n");
-          eps_mode_switch(0);
-          solax.status_count = 0; // avoid glitching too frequently
-        }
-      }
-      else if (solax.status_count > GRID_SWITCH_STATE_COUNT) {
-        switch(solax.status) {
-        // failing states, must reenable grid!!
-        case INVERTER_STATUS_IDLE:
-        case INVERTER_STATUS_ERROR:
-        case INVERTER_STATUS_FAULT:
-        case INVERTER_STATUS_STANDBY:
-        case INVERTER_STATUS_UPDATE:
-          if (eps_mode_switch_auto) {
-            master_log("Connect GRID (3)\n");
-            eps_mode_switch(0);
-            solax.status_count = 0; // avoid glitching too frequently
-          }
-          break;
-        }
-      }
-    }
-    else {
-      // wait state to stabilize
-    }
-#endif // WORKAROUND_SOLAX_INJECTION_SURGE
 
     // handle solax PocketWifi port to get the solax status
     tparse_finger(&tp_solax_pw, sizeof(uart_pw_buffer) - DMA_Stream_PW->NDTR);
@@ -1229,6 +1150,99 @@ void interp(void) {
               }
             }
           }
+#ifdef WORKAROUND_SOLAX_INJECTION_SURGE
+          master_log("Solax: status=0x");
+          master_log_hex(&solax.status, 1);
+          master_log(" count=0x");
+          master_log_hex(&solax.status_count, 1);
+          master_log("\n");
+          // only do this after the inverter status is stable and ready for connection
+          if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
+            // when max charge value is degraded, then severs the grid connection
+            if (pylontech.max_charge < pylontech.max_discharge && pylontech.soc >= GRID_DISCONNECT_SOC) {
+#if 0
+              switch(solax.status) {
+              case INVERTER_STATUS_EPS_WAIT:
+                // we have already severed connection with the grid, 
+              case INVERTER_STATUS_WAITING:
+              case INVERTER_STATUS_CHECKING:
+              case INVERTER_STATUS_SELFTEST:
+                // no action
+                master_log("Antisurge: do nothing (1)\n");
+                break;
+              // failing states, must reenable grid!!
+              case INVERTER_STATUS_IDLE: // already connected
+              case INVERTER_STATUS_ERROR:
+              case INVERTER_STATUS_FAULT:
+              case INVERTER_STATUS_STANDBY:
+              case INVERTER_STATUS_UPDATE:
+                if (eps_mode_switch_auto) {
+                  master_log("Antisurge: connect GRID (1)\n");
+                  eps_mode_switch(0);
+                  solax.status_count = 0; // avoid glitching too frequently
+                  eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+                }
+                break;
+              case INVERTER_STATUS_EPS:
+              case INVERTER_STATUS_NORMAL:
+                if (eps_mode_switch_auto) {
+                  if (eps_mode_switch_timeout == 0 || EXPIRED(eps_mode_switch_timeout)) {
+                    master_log("Antisurge: disconnect GRID, force EPS\n");
+                    eps_mode_switch(1);
+                    solax.status_count = 0; // avoid glitching too frequently
+                    eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+                  }
+                }
+                break;
+              }
+#else 
+              if (eps_mode_switch_auto) {
+                //if (eps_mode_switch_timeout == 0 || EXPIRED(eps_mode_switch_timeout)) 
+                {
+                  master_log("Antisurge: disconnect GRID, force EPS\n");
+                  eps_mode_switch(1);
+                  solax.status_count = 0; // avoid glitching too frequently
+                  eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+                }
+              }
+#endif // 0
+            }
+            // when SoC is lower than a value, then 
+            else if (pylontech.soc <= GRID_CONNECT_SOC) {
+              if (eps_mode_switch_auto) {
+                master_log("Antisurge: connect GRID (2)\n");
+                // restablish the GRID connection, 
+                eps_mode_switch(0);
+                solax.status_count = 0; // avoid glitching too frequently
+                eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+              }
+            }
+            else if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
+              switch(solax.status) {
+              // failing states, must reenable grid!!
+              case INVERTER_STATUS_IDLE:
+              case INVERTER_STATUS_ERROR:
+              case INVERTER_STATUS_FAULT:
+              case INVERTER_STATUS_STANDBY:
+              case INVERTER_STATUS_UPDATE:
+                if (eps_mode_switch_auto) {
+                  master_log("Antisurge: connect GRID (3)\n");
+                  eps_mode_switch(0);
+                  solax.status_count = 0; // avoid glitching too frequently
+                  eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+                }
+                break;
+              }
+            }
+            else{
+              master_log("Antisurge: do nothing (2)\n");
+            }
+          }
+          else {
+            // wait state to stabilize
+          }
+#endif // WORKAROUND_SOLAX_INJECTION_SURGE
+
           // whatever the reply, discard the data after this point
           solax_pw_state = SOLAX_PW_WAIT_NEXT; // switch state before possibly scheduling a command to send
           solax_pw_timeout = uwTick + SOLAX_PW_NEXT_TIMEOUT;

@@ -11,8 +11,11 @@
 // ensure 5 seconds steady state before making up a decision
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 5 
-#define GRID_CONNECT_SOC    80 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
-#define GRID_DISCONNECT_SOC 85
+#define GRID_CONNECT_SOC    25 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
+#define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
+
+
+#define SOLAX_MAX_CHARGE_SOC 95 // limit battery wearing
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
 // #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
@@ -333,6 +336,8 @@ struct {
   uint8_t seconds;
   uint8_t pv1_switch_on;
   uint8_t pv2_switch_on;
+  uint8_t grid_connect_soc;
+  uint8_t grid_disconnect_soc;
 } solax;
 struct {
   uint16_t voltage;
@@ -345,6 +350,7 @@ struct {
   int16_t max_charge;
   int16_t max_discharge;
   uint16_t packs;
+  uint8_t max_charge_soc;
 } pylontech;
 
 void pv1_switch(uint32_t state) {
@@ -414,10 +420,19 @@ void interp(void) {
   uint32_t timeout_pv2_switch_on=0;
   uint32_t timeout_pv2_switch_off=0;
   uint32_t eps_mode_switch_timeout=0;
+
+  memset(&solax, 0, sizeof(solax));
+  memset(&pylontech, 0, sizeof(pylontech));
+  // init the queue
+  memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
+
   // automatic state switching and eps disconnect mode by default
   self_use_auto = 1;
   eps_mode_switch_auto = 1;
   eps_forced_state = 0;
+  solax.grid_connect_soc = GRID_CONNECT_SOC;
+  solax.grid_disconnect_soc = GRID_DISCONNECT_SOC;
+  pylontech.max_charge_soc = SOLAX_MAX_CHARGE_SOC;
 
   // use BARE HSI (16MHz)
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
@@ -426,7 +441,6 @@ void interp(void) {
 
   LL_SetSystemCoreClock(16000000);
   SysTick_Config(16000000/1000);
-
   
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
@@ -446,10 +460,6 @@ void interp(void) {
   Configure_CAN1(500000);
   Configure_CAN3(500000);
 
-  memset(&solax, 0, sizeof(solax));
-  memset(&pylontech, 0, sizeof(pylontech));
-  // init the queue
-  memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
   //solax_pw_queue_push(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate), 7);
   // switch bitrate on the solax, no reply expected
   Configure_UARTPW(9600);
@@ -676,6 +686,7 @@ void interp(void) {
           if (pylontech.max_discharge <= 0 && pylontech.soc >= 10) {
             break;
           }
+#if 0
           // cover the inverter self consumption which is substracted from the BAT DC charge
           // this bug is kind of weird if you ask me
           if (pylontech.max_charge && pylontech.soc != 100) {
@@ -687,6 +698,7 @@ void interp(void) {
             tmp[4] = (pylontech.max_charge)&0xFF;
             tmp[5] = ((pylontech.max_charge)>>8)&0xFF;
           }
+#endif
           // force disabling charge, in order to avoid driving the battery to retrieve too less energy from the PVs.
           if (batt_forced_charge >= 0) {
             master_log("force batt charge\n");
@@ -699,6 +711,11 @@ void interp(void) {
             // disable discharge
             tmp[6] = 0;
             tmp[7] = 0;
+          }
+          // max charge reached?
+          if (pylontech.soc >= pylontech.max_charge_soc) {
+            tmp[4] = 0;
+            tmp[5] = 0;
           }
           forward = 1;
           break;
@@ -1159,7 +1176,10 @@ void interp(void) {
           // only do this after the inverter status is stable and ready for connection
           if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
             // when max charge value is degraded, then severs the grid connection
-            if (pylontech.max_charge < pylontech.max_discharge && pylontech.soc >= GRID_DISCONNECT_SOC) {
+            if (pylontech.soc >= solax.grid_disconnect_soc
+              || pylontech.max_charge < pylontech.max_discharge
+              || pylontech.soc >= pylontech.max_charge_soc
+              ) {
 #if 0
               switch(solax.status) {
               case INVERTER_STATUS_EPS_WAIT:
@@ -1196,19 +1216,18 @@ void interp(void) {
                 break;
               }
 #else 
-              if (eps_mode_switch_auto) {
-                //if (eps_mode_switch_timeout == 0 || EXPIRED(eps_mode_switch_timeout)) 
-                {
-                  master_log("Antisurge: disconnect GRID, force EPS\n");
-                  eps_mode_switch(1);
-                  solax.status_count = 0; // avoid glitching too frequently
-                  eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
-                }
+              if (eps_mode_switch_auto 
+                && solax.status != INVERTER_STATUS_ERROR 
+                && solax.status != INVERTER_STATUS_FAULT) {
+                master_log("Antisurge: disconnect GRID, force EPS\n");
+                eps_mode_switch(1);
+                solax.status_count = 0; // avoid glitching too frequently
+                eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
               }
 #endif // 0
             }
             // when SoC is lower than a value, then 
-            else if (pylontech.soc <= GRID_CONNECT_SOC) {
+            else if (pylontech.soc <= solax.grid_connect_soc) {
               if (eps_mode_switch_auto) {
                 master_log("Antisurge: connect GRID (2)\n");
                 // restablish the GRID connection, 
@@ -1359,169 +1378,195 @@ void interp(void) {
 #define SLAVE_OWN_ADDRESS 0x44
 
 uint8_t i2c_xfer_buffer[128];
-uint32_t i2c_xfer_offset;
-uint32_t i2c_xfer_length;
+uint32_t i2c_xfer_w_length;
+uint32_t i2c_xfer_r_offset;
+uint32_t i2c_xfer_r_length;
 void I2C_Slave_Match_Callback(void) {
-  //i2c_xfer_offset = i2c_xfer_length = 0;
+  i2c_xfer_w_length = 0;
 }
 
 void I2C_Slave_Reception_Callback(void) {
-  i2c_xfer_offset = 0;
-
-  switch(LL_I2C_ReceiveData8(I2CS)) {
-  case 0:
-    // read stats
-    // don't process when an error has been detected, only ignore optimization rules (< 0x70)
-    if (batt_drain_fix_cause < 70) 
-    {
-      i2c_xfer_length = 0; // wipe the previous buffer content
-      // data encoding version
-      i2c_xfer_length++; // total length, reserve space
-      i2c_xfer_buffer[i2c_xfer_length++] = 1; 
-
-      // solax state
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.status; 
-      // solax work mode
-      i2c_xfer_buffer[i2c_xfer_length++] = solax_forced_work_mode;
-
-      // grid export wattage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.grid_meter_ct>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.grid_meter_ct&0xFF;
-      // internal grid wattage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.grid_wattage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.grid_wattage&0xFF;
-      // pv1 wattage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.pv1_wattage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv1_wattage&0xFF;
-      // pv2 wattage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.pv2_wattage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv2_wattage&0xFF;
-      // bat wattage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.bat_wattage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.bat_wattage&0xFF;
-      // bat effective wattage (0.1A rounding if no precise wattage provided)
-      int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
-      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech_wattage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = pylontech_wattage&0xFF;
-      // bat soc
-      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.soc>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = pylontech.soc&0xFF;
-      // bat max charge
-      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.max_charge>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = pylontech.max_charge&0xFF;
-      // bat max discharge
-      i2c_xfer_buffer[i2c_xfer_length++] = (pylontech.max_discharge>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = pylontech.max_discharge&0xFF;
-      // bat forced max charge
-      i2c_xfer_buffer[i2c_xfer_length++] = (batt_forced_charge>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = batt_forced_charge&0xFF;
-      // last rule executed
-      i2c_xfer_buffer[i2c_xfer_length++] = batt_drain_fix_cause;
-      // solax work_mode
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.work_mode;
-      // pv1 voltage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.pv1_voltage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv1_voltage&0xFF;
-      // pv2 voltage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.pv2_voltage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv2_voltage&0xFF;
-      // eps current
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.eps_current>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_current&0xFF;
-      // timestamp
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.year>>8;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.year&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.month;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.day;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.hour;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.minute;
-      // state of PV switch for low voltage cutoff (transient state)
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv1_switch_on;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.pv2_switch_on;
-      // eps power
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.eps_power>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_power&0xFF;
-      // eps voltage
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.eps_voltage>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.eps_voltage&0xFF;
-      // time since restart
-      U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_length, uwTick);
-      i2c_xfer_length+=4;
-      // output VA
-      i2c_xfer_buffer[i2c_xfer_length++] = (solax.output_va>>8)&0xFF;
-      i2c_xfer_buffer[i2c_xfer_length++] = solax.output_va&0xFF;
-      // output auto switches
-      i2c_xfer_buffer[i2c_xfer_length++] = self_use_auto;
-      i2c_xfer_buffer[i2c_xfer_length++] = eps_mode_switch_auto;
-      i2c_xfer_buffer[i2c_xfer_length++] = eps_forced_state;
-      // encode total length
-      i2c_xfer_buffer[0] = i2c_xfer_length;
-    }
-    // DESIGN NOTE: TXIS is raised right when a READ transaction match occurs
-    break;
-  case 1:
-    master_log("I2C: pv1 gmppt off\n");
-    // perform gmppt wakeup
-    if (solax_pw_queue_free()>=2) {
-      solax_pw_queue_push(solax_pw_cfg_PIN, sizeof(solax_pw_cfg_PIN), 7);
-      solax_pw_queue_push(solax_pw_cfg_gmppt_pv1_off, sizeof(solax_pw_cfg_gmppt_pv1_off), 7);
-    }
-    break;
-  case 2:
-    master_log("I2C: pv1 gmppt high\n");
-    if (solax_pw_queue_free()>=2) {
-      solax_pw_queue_push(solax_pw_cfg_PIN, sizeof(solax_pw_cfg_PIN), 7);
-      solax_pw_queue_push(solax_pw_cfg_gmppt_pv1_high, sizeof(solax_pw_cfg_gmppt_pv1_high), 7);
-    }
-    break;
-  case 0xA:
-    master_log("I2C: force offgrid\n");
-    // disallow gridtie
-    eps_mode_switch_auto = 0;
-    eps_mode_switch(1);
-    break;
-  case 0xB:
-    master_log("I2C: auto grid connection\n");
-    // allow gridtie
-    eps_mode_switch_auto = 1;
-    break;
-  case 0xC:
-    master_log("I2C: force gridtie\n");
-    // force gridtie
-    eps_mode_switch_auto = 0;
-    eps_mode_switch(0);
-    break;
-  case 0xD:
-    master_log("I2C: force manual stop discharge\n");
-    // force stop discharge
-    self_use_auto = 0;
-    if (solax_pw_queue_free() >= 2) {
-      solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
-      solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-      solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
-    }
-    break;
-  case 0xE:
-    master_log("I2C: force self use\n");
-    // allow discharge
-    self_use_auto = 0;
-    if (solax_pw_queue_free()) {
-      solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-      solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
-    }
-    break;
-  case 0xF:
-    master_log("I2C: auto self use\n");
-    // automatic stop/allow discharge based on percentage
-    self_use_auto = 1;
-    break;
+  if (i2c_xfer_w_length == 0) {
+    i2c_xfer_r_length = 0;
+    i2c_xfer_r_offset = 0;
   }
+  i2c_xfer_buffer[i2c_xfer_w_length++] = LL_I2C_ReceiveData8(I2CS);
 
+  // instruction byte interp, for single byte commands
+  if (i2c_xfer_w_length == 1) {
+    switch(i2c_xfer_buffer[0]) {
+    case 0:
+      // read stats
+      // don't process when an error has been detected, only ignore optimization rules (< 0x70)
+      if (batt_drain_fix_cause < 70) 
+      {
+        i2c_xfer_r_length = 0; // wipe the previous buffer content
+        // data encoding version
+        i2c_xfer_r_length++; // total length, reserve space
+        i2c_xfer_buffer[i2c_xfer_r_length++] = 1; 
+
+        // solax state
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.status; 
+        // solax work mode
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax_forced_work_mode;
+
+        // grid export wattage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.grid_meter_ct>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_meter_ct&0xFF;
+        // internal grid wattage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.grid_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_wattage&0xFF;
+        // pv1 wattage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv1_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_wattage&0xFF;
+        // pv2 wattage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv2_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_wattage&0xFF;
+        // bat wattage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.bat_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.bat_wattage&0xFF;
+        // bat effective wattage (0.1A rounding if no precise wattage provided)
+        int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech_wattage&0xFF;
+        // bat soc
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.soc>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.soc&0xFF;
+        // bat max charge
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.max_charge>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge&0xFF;
+        // bat max discharge
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.max_discharge>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_discharge&0xFF;
+        // bat forced max charge
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (batt_forced_charge>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_charge&0xFF;
+        // last rule executed
+        i2c_xfer_buffer[i2c_xfer_r_length++] = batt_drain_fix_cause;
+        // solax work_mode
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.work_mode;
+        // pv1 voltage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv1_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_voltage&0xFF;
+        // pv2 voltage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv2_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_voltage&0xFF;
+        // eps current
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_current>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_current&0xFF;
+        // timestamp
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.year>>8;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.year&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.month;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.day;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.hour;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.minute;
+        // state of PV switch for low voltage cutoff (transient state)
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_switch_on;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_switch_on;
+        // eps power
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_power>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_power&0xFF;
+        // eps voltage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_voltage&0xFF;
+        // time since restart
+        U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, uwTick);
+        i2c_xfer_r_length+=4;
+        // output VA
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.output_va>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.output_va&0xFF;
+        // output auto switches
+        i2c_xfer_buffer[i2c_xfer_r_length++] = self_use_auto;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = eps_mode_switch_auto;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = eps_forced_state;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_connect_soc;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_disconnect_soc;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge_soc;
+        // encode total length
+        i2c_xfer_buffer[0] = i2c_xfer_r_length;
+      }
+      // DESIGN NOTE: TXIS is raised right when a READ transaction match occurs
+      break;
+    case 1:
+      master_log("I2C: pv1 gmppt off\n");
+      // perform gmppt wakeup
+      if (solax_pw_queue_free()>=2) {
+        solax_pw_queue_push(solax_pw_cfg_PIN, sizeof(solax_pw_cfg_PIN), 7);
+        solax_pw_queue_push(solax_pw_cfg_gmppt_pv1_off, sizeof(solax_pw_cfg_gmppt_pv1_off), 7);
+      }
+      break;
+    case 2:
+      master_log("I2C: pv1 gmppt high\n");
+      if (solax_pw_queue_free()>=2) {
+        solax_pw_queue_push(solax_pw_cfg_PIN, sizeof(solax_pw_cfg_PIN), 7);
+        solax_pw_queue_push(solax_pw_cfg_gmppt_pv1_high, sizeof(solax_pw_cfg_gmppt_pv1_high), 7);
+      }
+      break;
+    case 0xA:
+      master_log("I2C: force offgrid\n");
+      // disallow gridtie
+      eps_mode_switch_auto = 0;
+      eps_mode_switch(1);
+      break;
+    case 0xB:
+      master_log("I2C: auto grid connection\n");
+      // allow gridtie
+      eps_mode_switch_auto = 1;
+      break;
+    case 0xC:
+      master_log("I2C: force gridtie\n");
+      // force gridtie
+      eps_mode_switch_auto = 0;
+      eps_mode_switch(0);
+      break;
+    case 0xD:
+      master_log("I2C: force manual stop discharge\n");
+      // force stop discharge
+      self_use_auto = 0;
+      if (solax_pw_queue_free() >= 2) {
+        solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
+        solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
+      }
+      break;
+    case 0xE:
+      master_log("I2C: force self use\n");
+      // allow discharge
+      self_use_auto = 0;
+      if (solax_pw_queue_free()) {
+        solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
+      }
+      break;
+    case 0xF:
+      master_log("I2C: auto self use\n");
+      // automatic stop/allow discharge based on percentage
+      self_use_auto = 1;
+      break;
+    }
+  }
+  else {
+    // double bytes instructions
+    if (i2c_xfer_w_length == 2) {
+      switch(i2c_xfer_buffer[0]) {
+      case 0x10:
+        solax.grid_connect_soc = i2c_xfer_buffer[1];
+        break;
+      case 0x11:
+        solax.grid_disconnect_soc = i2c_xfer_buffer[1];
+        break;
+      case 0x12:
+        pylontech.max_charge_soc = i2c_xfer_buffer[1];
+        break;
+      }
+    }
+  }
 }
 
 void I2C_Slave_Ready_To_Transmit_Callback(void) {
-  if (i2c_xfer_offset < i2c_xfer_length) {
-    LL_I2C_TransmitData8(I2CS, i2c_xfer_buffer[i2c_xfer_offset++]);
+  if (i2c_xfer_r_offset < i2c_xfer_r_length) {
+    LL_I2C_TransmitData8(I2CS, i2c_xfer_buffer[i2c_xfer_r_offset++]);
   }
   else {
     // stuffing
@@ -1530,11 +1575,11 @@ void I2C_Slave_Ready_To_Transmit_Callback(void) {
 }
 
 void I2C_Slave_Complete_Callback(void) {
-  //i2c_xfer_offset = i2c_xfer_length = 0;
+  
 }
 
 void I2C_Error_Callback(void) {
-  i2c_xfer_offset = i2c_xfer_length = 0;
+  i2c_xfer_r_offset = i2c_xfer_r_length = i2c_xfer_w_length = 0;
 }
 
 /**

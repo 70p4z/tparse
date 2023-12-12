@@ -49,7 +49,7 @@
 #define SOLAX_PW_NEXT_TIMEOUT 1000 // pocket wifi link update
 #define SOLAX_PW_INVALID_RETRY_TIMEOUT 500 // 100ms before retrying in case of an error on the pocketwifi serial response
 #define SOLAX_PW_MODE_CHANGE_MIN_INTERVAL 10000 // avoid changing mode constantly
-#define PYLONTECH_REPLY_TIMEOUT 2000 // auto reply with cache after 2sec
+#define PYLONTECH_REPLY_TIMEOUT 1000 // auto reply when pylontech timeoutsn (reset or what not), to avoid the inverter to disconnect
 
 
 #define SOLAX_PV_POWER_OPT_THRESHOLD_V 150
@@ -78,7 +78,7 @@
 
 #define DISPLAY_TIMEOUT 1000
 // at least a CAN communication must have taken place within that period
-#define TIMEOUT_LAST_ACTIVITY 10000
+#define TIMEOUT_LAST_ACTIVITY 30000
 
 #define S2LE(buf, off) ((int16_t)((int16_t)((int16_t)((int16_t)(buf)[off+1])<<8l) | (int16_t)((int16_t)(buf)[off]&0xFFl) ))
 #define U2LE(buf, off) ((((buf)[off+1]&0xFFu)<<8) | ((buf)[off]&0xFFu) )
@@ -263,6 +263,18 @@ void pylontech_cache_clear(void) {
 // assume message is always 8 bytes long
 void pylontech_cache_append(uint32_t _can_id, uint8_t* _can_msg) {
   
+  // reuse entry ?
+  for (uint8_t i=0; i<PYLONTECH_CACHE_COUNT; i++) {
+    if (pylontech_cached_infos[i].used 
+      && pylontech_cached_infos[i].can_id == _can_id) {
+      memmove(pylontech_cached_infos[i].can_msg, _can_msg, 8);
+      pylontech_cached_infos[i].can_id = _can_id;
+      pylontech_cached_infos[i].used = 1;
+      return;
+    }
+  }
+
+  // or allocate a new one
   for (uint8_t i=0; i<PYLONTECH_CACHE_COUNT; i++) {
     if (!pylontech_cached_infos[i].used) {
       memmove(pylontech_cached_infos[i].can_msg, _can_msg, 8);
@@ -424,6 +436,7 @@ void interp(void) {
   memset(&pylontech, 0, sizeof(pylontech));
   // init the queue
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
+  pylontech_cache_clear();
 
   // automatic state switching and eps disconnect mode by default
   self_use_auto = 1;
@@ -606,7 +619,10 @@ void interp(void) {
           // reset to reenable battery
           enable_battery = 0;
 #endif // SOLAX_REPLY_0x0100A001_AND_0x1801
-          pylontech_timeout = uwTick + PYLONTECH_REPLY_TIMEOUT;
+          if (pylontech_timeout == 0) {
+            // only schedule timeout when no previous timeout scheduled
+            pylontech_timeout = uwTick + PYLONTECH_REPLY_TIMEOUT;
+          }
 #ifdef SUPPORT_PYLONTECH_RECONNECT
           bms_reconnect_at = uwTick; // make sure to avoid overflow when no reconnection request for a while
 #endif // SUPPORT_PYLONTECH_RECONNECT
@@ -720,8 +736,7 @@ void interp(void) {
           break;
           
         case 0x1871:
-          // wipe the pylontech cache to refresh it
-          pylontech_cache_clear();
+          //pylontech_cache_clear();
           __attribute__((fallthrough));
         case 0x1878:
           snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Format=%d\tUnk=%d\tFlagsBMS<<16=%04x\tCapacity=%dWh\n", 

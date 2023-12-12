@@ -682,15 +682,16 @@ void interp(void) {
           }
           forward = 1;
           break;
-        case 0x1872:
-          pylontech.max_charge = S2LE(tmp, 4);
-          pylontech.max_discharge = S2LE(tmp, 6);
+        case 0x1872: {
+
+          int16_t maxch = S2LE(tmp, 4);
+          int16_t maxdis = S2LE(tmp, 6);
           snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Vbatmax=%d.%dV\tVbatmin=%d.%dV\tIcmax=%d.%dA\tIdmax=%d.%dA%s\n", 
                    S2LE(tmp, 0)/10,S2LE(tmp, 0)%10,
                    S2LE(tmp, 2)/10,S2LE(tmp, 2)%10,
-                   pylontech.max_charge/10,pylontech.max_charge%10,
-                   pylontech.max_discharge/10,pylontech.max_discharge%10,
-                   (pylontech.max_discharge <= 0 && pylontech.soc >= 10)?" 2^32fix":"");
+                   maxch/10,maxch%10,
+                   maxdis/10,maxdis%10,
+                   (maxdis <= 0 && pylontech.soc >= 10)?" 2^32fix":"");
 
           // when soc is below 10%, then the discharge may be 0
           // if soc > 10%, then max discharge can never be 0, it's 
@@ -698,9 +699,12 @@ void interp(void) {
           // in that case, we won't tranmsit and keep the previous value sent to the inverter
           // the bug has a periodicity of 1h and a duration of a few seconds.
           // it takes to circumvent the bug on the coil level too to make this patch effective.
-          if (pylontech.max_discharge <= 0 && pylontech.soc >= 10) {
+          if (maxdis <= 0 && pylontech.soc >= 10) {
             break;
           }
+
+          pylontech.max_charge = maxch;
+          pylontech.max_discharge = maxdis;
 #if 0
           // cover the inverter self consumption which is substracted from the BAT DC charge
           // this bug is kind of weird if you ask me
@@ -734,7 +738,7 @@ void interp(void) {
           }
           forward = 1;
           break;
-          
+        }
         case 0x1871:
           //pylontech_cache_clear();
           __attribute__((fallthrough));

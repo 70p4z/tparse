@@ -49,7 +49,6 @@
 #define SOLAX_PW_NEXT_TIMEOUT 1000 // pocket wifi link update
 #define SOLAX_PW_INVALID_RETRY_TIMEOUT 500 // 100ms before retrying in case of an error on the pocketwifi serial response
 #define SOLAX_PW_MODE_CHANGE_MIN_INTERVAL 10000 // avoid changing mode constantly
-#define PYLONTECH_ACTIVITY_TIMEOUT 500
 #define PYLONTECH_REPLY_TIMEOUT 2000 // auto reply with cache after 2sec
 
 

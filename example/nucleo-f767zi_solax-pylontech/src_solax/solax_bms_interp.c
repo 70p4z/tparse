@@ -691,11 +691,11 @@ void interp(void) {
                    S2LE(tmp, 2)/10,S2LE(tmp, 2)%10,
                    maxch/10,maxch%10,
                    maxdis/10,maxdis%10,
-                   (maxdis <= 0 && pylontech.soc >= 10)?" 2^32fix":"");
+                   (maxdis <= 0 && pylontech.soc >= 10)?" 2^31fix":"");
 
           // when soc is below 10%, then the discharge may be 0
           // if soc > 10%, then max discharge can never be 0, it's 
-          // the manifestation of the 2^32 counter overflow bug in the SC0500
+          // the manifestation of the 2^31 counter overflow bug in the SC0500
           // in that case, we won't tranmsit and keep the previous value sent to the inverter
           // the bug has a periodicity of 1h and a duration of a few seconds.
           // it takes to circumvent the bug on the coil level too to make this patch effective.

@@ -981,6 +981,10 @@ void interp(void) {
             solax.month = tmp[207];
             solax.year = tmp[208] + 2000;
 
+            snprintf((char*)tmp, sizeof(tmp), "PV1: %dW (%d.%dV %d.%dA)\nPV2: %dW (%d.%dV %d.%dA)\n", solax.pv1_wattage, solax.pv1_voltage/10,solax.pv1_voltage%10, solax.pv1_current/10, solax.pv1_current%10, solax.pv2_wattage, solax.pv2_voltage/10, solax.pv2_voltage%10, solax.pv2_current/10, solax.pv2_current%10);
+            master_log((char*)tmp);
+            snprintf((char*)tmp, sizeof(tmp), "AC: Grid: %dW (meter %dW) EPS: %dW Output: %dVA\n", solax.grid_wattage, solax.grid_meter_ct, solax.eps_power, solax.output_va);
+            master_log((char*)tmp);
 
             // if (!solax_checksum_verify(tmp+2,tmp[2]-2)) {
             //   batt_drain_fix_cause = 100;

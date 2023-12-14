@@ -362,6 +362,9 @@ struct {
   int16_t max_discharge;
   uint16_t packs;
   uint8_t max_charge_soc;
+  uint8_t contactor_on;
+  uint8_t charge_request;
+  uint16_t cycles;
 } pylontech;
 
 void pv1_switch(uint32_t state) {
@@ -753,13 +756,16 @@ void interp(void) {
 
         case 0x1875:
           pylontech.packs = U2LE(tmp,2); 
+          pylontech.contactor_on = tmp[4];
+          pylontech.charge_request = tmp[5];
+          pylontech.cycles = U2LE(tmp, 6);
           // TODO: ensure contactor is set to 1 (tmp[4] = 1)
           snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Tbms=%d.%d°C\tBatCount=%d\tContact=%d\tChargeReq=%d\tCycles=%d\n", 
                    S2LE(tmp, 0)/10,S2LE(tmp, 0)%10,
                    pylontech.packs,
-                   tmp[4],
-                   tmp[5],
-                   U2LE(tmp, 6));
+                   pylontech.contactor_on,
+                   pylontech.charge_request,
+                   pylontech.cycles);
           forward = 1;
           break;
 

@@ -1241,7 +1241,7 @@ void interp(void) {
               }
 #else 
               if (eps_mode_switch_auto 
-                /* we inject */ && (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)
+                /* we inject */ //&& (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)
                 && solax.status != INVERTER_STATUS_ERROR 
                 && solax.status != INVERTER_STATUS_FAULT
                 && solax.status != INVERTER_STATUS_EPS // don't require EPS when already in EPS
@@ -1257,7 +1257,8 @@ void interp(void) {
             // when SoC is lower than a value, then 
             else if (pylontech.soc <= solax.grid_connect_soc) {
               if (eps_mode_switch_auto
-                /* we inject */ && (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)) {
+                /* we inject */ //&& (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)
+                ) {
                 master_log("Antisurge: connect GRID (2)\n");
                 // restablish the GRID connection, 
                 eps_mode_switch(0);
@@ -1274,7 +1275,8 @@ void interp(void) {
               case INVERTER_STATUS_STANDBY:
               case INVERTER_STATUS_UPDATE:
                 if (eps_mode_switch_auto
-                  /* we inject */ && (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)) {
+                  /* we inject */ //&& (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)
+                  ) {
                   master_log("Antisurge: connect GRID (3)\n");
                   eps_mode_switch(0);
                   solax.status_count = 0; // avoid glitching too frequently

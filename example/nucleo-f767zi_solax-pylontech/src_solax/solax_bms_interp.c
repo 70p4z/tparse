@@ -261,7 +261,7 @@ void pylontech_cache_clear(void) {
 }
 
 // assume message is always 8 bytes long
-void pylontech_cache_append(uint32_t _can_id, uint8_t* _can_msg) {
+void pylontech_cache_set(uint32_t _can_id, uint8_t* _can_msg) {
   
   // reuse entry ?
   for (uint8_t i=0; i<PYLONTECH_CACHE_COUNT; i++) {
@@ -799,7 +799,7 @@ void interp(void) {
           break;
       }
       if (forward) {
-        pylontech_cache_append(cid, tmp);
+        pylontech_cache_set(cid, tmp);
         can_solax_tx_log(cid, cid_bitlen, tmp, len);
       }
       // log decoded message content

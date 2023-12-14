@@ -567,6 +567,10 @@ void interp(void) {
     if (can_fifo_avail(CAN1)) {
       last_INV_CAN_activity_timeout = uwTick + TIMEOUT_LAST_ACTIVITY; // we've received something
       len = can_fifo_rx(CAN1, &cid, &cid_bitlen, tmp, sizeof(tmp));
+      if (cid == 0x1871) {
+        // clear screen before starting decoding
+        master_log("\x1b[2J");
+      }
       master_log_can("inv >>>     | ", cid, cid_bitlen, tmp, len);
       // other request from the inverter are discarded
       if (cid_bitlen && cid == 0x1871) {

@@ -869,7 +869,7 @@ void interp(void) {
             if (val != -1UL) { 
               pylontech.precise_voltage = (int32_t)val;
               pylontech.precise_current = (int32_t)tparse_token_u32(&tp_bms);
-              pylontech.precise_wattage = ((int32_t)pylontech.precise_current/(int32_t)10*(int32_t)pylontech.precise_voltage/(int32_t)10)/(int32_t)10000;
+              pylontech.precise_wattage = ((int32_t)pylontech.precise_current*((int32_t)pylontech.precise_voltage)/(int32_t)100)/(int32_t)10000;
               snprintf((char*)tmp, sizeof(tmp), "  voltage: %ld\n  current: %ld\n  wattage: %ld\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
               master_log((char*)tmp);
               bms_uart_timeout = 0; // disable timeout

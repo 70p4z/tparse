@@ -78,7 +78,7 @@
 
 #define DISPLAY_TIMEOUT 1000
 // at least a CAN communication must have taken place within that period
-#define TIMEOUT_LAST_ACTIVITY 30000
+#define TIMEOUT_LAST_ACTIVITY 180000
 
 #define S2LE(buf, off) ((int16_t)((int16_t)((int16_t)((int16_t)(buf)[off+1])<<8l) | (int16_t)((int16_t)(buf)[off]&0xFFl) ))
 #define U2LE(buf, off) ((((buf)[off+1]&0xFFu)<<8) | ((buf)[off]&0xFFu) )

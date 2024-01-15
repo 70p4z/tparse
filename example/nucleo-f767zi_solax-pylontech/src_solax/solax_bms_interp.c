@@ -15,7 +15,7 @@
 #define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
 
 
-#define SOLAX_MAX_CHARGE_SOC 95 // limit battery wearing
+#define SOLAX_MAX_CHARGE_SOC 97 // limit battery wearing
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
 // #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
@@ -64,7 +64,7 @@
 
 // before 80% of charge of battery, be conservative, and charge first
 #define SOLAX_SELFUSE_MIN_BATTERY_SOC 40
-#define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU 30 /* at least 25% of the solar power usable must go to the battery */
+#define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU 30 /* at least % of the solar power usable must go to the battery */
 #define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_FS 20
 #define HAVE_SOLAX_SWITCH_MODE
 

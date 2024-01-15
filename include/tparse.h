@@ -123,6 +123,8 @@ uint32_t tparse_token_u32_base(tparse_ctx_t* ctx, uint32_t _base);
  * Read next token as a uint32_t, decimal or hexadecimal encoded
  */
 uint32_t tparse_token_u32(tparse_ctx_t* ctx);
+int32_t tparse_token_i32(tparse_ctx_t* ctx);
+
 
 /** 
  * Discard everything until end of line, at least a token must have been consumed on the line

@@ -519,3 +519,7 @@ uint32_t tparse_token_u32_base(tparse_ctx_t* ctx, uint32_t _base) {
 uint32_t tparse_token_u32(tparse_ctx_t* ctx) {
 	return tparse_token_u32_base(ctx, 10);
 }
+
+int32_t tparse_token_i32(tparse_ctx_t* ctx) {
+	return (int32_t)tparse_token_u32_base(ctx, 10);
+}

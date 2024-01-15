@@ -230,6 +230,11 @@ static MunitResult* test_s32(const MunitParameter* params, void* ignored) {
   munit_assert_int(tparse_token_u32(&ctx), ==, 0);
   munit_assert_int(tparse_token_u32(&ctx), ==, -1);
 
+  tparse_append(&ctx, STR_AND_LEN("394687 -5704 31000  \n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 394687);
+  munit_assert_int(tparse_token_i32(&ctx), ==, -5704);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 31000);
+
   return MUNIT_OK;
 }
 

@@ -12,7 +12,7 @@
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 5 
 #define GRID_CONNECT_SOC    25 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
-#define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
+#define GRID_DISCONNECT_SOC 31 // disconnect grid when over or equal
 
 
 #define SOLAX_MAX_CHARGE_SOC 97 // limit battery wearing
@@ -63,7 +63,7 @@
 #define SOLAX_SELF_CONSUMPTION_INVERTER_W 40 // observed inverter consumption with only inverter enabled (not system off)
 
 // before 80% of charge of battery, be conservative, and charge first
-#define SOLAX_SELFUSE_MIN_BATTERY_SOC 40
+#define SOLAX_SELFUSE_MIN_BATTERY_SOC (GRID_DISCONNECT_SOC-1) // ensure starting selfuse before disconecting the grid to avoid glitch and mini outtage
 #define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU 30 /* at least % of the solar power usable must go to the battery */
 #define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_FS 20
 #define HAVE_SOLAX_SWITCH_MODE

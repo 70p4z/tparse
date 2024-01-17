@@ -866,7 +866,9 @@ void interp(void) {
           size_t read = tparse_peek_line(&tp_bms, (char*)tmp, sizeof(tmp));
           master_log("UARTBMS << ");
           master_log_mem(tmp,read);
-
+          // UARTBMS << Volt   Curr   Tempr  BTlow  BThigh BVlow  BVhigh UTlow  UThigh UVlow  UVhigh Base.St  Volt.St  Curr.St  Temp.St  CouloH                CoulombWH              Time                 B.V.St   B.T.St   U.V.St   U.T.St   Err Code
+          // UARTBMS << 394687 -5704  31000  22000  23000  3286   3292   26000  27000  49300  49373  Dischg   Normal   Normal   Normal    71%       35590 mAH  73%           13986 WH 2000-09-13 04:14:51  Normal   Normal   Normal   Normal   0x0
+          //            0      1      2      3      4      5      6      7      8      9      10     11       12       13       14        15        16    17   18 
           if (bms_uart_state == BMS_UART_STATE_WAIT) {
             uint32_t val = tparse_token_u32(&tp_bms);
             // if it's the line starting with integer and not a text line

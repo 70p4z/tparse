@@ -365,6 +365,7 @@ struct {
   uint8_t contactor_on;
   uint8_t charge_request;
   uint16_t cycles;
+  uint8_t fix2_31;
 } pylontech;
 
 void pv1_switch(uint32_t state) {
@@ -693,12 +694,16 @@ void interp(void) {
 
           int16_t maxch = S2LE(tmp, 4);
           int16_t maxdis = S2LE(tmp, 6);
+
+          // detect 2^31 bug (could affine with SysError detection on FlagsBMS = 0x0002)
+          pylontech.fix2_31 = maxdis <= 0 && maxch <= 0 && pylontech.soc >= 10;
+
           snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Vbatmax=%d.%dV\tVbatmin=%d.%dV\tIcmax=%d.%dA\tIdmax=%d.%dA%s\n", 
                    S2LE(tmp, 0)/10,S2LE(tmp, 0)%10,
                    S2LE(tmp, 2)/10,S2LE(tmp, 2)%10,
                    maxch/10,maxch%10,
                    maxdis/10,maxdis%10,
-                   (maxdis <= 0 && pylontech.soc >= 10)?" 2^31fix":"");
+                   (pylontech.fix2_31)?" 2^31fix":"");
 
           // when soc is below 10%, then the discharge may be 0
           // if soc > 10%, then max discharge can never be 0, it's 
@@ -706,7 +711,7 @@ void interp(void) {
           // in that case, we won't tranmsit and keep the previous value sent to the inverter
           // the bug has a periodicity of 1h and a duration of a few seconds.
           // it takes to circumvent the bug on the coil level too to make this patch effective.
-          if (maxdis <= 0 && pylontech.soc >= 10) {
+          if (pylontech.fix2_31) {
             break;
           }
 
@@ -755,6 +760,10 @@ void interp(void) {
                    tmp[1],
                    U2LE(tmp, 2),
                    U4LE(tmp, 4));
+          // wipe flags on 2^31 fix
+          if (pylontech.fix2_31) {
+            tmp[2] = tmp[3] = 0;
+          }
           forward = 1;
           break;
 
@@ -776,8 +785,11 @@ void interp(void) {
         case 0x1877:
           snprintf((char*)tmp+16, sizeof(tmp)-16, "            | FlagsBMS=%04x\n", 
                    U2LE(tmp, 0));
-          // wipe BMS flags
-          //memset(tmp, 0, 4); // optional, use them actually, in case of significant error to be notified to the inverter
+          // wipe BMS flags upon 2^31 fix
+          if (pylontech.fix2_31) {
+            tmp[0] = tmp[1] = 0;
+            //memset(tmp, 0, 4); 
+          }
           tmp[4] = BMS_KIND;
           tmp[5] = tmp[6] = tmp[7] = 0; // wipe versions
           // override message to tell the inverter of the battery configuration

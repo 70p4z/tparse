@@ -120,9 +120,9 @@ void tparse_discard_line(tparse_ctx_t* ctx) {
  * parts concat must be done be the caller.
  */
 #include "stdio.h"
-uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t add_r_offset, uint32_t consume) {
+uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t* add_r_offset, uint32_t consume) {
 	// parse token up until max_length bytes have been fetched OR \0 is reached
-	size_t r_offset = ( ctx->r_offset + add_r_offset ) % ctx->max_length;
+	size_t r_offset = ( ctx->r_offset + *add_r_offset ) % ctx->max_length;
 	size_t delim_len = strlen(ctx->delim);
 	size_t tlen = 0;
 	size_t skipped_delim = 0;
@@ -135,7 +135,7 @@ uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t add_r_off
 		while(l--) {
 			if (ctx->buffer[r_offset] == ctx->delim[l]) {
 				// delimiter found, a token ends here
-				tlen = (ctx->max_length + r_offset - ctx->r_offset - add_r_offset) % ctx->max_length - skipped_delim;
+				tlen = (ctx->max_length + r_offset - ctx->r_offset - *add_r_offset) % ctx->max_length - skipped_delim;
 				// at least consume some char to create a token, mark delim as consumed
 				if (ctx->delim[l] != '\n' && tlen == 0) {
 					skipped_delim++;
@@ -150,13 +150,15 @@ uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t add_r_off
 						ctx->flags |= TPARSE_EOL;
 					}
 				}
+				*add_r_offset += tlen + skipped_delim;
 				return tlen;
 			}
 		}
 		r_offset++;
 		// token over the circling limit?
 		if (r_offset == ctx->max_length) {
-			tlen = r_offset - ctx->r_offset - add_r_offset - skipped_delim;
+			tlen = r_offset - ctx->r_offset - *add_r_offset - skipped_delim;
+			*add_r_offset += tlen + skipped_delim;
 			if(consume) {
 				ctx->r_offset = 0;
 				ctx->flags &= ~TPARSE_EOL;
@@ -170,7 +172,8 @@ uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t add_r_off
 }
 
 uint32_t tparse_token_p(tparse_ctx_t* ctx, char** token) {
-	return tparse_token_internal(ctx, token, 0, 1);
+	size_t s = 0;
+	return tparse_token_internal(ctx, token, &s, 1);
 }
 
 size_t tparse_avail(tparse_ctx_t* ctx) {
@@ -254,16 +257,14 @@ size_t tparse_token_count(tparse_ctx_t* ctx) {
 		return 0;
 	}
 	while (off<len) {
-		size_t l = tparse_token_internal(ctx, &token, off, 0); 
+		size_t l = tparse_token_internal(ctx, &token, &off, 0); 
 		if (l==0) {
-			// blank token (multiple delimiters?)
 			off++;
 			continue;
 		}
-		off+=l&~TPARSE_TOKEN_PART;
+		//off+=l&~TPARSE_TOKEN_PART;
 		if (l&TPARSE_TOKEN_PART) {
-			l = tparse_token_internal(ctx, &token, off, 0); 
-			off+=l;
+			l = tparse_token_internal(ctx, &token, &off, 0); 
 		}
 		count++;
 		// TEST when count next line is on the rollover
@@ -281,7 +282,8 @@ size_t tparse_token_count(tparse_ctx_t* ctx) {
  */
 size_t tparse_token_size(tparse_ctx_t* ctx) {
 	char* t;
-	size_t l = tparse_token_internal(ctx, &t, 0, 0);
+	size_t s = 0;
+	size_t l = tparse_token_internal(ctx, &t, &s, 0);
 	size_t l2;
 	if (l) {
 		// note: l can have the EOL set
@@ -289,7 +291,8 @@ size_t tparse_token_size(tparse_ctx_t* ctx) {
 			return l;
 		}
 		// parse remaining part (if any)
-		l2 = tparse_token_internal(ctx, &t, l&~TPARSE_TOKEN_PART, 0);
+		s = l&~TPARSE_TOKEN_PART;
+		l2 = tparse_token_internal(ctx, &t, &s, 0);
 		// unsupported: this is clearly an overflow of the buffer. enjoy
 		if (l2&TPARSE_TOKEN_PART) {
 			return 0;

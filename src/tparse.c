@@ -119,10 +119,13 @@ void tparse_discard_line(tparse_ctx_t* ctx) {
  * When 1<<31 is set, another call to token shall be issued to retrieve the next token part and the two 
  * parts concat must be done be the caller.
  */
+#include "stdio.h"
 uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t add_r_offset, uint32_t consume) {
 	// parse token up until max_length bytes have been fetched OR \0 is reached
 	size_t r_offset = ( ctx->r_offset + add_r_offset ) % ctx->max_length;
 	size_t delim_len = strlen(ctx->delim);
+	size_t tlen = 0;
+	size_t skipped_delim = 0;
 	if (r_offset == ctx->w_offset) {
 		return 0;
 	}
@@ -132,7 +135,13 @@ uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t add_r_off
 		while(l--) {
 			if (ctx->buffer[r_offset] == ctx->delim[l]) {
 				// delimiter found, a token ends here
-				l = (ctx->max_length + r_offset - ctx->r_offset - add_r_offset) % ctx->max_length;
+				tlen = (ctx->max_length + r_offset - ctx->r_offset - add_r_offset) % ctx->max_length - skipped_delim;
+				// at least consume some char to create a token, mark delim as consumed
+				if (ctx->delim[l] != '\n' && tlen == 0) {
+					skipped_delim++;
+					*token=&ctx->buffer[r_offset+1]; 
+					break;
+				}
 				if(consume) {
 					ctx->r_offset = (r_offset + 1) % ctx->max_length;
 					ctx->flags &= ~TPARSE_EOL;
@@ -141,18 +150,18 @@ uint32_t tparse_token_internal(tparse_ctx_t* ctx, char** token, size_t add_r_off
 						ctx->flags |= TPARSE_EOL;
 					}
 				}
-				return l;
+				return tlen;
 			}
 		}
 		r_offset++;
 		// token over the circling limit?
 		if (r_offset == ctx->max_length) {
-			l = r_offset - ctx->r_offset - add_r_offset;
+			tlen = r_offset - ctx->r_offset - add_r_offset - skipped_delim;
 			if(consume) {
 				ctx->r_offset = 0;
 				ctx->flags &= ~TPARSE_EOL;
 			}
-			return l | TPARSE_TOKEN_PART;
+			return tlen | TPARSE_TOKEN_PART;
 		}
 	}
 	while (r_offset != ctx->r_offset && r_offset != ctx->w_offset && r_offset < ctx->max_length);
@@ -300,6 +309,13 @@ size_t tparse_token_parts(tparse_ctx_t* ctx, char** tokens, size_t* tokens_size)
 	tokens_size[1] = 0;
 	if (tokens_size[0] & TPARSE_TOKEN_PART) {
 		tokens_size[0] &= ~TPARSE_TOKEN_PART;
+		// if next delim starts with delim, then part0 ended.
+		size_t l = strlen(ctx->delim);
+		while(l--) {
+			if (ctx->buffer[0] == ctx->delim[l]) {
+				return tokens_size[0];
+			}
+		}
 		tokens_size[1] = tparse_token_p(ctx, &tokens[1]);
 	}
 	return tokens_size[0] + tokens_size[1];

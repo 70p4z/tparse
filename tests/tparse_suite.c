@@ -97,6 +97,37 @@ static MunitResult* test_basic(const MunitParameter* params, void* ignored) {
   return MUNIT_OK;
 }
 
+static MunitResult* test_skip_empty(const MunitParameter* params, void* ignored) {
+  tparse_ctx_t ctx;
+  char* t;
+
+  memset(buffer, 0, sizeof(buffer));
+  tparse_init(&ctx, buffer, 32, " \n\r");
+  munit_assert_int(tparse_avail(&ctx), ==, 0);
+  munit_assert_int(tparse_token_size(&ctx), ==, 0);
+  munit_assert_int(tparse_token_p(&ctx, &t), ==, 0);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 0);
+  
+  tparse_append(&ctx, STR_AND_LEN("super  truc\n"));
+  munit_assert_int(tparse_avail(&ctx), ==, 12);
+  munit_assert_int(tparse_token_size(&ctx), ==, 5);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 2);
+  munit_assert_int(tparse_token_p(&ctx, &t), ==, 5);
+  munit_assert_memory_equal(5, "super", t);
+
+  munit_assert_int(tparse_avail(&ctx), ==, 6);
+  munit_assert_int(tparse_token_size(&ctx), ==, 4);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 0);
+  munit_assert_int(tparse_token_count(&ctx), ==, 1);
+  munit_assert_int(tparse_token_p(&ctx, &t), ==, 4);
+  munit_assert_memory_equal(4, "truc", t);
+  munit_assert_int(tparse_eol_reached(&ctx), ==, 1);
+  munit_assert_int(tparse_token_count(&ctx), ==, 0);
+  return MUNIT_OK;
+}
+
 static MunitResult* test_hex(const MunitParameter* params, void* ignored) {
   tparse_ctx_t ctx;
   char* t;
@@ -231,12 +262,55 @@ static MunitResult* test_s32(const MunitParameter* params, void* ignored) {
   munit_assert_int(tparse_token_u32(&ctx), ==, -1);
 
   tparse_append(&ctx, STR_AND_LEN("394687 -5704 31000  \n"));
+  //                                     ^ end of circular buffer
   munit_assert_int(tparse_token_u32(&ctx), ==, 394687);
   munit_assert_int(tparse_token_i32(&ctx), ==, -5704);
   munit_assert_int(tparse_token_u32(&ctx), ==, 31000);
 
   return MUNIT_OK;
 }
+
+static MunitResult* test_s32_2(const MunitParameter* params, void* ignored) {
+  tparse_ctx_t ctx;
+  char* t;
+  uint8_t buf[128];
+
+  memset(buffer, 0, sizeof(buffer));
+  tparse_init(&ctx, buffer, 32, " \n\r");
+  munit_assert_int(tparse_avail(&ctx), ==, 0);
+  munit_assert_int(tparse_token_size(&ctx), ==, 0);
+  munit_assert_int(tparse_token_p(&ctx, &t), ==, 0);
+
+  tparse_append(&ctx, STR_AND_LEN("12 -2567\n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 12);
+  munit_assert_int(tparse_token_u32(&ctx), ==, -2567);
+
+  //                                                     v circular limit
+  tparse_append(&ctx, STR_AND_LEN("13 256 3546 -324264 1456644322\n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 13);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 256);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 3546);
+  munit_assert_int(tparse_token_u32(&ctx), ==, -324264);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 1456644322);
+
+  tparse_append(&ctx, STR_AND_LEN("11 0x2576\n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 11);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 0x2576);
+
+  tparse_append(&ctx, STR_AND_LEN("11 0 -1\n"));
+  munit_assert_int(tparse_token_u32(&ctx), ==, 11);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 0);
+  munit_assert_int(tparse_token_u32(&ctx), ==, -1);
+
+  tparse_append(&ctx, STR_AND_LEN("39468  -5704 31000  \n"));
+  //                                     ^ end of circular buffer
+  munit_assert_int(tparse_token_u32(&ctx), ==, 39468);
+  munit_assert_int(tparse_token_i32(&ctx), ==, -5704);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 31000);
+
+  return MUNIT_OK;
+}
+
 
 static MunitResult* test_eol(const MunitParameter* params, void* ignored) {
   tparse_ctx_t ctx;
@@ -504,15 +578,127 @@ static MunitResult* test_non_reg_nl_after_rollover_token_in(const MunitParameter
   return MUNIT_OK;
 }
 
+static MunitResult* test_non_reg_parse_capacity(const MunitParameter* params, void* ignored) {
+  char * t;
+  tparse_ctx_t ctx;
+  char buffer[512];
+  tparse_init(&ctx, buffer, 512, " \n\r");
+  tparse_append(&ctx, STR_AND_LEN("402855 -613    34000  21000  23000  3354   3360   26000  27000  50323  50390  Charge   Normal   Normal   Normal    84%          42041 mAH  83%           15960 WH 2000-01-03 23:52:40  Normal   Normal   Normal   Normal   0x0\n"));
+
+  uint8_t tmp[300];
+  munit_assert_int(tparse_has_line(&ctx), ==, 223);
+  //munit_assert_int(tparse_token_count(&ctx), ==, 28);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 402855);
+  munit_assert_int(tparse_token_i32(&ctx), ==, -613);
+  munit_assert_int(tparse_token(&ctx, tmp, 4), == , 4); // tempr
+              fprintf(stderr, "tmp: %s\n", tmp);
+              tparse_token(&ctx, tmp, 4); // btlow
+              tparse_token(&ctx, tmp, 4); // bthigh
+              tparse_token(&ctx, tmp, 4); // bvlow
+              tparse_token(&ctx, tmp, 4); // bvhigh
+              tparse_token(&ctx, tmp, 4); // utlow
+              tparse_token(&ctx, tmp, 4); // uthigh
+              tparse_token(&ctx, tmp, 4); // uvlow
+              tparse_token(&ctx, tmp, 4); // uvhigh
+              tparse_token(&ctx, tmp, 4); // base.st
+              tparse_token(&ctx, tmp, 4); // volt.st
+              tparse_token(&ctx, tmp, 4); // curr.st
+              tparse_token(&ctx, tmp, 4); // temp.st
+              tparse_token(&ctx, tmp, 4); // coulomb %
+              fprintf(stderr, "tmp: %s\n", tmp);
+              munit_assert_int(tparse_token_u32(&ctx), ==, 42041);
+
+  return MUNIT_OK;
+}
+
+
+static MunitResult* test_non_reg_parse_capacity2(const MunitParameter* params, void* ignored) {
+  char * t;
+  tparse_ctx_t ctx;
+  char buffer[512];
+  tparse_init(&ctx, buffer, 512, " \n\r");
+  tparse_append(&ctx, STR_AND_LEN("402855 -613    34000  21000  23000  3354   3360   26000  27000  50323  50390  Charge   Normal   Normal   Normal    84%          42041 mAH  83%           15960 WH 2000-01-03 23:52:40  Normal   Normal   Normal   Normal   0x0\n"));
+
+  uint8_t tmp[300];
+  uint8_t* p;
+  munit_assert_int(tparse_has_line(&ctx), ==, 223);
+  //munit_assert_int(tparse_token_count(&ctx), ==, 28);
+  munit_assert_int(tparse_token_count(&ctx), ==, 46); // token_count does not skip multiple delims
+  munit_assert_int(tparse_token_u32(&ctx), ==, 402855); // volt
+  munit_assert_int(tparse_token_i32(&ctx), ==, -613); // curr
+  munit_assert_int(tparse_token_p(&ctx, &p), == , 5); // tempr
+  tparse_token_p(&ctx, &p); // btlow
+  tparse_token_p(&ctx, &p); // bthigh
+  tparse_token_p(&ctx, &p); // bvlow
+  tparse_token_p(&ctx, &p); // bvhigh
+  tparse_token_p(&ctx, &p); // utlow
+  tparse_token_p(&ctx, &p); // uthigh
+  tparse_token_p(&ctx, &p); // uvlow
+  tparse_token_p(&ctx, &p); // uvhigh
+  tparse_token_p(&ctx, &p); // base.st
+  tparse_token_p(&ctx, &p); // volt.st
+  tparse_token_p(&ctx, &p); // curr.st
+  tparse_token_p(&ctx, &p); // temp.st
+  tparse_token_p(&ctx, &p); // coulomb %
+  munit_assert_int(tparse_token_u32(&ctx), ==, 42041);
+  tparse_token_p(&ctx, &p); // mAh
+  munit_assert_int(tparse_token_p(&ctx, &p), ==, 3);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 15960);
+
+  return MUNIT_OK;
+}
+
+
+
+static MunitResult* test_non_reg_parse_capacity3(const MunitParameter* params, void* ignored) {
+  char * t;
+  tparse_ctx_t ctx;
+  char buffer[512];
+  tparse_init(&ctx, buffer, 512, " \n\r");
+  tparse_append(&ctx, STR_AND_LEN("396988 0      31000  22000  24000  3299   3323   26000  27000  49506  49746  Idle     Normal   Normal   Normal    62%   31197 mAH  62%           11921 WH 2000-10-20 06:32:03  Normal   Normal   Normal   Normal   0x0\n"));
+
+  uint8_t tmp[300];
+  uint8_t* p;
+  munit_assert_int(tparse_has_line(&ctx), ==, 215);
+  //munit_assert_int(tparse_token_count(&ctx), ==, 28);
+  munit_assert_int(tparse_token_count(&ctx), ==, 45); // token_count does not skip multiple delims
+  munit_assert_int(tparse_token_u32(&ctx), ==, 396988); // volt
+  munit_assert_int(tparse_token_i32(&ctx), ==, 0); // curr
+  munit_assert_int(tparse_token_p(&ctx, &p), == , 5); // tempr
+  tparse_token_p(&ctx, &p); // btlow
+  tparse_token_p(&ctx, &p); // bthigh
+  tparse_token_p(&ctx, &p); // bvlow
+  tparse_token_p(&ctx, &p); // bvhigh
+  tparse_token_p(&ctx, &p); // utlow
+  tparse_token_p(&ctx, &p); // uthigh
+  tparse_token_p(&ctx, &p); // uvlow
+  tparse_token_p(&ctx, &p); // uvhigh
+  tparse_token_p(&ctx, &p); // base.st
+  tparse_token_p(&ctx, &p); // volt.st
+  tparse_token_p(&ctx, &p); // curr.st
+  tparse_token_p(&ctx, &p); // temp.st
+  tparse_token_p(&ctx, &p); // coulomb %
+  munit_assert_int(tparse_token_u32(&ctx), ==, 31197);
+  tparse_token_p(&ctx, &p); // mAh
+  munit_assert_int(tparse_token_p(&ctx, &p), ==, 3);
+  munit_assert_int(tparse_token_u32(&ctx), ==, 11921);
+
+  return MUNIT_OK;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // TEST LISTS
 
 static MunitTest tests_tparse_suite[] = {
   { /* name */ (char*) "/basic",  test_basic, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/skip_empty",  test_skip_empty, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  
   { /* name */ (char*) "/hex",  test_hex, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/in",  test_in, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/u32",  test_u32, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/s32",  test_s32, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/s32_skip",  test_s32_2, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  
   { /* name */ (char*) "/eol",  test_eol, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/eoleol",  test_eoleol, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/discard_no_eol",  test_discard_no_eol, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
@@ -522,6 +708,9 @@ static MunitTest tests_tparse_suite[] = {
   { /* name */ (char*) "/nonreg2",  test_non_reg_nl_after_rollover, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/nonreg3",  test_non_reg_nl_after_token_copy, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   { /* name */ (char*) "/nonreg4",  test_non_reg_nl_after_rollover_token_in, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/nonreg_capacity",  test_non_reg_parse_capacity, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/nonreg_capacity2",  test_non_reg_parse_capacity2, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
+  { /* name */ (char*) "/nonreg_capacity3",  test_non_reg_parse_capacity3, /* setup */ NULL, /* tear_down */ NULL, MUNIT_TEST_OPTION_NONE, NULL },
   
   
   { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }

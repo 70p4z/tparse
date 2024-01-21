@@ -355,7 +355,11 @@ struct {
   uint32_t precise_voltage;
   int16_t current;
   int32_t precise_current;
-  uint16_t soc;
+  uint8_t soc;
+  uint8_t soc_mWh;
+  uint32_t precise_mAh;
+  uint32_t precise_mAh_ts; // to compute approx current drive, when 0 is reported
+  uint32_t precise_mWh;
   int32_t wattage;
   int32_t precise_wattage;
   int16_t max_charge;
@@ -501,7 +505,7 @@ void interp(void) {
   tparse_ctx_t tp_solax_pw;
   tparse_init(&tp_solax_pw, uart_pw_buffer, sizeof(uart_pw_buffer), "");
   tparse_ctx_t tp_bms;
-  tparse_init(&tp_bms, uart_bms_buffer, sizeof(uart_bms_buffer), " \n");
+  tparse_init(&tp_bms, uart_bms_buffer, sizeof(uart_bms_buffer), " %\n"); // add % as delim to parse percentage easier
   tparse_ctx_t tp_master;
   tparse_init(&tp_master, uart_usbvcp_buffer, sizeof(uart_usbvcp_buffer), "\n");
 
@@ -843,6 +847,9 @@ void interp(void) {
     402855 613    34000  21000  23000  3354   3360   26000  27000  50323  50390  Charge   Normal   Normal   Normal    84%          42041 mAH  83%           15960 WH 2000-01-03 23:52:40  Normal   Normal   Normal   Normal   0x0
     Command completed successfully
     $$
+
+    #OTO: field indexes
+    0      1      2      3      4      5      6      7      8      9      10     11       12       13       14        15           16    17   18            19
     */
     switch(bms_uart_state) {
       case BMS_UART_STATE_IDLE:
@@ -878,17 +885,51 @@ void interp(void) {
           size_t read = tparse_peek_line(&tp_bms, (char*)tmp, sizeof(tmp));
           master_log("UARTBMS << ");
           master_log_mem(tmp,read);
-          // UARTBMS << Volt   Curr   Tempr  BTlow  BThigh BVlow  BVhigh UTlow  UThigh UVlow  UVhigh Base.St  Volt.St  Curr.St  Temp.St  CouloH                CoulombWH              Time                 B.V.St   B.T.St   U.V.St   U.T.St   Err Code
-          // UARTBMS << 394687 -5704  31000  22000  23000  3286   3292   26000  27000  49300  49373  Dischg   Normal   Normal   Normal    71%       35590 mAH  73%           13986 WH 2000-09-13 04:14:51  Normal   Normal   Normal   Normal   0x0
-          //            0      1      2      3      4      5      6      7      8      9      10     11       12       13       14        15        16    17   18 
           if (bms_uart_state == BMS_UART_STATE_WAIT) {
-            uint32_t val = tparse_token_u32(&tp_bms);
+            uint32_t val = tparse_token_u32(&tp_bms); // Volt
             // if it's the line starting with integer and not a text line
             if (val != -1UL) { 
               pylontech.precise_voltage = (int32_t)val;
-              pylontech.precise_current = (int32_t)tparse_token_i32(&tp_bms);
+              pylontech.precise_current = (int32_t)tparse_token_i32(&tp_bms); // Curr
+
+              tparse_token(&tp_bms, &val, 4); // tempr
+              tparse_token(&tp_bms, &val, 4); // btlow
+              tparse_token(&tp_bms, &val, 4); // bthigh
+              tparse_token(&tp_bms, &val, 4); // bvlow
+              tparse_token(&tp_bms, &val, 4); // bvhigh
+              tparse_token(&tp_bms, &val, 4); // utlow
+              tparse_token(&tp_bms, &val, 4); // uthigh
+              tparse_token(&tp_bms, &val, 4); // uvlow
+              tparse_token(&tp_bms, &val, 4); // uvhigh
+              tparse_token(&tp_bms, &val, 4); // base.st
+              tparse_token(&tp_bms, &val, 4); // volt.st
+              tparse_token(&tp_bms, &val, 4); // curr.st
+              tparse_token(&tp_bms, &val, 4); // temp.st
+              tparse_token(&tp_bms, &val, 4); // coulomb %
+              val = tparse_token_u32(&tp_bms); // coulomb mAh
+              if (val != -1UL) {
+                // only update value when different from previous, to better compute mean consumption
+                if (val != pylontech.precise_mAh) {
+                  // report current drain when 0 is notified
+                  if (pylontech.precise_current == 0) {
+                    pylontech.precise_current = (val - pylontech.precise_mAh) * (36000) / (uwTick - pylontech.precise_mAh_ts) * 100;
+                  }
+                  pylontech.precise_mAh = val;
+                  pylontech.precise_mAh_ts = uwTick;
+                }
+              }
+              tparse_token(&tp_bms, &val, 4); // mAh
+              val = tparse_token_u32(&tp_bms); // coulomb % mWh
+              if (val != -1UL) {
+                pylontech.soc_mWh = val;
+              }
+              val = tparse_token_u32(&tp_bms); // coulomb mWh
+              if (val != -1UL) {
+                pylontech.precise_mWh = val;
+              }
+              // conpute precise current after correction if 0 reported
               pylontech.precise_wattage = ((int32_t)pylontech.precise_current*((int32_t)pylontech.precise_voltage/(int32_t)100))/(int32_t)10000;
-              snprintf((char*)tmp, sizeof(tmp), "  voltage: %ld\n  current: %ld\n  wattage: %ld\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage);
+              snprintf((char*)tmp, sizeof(tmp), "  voltage: %ld\n  current: %ld\n  wattage: %ld\n capacity: %ld\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage, pylontech.precise_mAh);
               master_log((char*)tmp);
               // invariant check
               if ((pylontech.precise_current < 0 && pylontech.precise_wattage >0 )
@@ -1463,7 +1504,7 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_r_length = 0; // wipe the previous buffer content
         // data encoding version
         i2c_xfer_r_length++; // total length, reserve space
-        i2c_xfer_buffer[i2c_xfer_r_length++] = 1; 
+        i2c_xfer_buffer[i2c_xfer_r_length++] = 2; 
 
         // solax state
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.status; 
@@ -1490,8 +1531,7 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech_wattage>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech_wattage&0xFF;
         // bat soc
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.soc>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.soc&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.soc;
         // bat max charge
         i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.max_charge>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge&0xFF;
@@ -1543,6 +1583,11 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_connect_soc;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_disconnect_soc;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge_soc;
+        U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, pylontech.precise_mAh);
+        i2c_xfer_r_length+=4;
+        U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, pylontech.precise_mWh);
+        i2c_xfer_r_length+=4;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.soc_mWh;
         // encode total length
         i2c_xfer_buffer[0] = i2c_xfer_r_length;
       }

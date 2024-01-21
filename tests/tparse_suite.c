@@ -591,22 +591,20 @@ static MunitResult* test_non_reg_parse_capacity(const MunitParameter* params, vo
   munit_assert_int(tparse_token_u32(&ctx), ==, 402855);
   munit_assert_int(tparse_token_i32(&ctx), ==, -613);
   munit_assert_int(tparse_token(&ctx, tmp, 4), == , 4); // tempr
-              fprintf(stderr, "tmp: %s\n", tmp);
-              tparse_token(&ctx, tmp, 4); // btlow
-              tparse_token(&ctx, tmp, 4); // bthigh
-              tparse_token(&ctx, tmp, 4); // bvlow
-              tparse_token(&ctx, tmp, 4); // bvhigh
-              tparse_token(&ctx, tmp, 4); // utlow
-              tparse_token(&ctx, tmp, 4); // uthigh
-              tparse_token(&ctx, tmp, 4); // uvlow
-              tparse_token(&ctx, tmp, 4); // uvhigh
-              tparse_token(&ctx, tmp, 4); // base.st
-              tparse_token(&ctx, tmp, 4); // volt.st
-              tparse_token(&ctx, tmp, 4); // curr.st
-              tparse_token(&ctx, tmp, 4); // temp.st
-              tparse_token(&ctx, tmp, 4); // coulomb %
-              fprintf(stderr, "tmp: %s\n", tmp);
-              munit_assert_int(tparse_token_u32(&ctx), ==, 42041);
+  tparse_token(&ctx, tmp, 4); // btlow
+  tparse_token(&ctx, tmp, 4); // bthigh
+  tparse_token(&ctx, tmp, 4); // bvlow
+  tparse_token(&ctx, tmp, 4); // bvhigh
+  tparse_token(&ctx, tmp, 4); // utlow
+  tparse_token(&ctx, tmp, 4); // uthigh
+  tparse_token(&ctx, tmp, 4); // uvlow
+  tparse_token(&ctx, tmp, 4); // uvhigh
+  tparse_token(&ctx, tmp, 4); // base.st
+  tparse_token(&ctx, tmp, 4); // volt.st
+  tparse_token(&ctx, tmp, 4); // curr.st
+  tparse_token(&ctx, tmp, 4); // temp.st
+  tparse_token(&ctx, tmp, 4); // coulomb %
+  munit_assert_int(tparse_token_u32(&ctx), ==, 42041);
 
   return MUNIT_OK;
 }
@@ -622,8 +620,8 @@ static MunitResult* test_non_reg_parse_capacity2(const MunitParameter* params, v
   uint8_t tmp[300];
   uint8_t* p;
   munit_assert_int(tparse_has_line(&ctx), ==, 223);
-  //munit_assert_int(tparse_token_count(&ctx), ==, 28);
-  munit_assert_int(tparse_token_count(&ctx), ==, 46); // token_count does not skip multiple delims
+  munit_assert_int(tparse_token_count(&ctx), ==, 28);
+  //munit_assert_int(tparse_token_count(&ctx), ==, 46); // token_count does not skip multiple delims
   munit_assert_int(tparse_token_u32(&ctx), ==, 402855); // volt
   munit_assert_int(tparse_token_i32(&ctx), ==, -613); // curr
   munit_assert_int(tparse_token_p(&ctx, &p), == , 5); // tempr
@@ -660,8 +658,8 @@ static MunitResult* test_non_reg_parse_capacity3(const MunitParameter* params, v
   uint8_t tmp[300];
   uint8_t* p;
   munit_assert_int(tparse_has_line(&ctx), ==, 215);
-  //munit_assert_int(tparse_token_count(&ctx), ==, 28);
-  munit_assert_int(tparse_token_count(&ctx), ==, 45); // token_count does not skip multiple delims
+  munit_assert_int(tparse_token_count(&ctx), ==, 28);
+  //munit_assert_int(tparse_token_count(&ctx), ==, 45); // token_count does not skip multiple delims
   munit_assert_int(tparse_token_u32(&ctx), ==, 396988); // volt
   munit_assert_int(tparse_token_i32(&ctx), ==, 0); // curr
   munit_assert_int(tparse_token_p(&ctx, &p), == , 5); // tempr

@@ -11554,6 +11554,19 @@ Discarded input sections
  .group         0x0000000000000000        0xc build_solax/tparse.o
  .group         0x0000000000000000        0xc build_solax/tparse.o
  .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
+ .group         0x0000000000000000        0xc build_solax/tparse.o
  .text          0x0000000000000000        0x0 build_solax/tparse.o
  .data          0x0000000000000000        0x0 build_solax/tparse.o
  .bss           0x0000000000000000        0x0 build_solax/tparse.o
@@ -11566,9 +11579,7 @@ Discarded input sections
  .text.tparse_eol_reached
                 0x0000000000000000        0x8 build_solax/tparse.o
  .text.tparse_token_count
-                0x0000000000000000       0x6e build_solax/tparse.o
- .text.tparse_token
-                0x0000000000000000       0x5c build_solax/tparse.o
+                0x0000000000000000       0x70 build_solax/tparse.o
  .text.tparse_token_in
                 0x0000000000000000       0xe8 build_solax/tparse.o
  .text.tparse_token_hex
@@ -11596,6 +11607,19 @@ Discarded input sections
  .debug_macro   0x0000000000000000      0x103 build_solax/tparse.o
  .debug_macro   0x0000000000000000       0x6a build_solax/tparse.o
  .debug_macro   0x0000000000000000      0x1df build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x1c build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x10 build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x10 build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x1c build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x52 build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x22 build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x10 build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x52 build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0xd5 build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x1c build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x3d build_solax/tparse.o
+ .debug_macro   0x0000000000000000       0x16 build_solax/tparse.o
+ .debug_macro   0x0000000000000000      0x145 build_solax/tparse.o
  .text          0x0000000000000000        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-exit.o)
  .data          0x0000000000000000        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-exit.o)
  .bss           0x0000000000000000        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-exit.o)
@@ -11886,7 +11910,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x0000000008000000                g_pfnVectors
                 0x00000000080001f8                . = ALIGN (0x4)
 
-.text           0x00000000080001f8     0x4a58
+.text           0x00000000080001f8     0x4c6c
                 0x00000000080001f8                . = ALIGN (0x4)
  *(.text)
  .text          0x00000000080001f8       0x48 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
@@ -11958,342 +11982,345 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x0000000008000884        0xc build_solax/solax_bms_interp.o
                 0x0000000008000884                I2C_Slave_Match_Callback
  .text.I2C_Slave_Reception_Callback
-                0x0000000008000890      0x43c build_solax/solax_bms_interp.o
+                0x0000000008000890      0x458 build_solax/solax_bms_interp.o
                 0x0000000008000890                I2C_Slave_Reception_Callback
  .text.I2C_Slave_Ready_To_Transmit_Callback
-                0x0000000008000ccc       0x34 build_solax/solax_bms_interp.o
-                0x0000000008000ccc                I2C_Slave_Ready_To_Transmit_Callback
+                0x0000000008000ce8       0x34 build_solax/solax_bms_interp.o
+                0x0000000008000ce8                I2C_Slave_Ready_To_Transmit_Callback
  .text.I2C_Error_Callback
-                0x0000000008000d00       0x1c build_solax/solax_bms_interp.o
-                0x0000000008000d00                I2C_Error_Callback
+                0x0000000008000d1c       0x1c build_solax/solax_bms_interp.o
+                0x0000000008000d1c                I2C_Error_Callback
  .text.I2CS_EV_IRQHandler
-                0x0000000008000d1c       0x94 build_solax/solax_bms_interp.o
-                0x0000000008000d1c                I2CS_EV_IRQHandler
+                0x0000000008000d38       0x94 build_solax/solax_bms_interp.o
+                0x0000000008000d38                I2CS_EV_IRQHandler
  .text.I2CS_ER_IRQHandler
-                0x0000000008000db0        0x8 build_solax/solax_bms_interp.o
-                0x0000000008000db0                I2CS_ER_IRQHandler
+                0x0000000008000dcc        0x8 build_solax/solax_bms_interp.o
+                0x0000000008000dcc                I2CS_ER_IRQHandler
  .text.Configure_I2C_Slave
-                0x0000000008000db8      0x3f4 build_solax/solax_bms_interp.o
-                0x0000000008000db8                Configure_I2C_Slave
- .text.interp   0x00000000080011ac     0x1394 build_solax/solax_bms_interp.o
-                0x00000000080011ac                interp
+                0x0000000008000dd4      0x3f4 build_solax/solax_bms_interp.o
+                0x0000000008000dd4                Configure_I2C_Slave
+ .text.interp   0x00000000080011c8     0x1498 build_solax/solax_bms_interp.o
+                0x00000000080011c8                interp
  .text.Reset_Handler
-                0x0000000008002540       0x50 build_solax/startup_stm32f767xx.o
-                0x0000000008002540                Reset_Handler
- .text.can_rx   0x0000000008002590       0xde build_solax/intf_can.o
- *fill*         0x000000000800266e        0x2 
+                0x0000000008002660       0x50 build_solax/startup_stm32f767xx.o
+                0x0000000008002660                Reset_Handler
+ .text.can_rx   0x00000000080026b0       0xde build_solax/intf_can.o
+ *fill*         0x000000000800278e        0x2 
  .text.can_get_idx
-                0x0000000008002670       0x14 build_solax/intf_can.o
-                0x0000000008002670                can_get_idx
- .text.can_tx   0x0000000008002684      0x104 build_solax/intf_can.o
-                0x0000000008002684                can_tx
+                0x0000000008002790       0x14 build_solax/intf_can.o
+                0x0000000008002790                can_get_idx
+ .text.can_tx   0x00000000080027a4      0x104 build_solax/intf_can.o
+                0x00000000080027a4                can_tx
  .text.CAN_IRQHandler_init
-                0x0000000008002788       0x18 build_solax/intf_can.o
-                0x0000000008002788                CAN_IRQHandler_init
+                0x00000000080028a8       0x18 build_solax/intf_can.o
+                0x00000000080028a8                CAN_IRQHandler_init
  .text.Configure_CAN_generic
-                0x00000000080027a0      0x128 build_solax/intf_can.o
+                0x00000000080028c0      0x128 build_solax/intf_can.o
  .text.CANx_RXy_IRQHandler
-                0x00000000080028c8       0x88 build_solax/intf_can.o
-                0x00000000080028c8                CANx_RXy_IRQHandler
+                0x00000000080029e8       0x88 build_solax/intf_can.o
+                0x00000000080029e8                CANx_RXy_IRQHandler
  .text.CAN1_RX0_IRQHandler
-                0x0000000008002950       0x10 build_solax/intf_can.o
-                0x0000000008002950                CAN1_RX0_IRQHandler
+                0x0000000008002a70       0x10 build_solax/intf_can.o
+                0x0000000008002a70                CAN1_RX0_IRQHandler
  .text.CAN1_RX1_IRQHandler
-                0x0000000008002960       0x10 build_solax/intf_can.o
-                0x0000000008002960                CAN1_RX1_IRQHandler
+                0x0000000008002a80       0x10 build_solax/intf_can.o
+                0x0000000008002a80                CAN1_RX1_IRQHandler
  .text.CAN3_RX0_IRQHandler
-                0x0000000008002970       0x10 build_solax/intf_can.o
-                0x0000000008002970                CAN3_RX0_IRQHandler
+                0x0000000008002a90       0x10 build_solax/intf_can.o
+                0x0000000008002a90                CAN3_RX0_IRQHandler
  .text.CAN3_RX1_IRQHandler
-                0x0000000008002980       0x10 build_solax/intf_can.o
-                0x0000000008002980                CAN3_RX1_IRQHandler
+                0x0000000008002aa0       0x10 build_solax/intf_can.o
+                0x0000000008002aa0                CAN3_RX1_IRQHandler
  .text.can_fifo_avail
-                0x0000000008002990       0x24 build_solax/intf_can.o
-                0x0000000008002990                can_fifo_avail
+                0x0000000008002ab0       0x24 build_solax/intf_can.o
+                0x0000000008002ab0                can_fifo_avail
  .text.can_fifo_rx
-                0x00000000080029b4       0xac build_solax/intf_can.o
-                0x00000000080029b4                can_fifo_rx
+                0x0000000008002ad4       0xac build_solax/intf_can.o
+                0x0000000008002ad4                can_fifo_rx
  .text.Configure_CAN1
-                0x0000000008002a60      0x2c4 build_solax/intf_can.o
-                0x0000000008002a60                Configure_CAN1
+                0x0000000008002b80      0x2c4 build_solax/intf_can.o
+                0x0000000008002b80                Configure_CAN1
  .text.Configure_CAN3
-                0x0000000008002d24      0x2e8 build_solax/intf_can.o
-                0x0000000008002d24                Configure_CAN3
+                0x0000000008002e44      0x2e8 build_solax/intf_can.o
+                0x0000000008002e44                Configure_CAN3
  .text.NMI_Handler
-                0x000000000800300c        0x4 build_solax/stm32f7xx_it.o
-                0x000000000800300c                NMI_Handler
+                0x000000000800312c        0x4 build_solax/stm32f7xx_it.o
+                0x000000000800312c                NMI_Handler
  .text.SysTick_Handler
-                0x0000000008003010       0x10 build_solax/stm32f7xx_it.o
-                0x0000000008003010                SysTick_Handler
+                0x0000000008003130       0x10 build_solax/stm32f7xx_it.o
+                0x0000000008003130                SysTick_Handler
  .text.uart_select_intf
-                0x0000000008003020        0xc build_solax/intf_usart.o
-                0x0000000008003020                uart_select_intf
+                0x0000000008003140        0xc build_solax/intf_usart.o
+                0x0000000008003140                uart_select_intf
  .text.uart_send_mem
-                0x000000000800302c       0x48 build_solax/intf_usart.o
-                0x000000000800302c                uart_send_mem
+                0x000000000800314c       0x48 build_solax/intf_usart.o
+                0x000000000800314c                uart_send_mem
  .text.uart_send
-                0x0000000008003074       0x12 build_solax/intf_usart.o
-                0x0000000008003074                uart_send
- .text.n2h      0x0000000008003086       0x10 build_solax/intf_usart.o
-                0x0000000008003086                n2h
+                0x0000000008003194       0x12 build_solax/intf_usart.o
+                0x0000000008003194                uart_send
+ .text.n2h      0x00000000080031a6       0x10 build_solax/intf_usart.o
+                0x00000000080031a6                n2h
  .text.uart_send_hex
-                0x0000000008003096       0x42 build_solax/intf_usart.o
-                0x0000000008003096                uart_send_hex
+                0x00000000080031b6       0x42 build_solax/intf_usart.o
+                0x00000000080031b6                uart_send_hex
  .text.Configure_USBVCP
-                0x00000000080030d8      0x400 build_solax/intf_usart.o
-                0x00000000080030d8                Configure_USBVCP
+                0x00000000080031f8      0x400 build_solax/intf_usart.o
+                0x00000000080031f8                Configure_USBVCP
  .text.Configure_UARTPW
-                0x00000000080034d8      0x440 build_solax/intf_usart.o
-                0x00000000080034d8                Configure_UARTPW
+                0x00000000080035f8      0x440 build_solax/intf_usart.o
+                0x00000000080035f8                Configure_UARTPW
  .text.Configure_UARTBMS
-                0x0000000008003918      0x440 build_solax/intf_usart.o
-                0x0000000008003918                Configure_UARTBMS
+                0x0000000008003a38      0x440 build_solax/intf_usart.o
+                0x0000000008003a38                Configure_UARTBMS
  .text.gpio_set
-                0x0000000008003d58      0x12c build_solax/intf_gpio.o
-                0x0000000008003d58                gpio_set
+                0x0000000008003e78      0x12c build_solax/intf_gpio.o
+                0x0000000008003e78                gpio_set
  .text.tparse_al_time
-                0x0000000008003e84        0xc build_solax/main.o
-                0x0000000008003e84                tparse_al_time
- .text.main     0x0000000008003e90        0x8 build_solax/main.o
-                0x0000000008003e90                main
+                0x0000000008003fa4        0xc build_solax/main.o
+                0x0000000008003fa4                tparse_al_time
+ .text.main     0x0000000008003fb0        0x8 build_solax/main.o
+                0x0000000008003fb0                main
  .text.SystemInit
-                0x0000000008003e98        0x2 build_solax/system_stm32f7xx.o
-                0x0000000008003e98                SystemInit
- *fill*         0x0000000008003e9a        0x2 
+                0x0000000008003fb8        0x2 build_solax/system_stm32f7xx.o
+                0x0000000008003fb8                SystemInit
+ *fill*         0x0000000008003fba        0x2 
  .text.LL_mDelay
-                0x0000000008003e9c       0x28 build_solax/stm32f7xx_ll_utils.o
-                0x0000000008003e9c                LL_mDelay
+                0x0000000008003fbc       0x28 build_solax/stm32f7xx_ll_utils.o
+                0x0000000008003fbc                LL_mDelay
  .text.LL_SetSystemCoreClock
-                0x0000000008003ec4        0xc build_solax/stm32f7xx_ll_utils.o
-                0x0000000008003ec4                LL_SetSystemCoreClock
+                0x0000000008003fe4        0xc build_solax/stm32f7xx_ll_utils.o
+                0x0000000008003fe4                LL_SetSystemCoreClock
  .text.tparse_init
-                0x0000000008003ed0       0x24 build_solax/tparse.o
-                0x0000000008003ed0                tparse_init
+                0x0000000008003ff0       0x24 build_solax/tparse.o
+                0x0000000008003ff0                tparse_init
  .text.tparse_finger
-                0x0000000008003ef4       0x1e build_solax/tparse.o
-                0x0000000008003ef4                tparse_finger
+                0x0000000008004014       0x1e build_solax/tparse.o
+                0x0000000008004014                tparse_finger
  .text.tparse_reset
-                0x0000000008003f12       0x1a build_solax/tparse.o
-                0x0000000008003f12                tparse_reset
+                0x0000000008004032       0x1a build_solax/tparse.o
+                0x0000000008004032                tparse_reset
  .text.tparse_discard
-                0x0000000008003f2c        0x6 build_solax/tparse.o
-                0x0000000008003f2c                tparse_discard
+                0x000000000800404c        0x6 build_solax/tparse.o
+                0x000000000800404c                tparse_discard
  .text.tparse_discard_line
-                0x0000000008003f32       0x5c build_solax/tparse.o
-                0x0000000008003f32                tparse_discard_line
+                0x0000000008004052       0x5c build_solax/tparse.o
+                0x0000000008004052                tparse_discard_line
  .text.tparse_token_internal
-                0x0000000008003f8e       0xd4 build_solax/tparse.o
-                0x0000000008003f8e                tparse_token_internal
+                0x00000000080040ae      0x134 build_solax/tparse.o
+                0x00000000080040ae                tparse_token_internal
  .text.tparse_token_p
-                0x0000000008004062        0xc build_solax/tparse.o
-                0x0000000008004062                tparse_token_p
+                0x00000000080041e2       0x14 build_solax/tparse.o
+                0x00000000080041e2                tparse_token_p
  .text.tparse_avail
-                0x000000000800406e       0x14 build_solax/tparse.o
-                0x000000000800406e                tparse_avail
+                0x00000000080041f6       0x14 build_solax/tparse.o
+                0x00000000080041f6                tparse_avail
  .text.tparse_read
-                0x0000000008004082       0x62 build_solax/tparse.o
-                0x0000000008004082                tparse_read
+                0x000000000800420a       0x62 build_solax/tparse.o
+                0x000000000800420a                tparse_read
  .text.tparse_has_line
-                0x00000000080040e4       0x2c build_solax/tparse.o
-                0x00000000080040e4                tparse_has_line
+                0x000000000800426c       0x2c build_solax/tparse.o
+                0x000000000800426c                tparse_has_line
  .text.tparse_peek_line
-                0x0000000008004110       0x50 build_solax/tparse.o
-                0x0000000008004110                tparse_peek_line
+                0x0000000008004298       0x50 build_solax/tparse.o
+                0x0000000008004298                tparse_peek_line
  .text.tparse_token_size
-                0x0000000008004160       0x36 build_solax/tparse.o
-                0x0000000008004160                tparse_token_size
+                0x00000000080042e8       0x3a build_solax/tparse.o
+                0x00000000080042e8                tparse_token_size
  .text.tparse_token_parts
-                0x0000000008004196       0x42 build_solax/tparse.o
-                0x0000000008004196                tparse_token_parts
+                0x0000000008004322       0x6e build_solax/tparse.o
+                0x0000000008004322                tparse_token_parts
+ .text.tparse_token
+                0x0000000008004390       0x5c build_solax/tparse.o
+                0x0000000008004390                tparse_token
  .text.tparse_token_u32_base
-                0x00000000080041d8       0xcc build_solax/tparse.o
-                0x00000000080041d8                tparse_token_u32_base
+                0x00000000080043ec       0xcc build_solax/tparse.o
+                0x00000000080043ec                tparse_token_u32_base
  .text.tparse_token_u32
-                0x00000000080042a4        0xa build_solax/tparse.o
-                0x00000000080042a4                tparse_token_u32
+                0x00000000080044b8        0xa build_solax/tparse.o
+                0x00000000080044b8                tparse_token_u32
  .text.tparse_token_i32
-                0x00000000080042ae        0xa build_solax/tparse.o
-                0x00000000080042ae                tparse_token_i32
+                0x00000000080044c2        0xa build_solax/tparse.o
+                0x00000000080044c2                tparse_token_i32
  .text.__libc_init_array
-                0x00000000080042b8       0x48 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-init.o)
-                0x00000000080042b8                __libc_init_array
- .text.memmove  0x0000000008004300       0x26 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memmove.o)
-                0x0000000008004300                memmove
- .text.memset   0x0000000008004326       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memset.o)
-                0x0000000008004326                memset
- *fill*         0x0000000008004336        0x2 
+                0x00000000080044cc       0x48 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-init.o)
+                0x00000000080044cc                __libc_init_array
+ .text.memmove  0x0000000008004514       0x26 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memmove.o)
+                0x0000000008004514                memmove
+ .text.memset   0x000000000800453a       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memset.o)
+                0x000000000800453a                memset
+ *fill*         0x000000000800454a        0x2 
  .text.snprintf
-                0x0000000008004338       0x68 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-snprintf.o)
-                0x0000000008004338                snprintf
-                0x0000000008004338                sniprintf
- .text.strstr   0x00000000080043a0       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-strstr.o)
-                0x00000000080043a0                strstr
+                0x000000000800454c       0x68 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-snprintf.o)
+                0x000000000800454c                snprintf
+                0x000000000800454c                sniprintf
+ .text.strstr   0x00000000080045b4       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-strstr.o)
+                0x00000000080045b4                strstr
  .text.__ssputs_r
-                0x00000000080043cc       0xc4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-svfprintf.o)
-                0x00000000080043cc                __ssputs_r
+                0x00000000080045e0       0xc4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-svfprintf.o)
+                0x00000000080045e0                __ssputs_r
  .text._svfprintf_r
-                0x0000000008004490      0x200 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-svfprintf.o)
-                0x0000000008004490                _svfprintf_r
-                0x0000000008004490                _svfiprintf_r
+                0x00000000080046a4      0x200 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-svfprintf.o)
+                0x00000000080046a4                _svfprintf_r
+                0x00000000080046a4                _svfiprintf_r
  .text._printf_common
-                0x0000000008004690       0xde /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-vfprintf_i.o)
-                0x0000000008004690                _printf_common
- *fill*         0x000000000800476e        0x2 
+                0x00000000080048a4       0xde /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-vfprintf_i.o)
+                0x00000000080048a4                _printf_common
+ *fill*         0x0000000008004982        0x2 
  .text._printf_i
-                0x0000000008004770      0x224 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-vfprintf_i.o)
-                0x0000000008004770                _printf_i
- .text.memchr   0x0000000008004994       0x16 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memchr-stub.o)
-                0x0000000008004994                memchr
- .text.memcpy   0x00000000080049aa       0x12 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memcpy-stub.o)
-                0x00000000080049aa                memcpy
- .text._free_r  0x00000000080049bc       0x94 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-freer.o)
-                0x00000000080049bc                _free_r
+                0x0000000008004984      0x224 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-vfprintf_i.o)
+                0x0000000008004984                _printf_i
+ .text.memchr   0x0000000008004ba8       0x16 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memchr-stub.o)
+                0x0000000008004ba8                memchr
+ .text.memcpy   0x0000000008004bbe       0x12 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memcpy-stub.o)
+                0x0000000008004bbe                memcpy
+ .text._free_r  0x0000000008004bd0       0x94 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-freer.o)
+                0x0000000008004bd0                _free_r
  .text.sbrk_aligned
-                0x0000000008004a50       0x44 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
+                0x0000000008004c64       0x44 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
  .text._malloc_r
-                0x0000000008004a94       0xec /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
-                0x0000000008004a94                _malloc_r
+                0x0000000008004ca8       0xec /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
+                0x0000000008004ca8                _malloc_r
  .text._realloc_r
-                0x0000000008004b80       0x5e /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-reallocr.o)
-                0x0000000008004b80                _realloc_r
- *fill*         0x0000000008004bde        0x2 
- .text._sbrk_r  0x0000000008004be0       0x24 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-sbrkr.o)
-                0x0000000008004be0                _sbrk_r
+                0x0000000008004d94       0x5e /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-reallocr.o)
+                0x0000000008004d94                _realloc_r
+ *fill*         0x0000000008004df2        0x2 
+ .text._sbrk_r  0x0000000008004df4       0x24 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-sbrkr.o)
+                0x0000000008004df4                _sbrk_r
  .text.__malloc_lock
-                0x0000000008004c04       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-mlock.o)
-                0x0000000008004c04                __malloc_lock
+                0x0000000008004e18       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-mlock.o)
+                0x0000000008004e18                __malloc_lock
  .text.__malloc_unlock
-                0x0000000008004c14       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-mlock.o)
-                0x0000000008004c14                __malloc_unlock
+                0x0000000008004e28       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-mlock.o)
+                0x0000000008004e28                __malloc_unlock
  .text._malloc_usable_size_r
-                0x0000000008004c24       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-msizer.o)
-                0x0000000008004c24                _malloc_usable_size_r
+                0x0000000008004e38       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-msizer.o)
+                0x0000000008004e38                _malloc_usable_size_r
  .text.__retarget_lock_acquire_recursive
-                0x0000000008004c34        0x2 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-lock.o)
-                0x0000000008004c34                __retarget_lock_acquire_recursive
+                0x0000000008004e48        0x2 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-lock.o)
+                0x0000000008004e48                __retarget_lock_acquire_recursive
  .text.__retarget_lock_release_recursive
-                0x0000000008004c36        0x2 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-lock.o)
-                0x0000000008004c36                __retarget_lock_release_recursive
+                0x0000000008004e4a        0x2 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-lock.o)
+                0x0000000008004e4a                __retarget_lock_release_recursive
  *(.glue_7)
- .glue_7        0x0000000008004c38        0x0 linker stubs
+ .glue_7        0x0000000008004e4c        0x0 linker stubs
  *(.glue_7t)
- .glue_7t       0x0000000008004c38        0x0 linker stubs
+ .glue_7t       0x0000000008004e4c        0x0 linker stubs
  *(.eh_frame)
- .eh_frame      0x0000000008004c38        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
+ .eh_frame      0x0000000008004e4c        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
  *(.init)
- .init          0x0000000008004c38        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crti.o
-                0x0000000008004c38                _init
- .init          0x0000000008004c3c        0x8 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtn.o
+ .init          0x0000000008004e4c        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crti.o
+                0x0000000008004e4c                _init
+ .init          0x0000000008004e50        0x8 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtn.o
  *(.fini)
- .fini          0x0000000008004c44        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crti.o
-                0x0000000008004c44                _fini
- .fini          0x0000000008004c48        0x8 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtn.o
-                0x0000000008004c50                . = ALIGN (0x4)
-                0x0000000008004c50                _etext = .
+ .fini          0x0000000008004e58        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crti.o
+                0x0000000008004e58                _fini
+ .fini          0x0000000008004e5c        0x8 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtn.o
+                0x0000000008004e64                . = ALIGN (0x4)
+                0x0000000008004e64                _etext = .
 
-.vfp11_veneer   0x0000000008004c50        0x0
- .vfp11_veneer  0x0000000008004c50        0x0 linker stubs
+.vfp11_veneer   0x0000000008004e64        0x0
+ .vfp11_veneer  0x0000000008004e64        0x0 linker stubs
 
-.v4_bx          0x0000000008004c50        0x0
- .v4_bx         0x0000000008004c50        0x0 linker stubs
+.v4_bx          0x0000000008004e64        0x0
+ .v4_bx         0x0000000008004e64        0x0 linker stubs
 
-.iplt           0x0000000008004c50        0x0
- .iplt          0x0000000008004c50        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
+.iplt           0x0000000008004e64        0x0
+ .iplt          0x0000000008004e64        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
 
-.rodata         0x0000000008004c50      0x6bc
-                0x0000000008004c50                . = ALIGN (0x4)
+.rodata         0x0000000008004e64      0x6cc
+                0x0000000008004e64                . = ALIGN (0x4)
  *(.rodata)
- .rodata        0x0000000008004c50        0x9 build_solax/solax_bms_interp.o
+ .rodata        0x0000000008004e64        0x9 build_solax/solax_bms_interp.o
  *(.rodata*)
- *fill*         0x0000000008004c59        0x3 
+ *fill*         0x0000000008004e6d        0x3 
  .rodata.master_log_can.str1.4
-                0x0000000008004c5c       0x10 build_solax/solax_bms_interp.o
+                0x0000000008004e70       0x10 build_solax/solax_bms_interp.o
                                          0x12 (size before relaxing)
  .rodata.can_solax_tx_log.str1.4
-                0x0000000008004c6c        0xf build_solax/solax_bms_interp.o
- *fill*         0x0000000008004c7b        0x1 
+                0x0000000008004e80        0xf build_solax/solax_bms_interp.o
+ *fill*         0x0000000008004e8f        0x1 
  .rodata.can_bms_tx_log.str1.4
-                0x0000000008004c7c        0xf build_solax/solax_bms_interp.o
- *fill*         0x0000000008004c8b        0x1 
+                0x0000000008004e90        0xf build_solax/solax_bms_interp.o
+ *fill*         0x0000000008004e9f        0x1 
  .rodata.I2C_Slave_Reception_Callback.str1.4
-                0x0000000008004c8c       0xc0 build_solax/solax_bms_interp.o
+                0x0000000008004ea0       0xc0 build_solax/solax_bms_interp.o
  .rodata.I2C_Slave_Reception_Callback
-                0x0000000008004d4c       0x40 build_solax/solax_bms_interp.o
+                0x0000000008004f60       0x40 build_solax/solax_bms_interp.o
  .rodata.interp.str1.4
-                0x0000000008004d8c      0x4d5 build_solax/solax_bms_interp.o
-                                        0x4d9 (size before relaxing)
- *fill*         0x0000000008005261        0x3 
+                0x0000000008004fa0      0x4e5 build_solax/solax_bms_interp.o
+                                        0x4e9 (size before relaxing)
+ *fill*         0x0000000008005485        0x3 
  .rodata.interp
-                0x0000000008005264       0x20 build_solax/solax_bms_interp.o
+                0x0000000008005488       0x20 build_solax/solax_bms_interp.o
  .rodata.solax_pw_cfg_PIN
-                0x0000000008005284        0x9 build_solax/solax_bms_interp.o
-                0x0000000008005284                solax_pw_cfg_PIN
- *fill*         0x000000000800528d        0x3 
+                0x00000000080054a8        0x9 build_solax/solax_bms_interp.o
+                0x00000000080054a8                solax_pw_cfg_PIN
+ *fill*         0x00000000080054b1        0x3 
  .rodata.solax_pw_cfg_gmppt_pv1_high
-                0x0000000008005290        0x9 build_solax/solax_bms_interp.o
-                0x0000000008005290                solax_pw_cfg_gmppt_pv1_high
- *fill*         0x0000000008005299        0x3 
+                0x00000000080054b4        0x9 build_solax/solax_bms_interp.o
+                0x00000000080054b4                solax_pw_cfg_gmppt_pv1_high
+ *fill*         0x00000000080054bd        0x3 
  .rodata.solax_pw_cfg_gmppt_pv1_off
-                0x000000000800529c        0x9 build_solax/solax_bms_interp.o
-                0x000000000800529c                solax_pw_cfg_gmppt_pv1_off
- *fill*         0x00000000080052a5        0x3 
+                0x00000000080054c0        0x9 build_solax/solax_bms_interp.o
+                0x00000000080054c0                solax_pw_cfg_gmppt_pv1_off
+ *fill*         0x00000000080054c9        0x3 
  .rodata.solax_pw_cfg_manual_stop
-                0x00000000080052a8        0x9 build_solax/solax_bms_interp.o
-                0x00000000080052a8                solax_pw_cfg_manual_stop
- *fill*         0x00000000080052b1        0x3 
+                0x00000000080054cc        0x9 build_solax/solax_bms_interp.o
+                0x00000000080054cc                solax_pw_cfg_manual_stop
+ *fill*         0x00000000080054d5        0x3 
  .rodata.solax_pw_cmd_change_bitrate
-                0x00000000080052b4        0x7 build_solax/solax_bms_interp.o
-                0x00000000080052b4                solax_pw_cmd_change_bitrate
- *fill*         0x00000000080052bb        0x1 
+                0x00000000080054d8        0x7 build_solax/solax_bms_interp.o
+                0x00000000080054d8                solax_pw_cmd_change_bitrate
+ *fill*         0x00000000080054df        0x1 
  .rodata.solax_pw_cmd_get_stat_0x25F
-                0x00000000080052bc        0x7 build_solax/solax_bms_interp.o
-                0x00000000080052bc                solax_pw_cmd_get_stat_0x25F
- *fill*         0x00000000080052c3        0x1 
+                0x00000000080054e0        0x7 build_solax/solax_bms_interp.o
+                0x00000000080054e0                solax_pw_cmd_get_stat_0x25F
+ *fill*         0x00000000080054e7        0x1 
  .rodata.solax_pw_cmd_mode_manual
-                0x00000000080052c4        0x9 build_solax/solax_bms_interp.o
-                0x00000000080052c4                solax_pw_cmd_mode_manual
- *fill*         0x00000000080052cd        0x3 
+                0x00000000080054e8        0x9 build_solax/solax_bms_interp.o
+                0x00000000080054e8                solax_pw_cmd_mode_manual
+ *fill*         0x00000000080054f1        0x3 
  .rodata.solax_pw_cmd_mode_self_use
-                0x00000000080052d0        0x9 build_solax/solax_bms_interp.o
-                0x00000000080052d0                solax_pw_cmd_mode_self_use
+                0x00000000080054f4        0x9 build_solax/solax_bms_interp.o
+                0x00000000080054f4                solax_pw_cmd_mode_self_use
  .rodata._svfprintf_r.str1.1
-                0x00000000080052d9       0x11 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-svfprintf.o)
+                0x00000000080054fd       0x11 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-svfprintf.o)
  .rodata._printf_i.str1.1
-                0x00000000080052ea       0x22 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-vfprintf_i.o)
-                0x000000000800530c                . = ALIGN (0x4)
+                0x000000000800550e       0x22 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-vfprintf_i.o)
+                0x0000000008005530                . = ALIGN (0x4)
 
-.rel.dyn        0x000000000800530c        0x0
- .rel.iplt      0x000000000800530c        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
+.rel.dyn        0x0000000008005530        0x0
+ .rel.iplt      0x0000000008005530        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
 
 .ARM.extab
  *(.ARM.extab* .gnu.linkonce.armextab.*)
 
-.ARM            0x000000000800530c        0x0
-                0x000000000800530c                __exidx_start = .
+.ARM            0x0000000008005530        0x0
+                0x0000000008005530                __exidx_start = .
  *(.ARM.exidx*)
-                0x000000000800530c                __exidx_end = .
+                0x0000000008005530                __exidx_end = .
 
-.preinit_array  0x000000000800530c        0x0
-                0x000000000800530c                PROVIDE (__preinit_array_start = .)
+.preinit_array  0x0000000008005530        0x0
+                0x0000000008005530                PROVIDE (__preinit_array_start = .)
  *(.preinit_array*)
-                0x000000000800530c                PROVIDE (__preinit_array_end = .)
+                0x0000000008005530                PROVIDE (__preinit_array_end = .)
 
-.init_array     0x000000000800530c        0x4
-                0x000000000800530c                PROVIDE (__init_array_start = .)
+.init_array     0x0000000008005530        0x4
+                0x0000000008005530                PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
- .init_array    0x000000000800530c        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
-                0x0000000008005310                PROVIDE (__init_array_end = .)
+ .init_array    0x0000000008005530        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
+                0x0000000008005534                PROVIDE (__init_array_end = .)
 
-.fini_array     0x0000000008005310        0x4
+.fini_array     0x0000000008005534        0x4
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
- .fini_array    0x0000000008005310        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
+ .fini_array    0x0000000008005534        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
                 [!provide]                        PROVIDE (__fini_array_end = .)
-                0x0000000008005314                _sidata = LOADADDR (.data)
+                0x0000000008005538                _sidata = LOADADDR (.data)
 
-.data           0x0000000020000000       0x70 load address 0x0000000008005314
+.data           0x0000000020000000       0x70 load address 0x0000000008005538
                 0x0000000020000000                . = ALIGN (0x4)
                 0x0000000020000000                _sdata = .
  *(.data)
@@ -12315,11 +12342,11 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x0000000020000070                . = ALIGN (0x4)
                 0x0000000020000070                _edata = .
 
-.igot.plt       0x0000000020000070        0x0 load address 0x0000000008005384
+.igot.plt       0x0000000020000070        0x0 load address 0x00000000080055a8
  .igot.plt      0x0000000020000070        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/crtbegin.o
                 0x0000000020000070                . = ALIGN (0x4)
 
-.bss            0x0000000020000070     0x41d8 load address 0x0000000008005384
+.bss            0x0000000020000070     0x41e4 load address 0x00000000080055a8
                 0x0000000020000070                _sbss = .
                 0x0000000020000070                __bss_start__ = _sbss
  *(.bss)
@@ -12347,69 +12374,70 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x0000000020000120        0x4 build_solax/solax_bms_interp.o
                 0x0000000020000120                i2c_xfer_w_length
  .bss.pylontech
-                0x0000000020000124       0x2c build_solax/solax_bms_interp.o
+                0x0000000020000124       0x38 build_solax/solax_bms_interp.o
                 0x0000000020000124                pylontech
  .bss.pylontech_cached_infos
-                0x0000000020000150       0x60 build_solax/solax_bms_interp.o
-                0x0000000020000150                pylontech_cached_infos
+                0x000000002000015c       0x60 build_solax/solax_bms_interp.o
+                0x000000002000015c                pylontech_cached_infos
  .bss.self_use_auto
-                0x00000000200001b0        0x4 build_solax/solax_bms_interp.o
-                0x00000000200001b0                self_use_auto
- .bss.solax     0x00000000200001b4       0x2e build_solax/solax_bms_interp.o
-                0x00000000200001b4                solax
+                0x00000000200001bc        0x4 build_solax/solax_bms_interp.o
+                0x00000000200001bc                self_use_auto
+ .bss.solax     0x00000000200001c0       0x2e build_solax/solax_bms_interp.o
+                0x00000000200001c0                solax
  .bss.solax_forced_work_mode
-                0x00000000200001e2        0x1 build_solax/solax_bms_interp.o
-                0x00000000200001e2                solax_forced_work_mode
- *fill*         0x00000000200001e3        0x1 
+                0x00000000200001ee        0x1 build_solax/solax_bms_interp.o
+                0x00000000200001ee                solax_forced_work_mode
+ *fill*         0x00000000200001ef        0x1 
  .bss.solax_pw_queue
-                0x00000000200001e4       0x24 build_solax/solax_bms_interp.o
-                0x00000000200001e4                solax_pw_queue
+                0x00000000200001f0       0x24 build_solax/solax_bms_interp.o
+                0x00000000200001f0                solax_pw_queue
  .bss.G_can_fifo_rx
-                0x0000000020000208     0x2808 build_solax/intf_can.o
-                0x0000000020000208                G_can_fifo_rx
+                0x0000000020000214     0x2808 build_solax/intf_can.o
+                0x0000000020000214                G_can_fifo_rx
  .bss.uart_bms_buffer
-                0x0000000020002a10      0x800 build_solax/intf_usart.o
-                0x0000000020002a10                uart_bms_buffer
+                0x0000000020002a1c      0x800 build_solax/intf_usart.o
+                0x0000000020002a1c                uart_bms_buffer
  .bss.uart_pw_buffer
-                0x0000000020003210      0x800 build_solax/intf_usart.o
-                0x0000000020003210                uart_pw_buffer
+                0x000000002000321c      0x800 build_solax/intf_usart.o
+                0x000000002000321c                uart_pw_buffer
  .bss.uart_usbvcp_buffer
-                0x0000000020003a10      0x420 build_solax/intf_usart.o
-                0x0000000020003a10                uart_usbvcp_buffer
+                0x0000000020003a1c      0x420 build_solax/intf_usart.o
+                0x0000000020003a1c                uart_usbvcp_buffer
  .bss.usart_intf
-                0x0000000020003e30        0x4 build_solax/intf_usart.o
-                0x0000000020003e30                usart_intf
- .bss.tmp       0x0000000020003e34      0x400 build_solax/main.o
-                0x0000000020003e34                tmp
- .bss.uwTick    0x0000000020004234        0x4 build_solax/stm32f7xx_hal.o
-                0x0000000020004234                uwTick
+                0x0000000020003e3c        0x4 build_solax/intf_usart.o
+                0x0000000020003e3c                usart_intf
+ .bss.tmp       0x0000000020003e40      0x400 build_solax/main.o
+                0x0000000020003e40                tmp
+ .bss.uwTick    0x0000000020004240        0x4 build_solax/stm32f7xx_hal.o
+                0x0000000020004240                uwTick
  .bss.__malloc_free_list
-                0x0000000020004238        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
-                0x0000000020004238                __malloc_free_list
+                0x0000000020004244        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
+                0x0000000020004244                __malloc_free_list
  .bss.__malloc_sbrk_start
-                0x000000002000423c        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
-                0x000000002000423c                __malloc_sbrk_start
- .bss.errno     0x0000000020004240        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-reent.o)
-                0x0000000020004240                errno
+                0x0000000020004248        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
+                0x0000000020004248                __malloc_sbrk_start
+ .bss.errno     0x000000002000424c        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-reent.o)
+                0x000000002000424c                errno
  .bss.__lock___malloc_recursive_mutex
-                0x0000000020004244        0x1 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-lock.o)
-                0x0000000020004244                __lock___malloc_recursive_mutex
+                0x0000000020004250        0x1 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-lock.o)
+                0x0000000020004250                __lock___malloc_recursive_mutex
  *(COMMON)
-                0x0000000020004248                . = ALIGN (0x4)
- *fill*         0x0000000020004245        0x3 
-                0x0000000020004248                _ebss = .
-                0x0000000020004248                __bss_end__ = _ebss
+                0x0000000020004254                . = ALIGN (0x4)
+ *fill*         0x0000000020004251        0x3 
+                0x0000000020004254                _ebss = .
+                0x0000000020004254                __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x0000000020004248      0x600 load address 0x0000000008005384
-                0x0000000020004248                . = ALIGN (0x8)
+                0x0000000020004254      0x604 load address 0x00000000080055a8
+                0x0000000020004258                . = ALIGN (0x8)
+ *fill*         0x0000000020004254        0x4 
                 [!provide]                        PROVIDE (end = .)
                 [!provide]                        PROVIDE (_end = .)
-                0x0000000020004448                . = (. + _Min_Heap_Size)
- *fill*         0x0000000020004248      0x200 
-                0x0000000020004848                . = (. + _Min_Stack_Size)
- *fill*         0x0000000020004448      0x400 
-                0x0000000020004848                . = ALIGN (0x8)
+                0x0000000020004458                . = (. + _Min_Heap_Size)
+ *fill*         0x0000000020004258      0x200 
+                0x0000000020004858                . = (. + _Min_Stack_Size)
+ *fill*         0x0000000020004458      0x400 
+                0x0000000020004858                . = ALIGN (0x8)
 
 /DISCARD/
  libc.a(*)
@@ -12501,20 +12529,20 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
 LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libm.a
 LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a
 
-.debug_info     0x0000000000000000     0xdb33
- .debug_info    0x0000000000000000     0x4e02 build_solax/solax_bms_interp.o
- .debug_info    0x0000000000004e02       0x26 build_solax/startup_stm32f767xx.o
- .debug_info    0x0000000000004e28     0x2263 build_solax/intf_can.o
- .debug_info    0x000000000000708b      0x138 build_solax/stm32f7xx_it.o
- .debug_info    0x00000000000071c3     0x34d0 build_solax/intf_usart.o
- .debug_info    0x000000000000a693      0x82d build_solax/intf_gpio.o
- .debug_info    0x000000000000aec0      0x199 build_solax/main.o
- .debug_info    0x000000000000b059      0x3cf build_solax/system_stm32f7xx.o
- .debug_info    0x000000000000b428      0xd5e build_solax/stm32f7xx_ll_utils.o
- .debug_info    0x000000000000c186      0xb0f build_solax/stm32f7xx_hal.o
- .debug_info    0x000000000000cc95      0xe9e build_solax/tparse.o
+.debug_info     0x0000000000000000     0xde1c
+ .debug_info    0x0000000000000000     0x5079 build_solax/solax_bms_interp.o
+ .debug_info    0x0000000000005079       0x26 build_solax/startup_stm32f767xx.o
+ .debug_info    0x000000000000509f     0x2263 build_solax/intf_can.o
+ .debug_info    0x0000000000007302      0x138 build_solax/stm32f7xx_it.o
+ .debug_info    0x000000000000743a     0x34d0 build_solax/intf_usart.o
+ .debug_info    0x000000000000a90a      0x82d build_solax/intf_gpio.o
+ .debug_info    0x000000000000b137      0x199 build_solax/main.o
+ .debug_info    0x000000000000b2d0      0x3cf build_solax/system_stm32f7xx.o
+ .debug_info    0x000000000000b69f      0xd5e build_solax/stm32f7xx_ll_utils.o
+ .debug_info    0x000000000000c3fd      0xb0f build_solax/stm32f7xx_hal.o
+ .debug_info    0x000000000000cf0c      0xf10 build_solax/tparse.o
 
-.debug_abbrev   0x0000000000000000     0x18b5
+.debug_abbrev   0x0000000000000000     0x18d1
  .debug_abbrev  0x0000000000000000      0x50a build_solax/solax_bms_interp.o
  .debug_abbrev  0x000000000000050a       0x14 build_solax/startup_stm32f767xx.o
  .debug_abbrev  0x000000000000051e      0x3ca build_solax/intf_can.o
@@ -12525,17 +12553,17 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_abbrev  0x000000000000106a      0x134 build_solax/system_stm32f7xx.o
  .debug_abbrev  0x000000000000119e      0x2a7 build_solax/stm32f7xx_ll_utils.o
  .debug_abbrev  0x0000000000001445      0x216 build_solax/stm32f7xx_hal.o
- .debug_abbrev  0x000000000000165b      0x25a build_solax/tparse.o
+ .debug_abbrev  0x000000000000165b      0x276 build_solax/tparse.o
 
-.debug_loc      0x0000000000000000     0x9002
- .debug_loc     0x0000000000000000     0x205e build_solax/solax_bms_interp.o
- .debug_loc     0x000000000000205e     0x1bcf build_solax/intf_can.o
- .debug_loc     0x0000000000003c2d     0x31ed build_solax/intf_usart.o
- .debug_loc     0x0000000000006e1a      0x70c build_solax/intf_gpio.o
- .debug_loc     0x0000000000007526      0x1a1 build_solax/system_stm32f7xx.o
- .debug_loc     0x00000000000076c7      0x76f build_solax/stm32f7xx_ll_utils.o
- .debug_loc     0x0000000000007e36      0x141 build_solax/stm32f7xx_hal.o
- .debug_loc     0x0000000000007f77     0x108b build_solax/tparse.o
+.debug_loc      0x0000000000000000     0x9054
+ .debug_loc     0x0000000000000000     0x202b build_solax/solax_bms_interp.o
+ .debug_loc     0x000000000000202b     0x1bcf build_solax/intf_can.o
+ .debug_loc     0x0000000000003bfa     0x31ed build_solax/intf_usart.o
+ .debug_loc     0x0000000000006de7      0x70c build_solax/intf_gpio.o
+ .debug_loc     0x00000000000074f3      0x1a1 build_solax/system_stm32f7xx.o
+ .debug_loc     0x0000000000007694      0x76f build_solax/stm32f7xx_ll_utils.o
+ .debug_loc     0x0000000000007e03      0x141 build_solax/stm32f7xx_hal.o
+ .debug_loc     0x0000000000007f44     0x1110 build_solax/tparse.o
 
 .debug_aranges  0x0000000000000000      0x4e0
  .debug_aranges
@@ -12561,7 +12589,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_aranges
                 0x0000000000000408       0xd8 build_solax/tparse.o
 
-.debug_ranges   0x0000000000000000      0x638
+.debug_ranges   0x0000000000000000      0x630
  .debug_ranges  0x0000000000000000      0x128 build_solax/solax_bms_interp.o
  .debug_ranges  0x0000000000000128       0xb0 build_solax/intf_can.o
  .debug_ranges  0x00000000000001d8       0x18 build_solax/stm32f7xx_it.o
@@ -12571,9 +12599,9 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_ranges  0x00000000000003b8       0x18 build_solax/system_stm32f7xx.o
  .debug_ranges  0x00000000000003d0       0x50 build_solax/stm32f7xx_ll_utils.o
  .debug_ranges  0x0000000000000420      0x100 build_solax/stm32f7xx_hal.o
- .debug_ranges  0x0000000000000520      0x118 build_solax/tparse.o
+ .debug_ranges  0x0000000000000520      0x110 build_solax/tparse.o
 
-.debug_macro    0x0000000000000000    0x29db1
+.debug_macro    0x0000000000000000    0x29e72
  .debug_macro   0x0000000000000000      0x575 build_solax/solax_bms_interp.o
  .debug_macro   0x0000000000000575      0xa60 build_solax/solax_bms_interp.o
  .debug_macro   0x0000000000000fd5       0x22 build_solax/solax_bms_interp.o
@@ -12671,45 +12699,45 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_macro   0x00000000000298c6       0x5b build_solax/stm32f7xx_ll_utils.o
  .debug_macro   0x0000000000029921      0x12f build_solax/stm32f7xx_ll_utils.o
  .debug_macro   0x0000000000029a50      0x217 build_solax/stm32f7xx_hal.o
- .debug_macro   0x0000000000029c67      0x134 build_solax/tparse.o
- .debug_macro   0x0000000000029d9b       0x16 build_solax/tparse.o
+ .debug_macro   0x0000000000029c67      0x1f5 build_solax/tparse.o
+ .debug_macro   0x0000000000029e5c       0x16 build_solax/tparse.o
 
-.debug_line     0x0000000000000000     0xb0d8
- .debug_line    0x0000000000000000     0x2b51 build_solax/solax_bms_interp.o
- .debug_line    0x0000000000002b51       0x6a build_solax/startup_stm32f767xx.o
- .debug_line    0x0000000000002bbb     0x19ab build_solax/intf_can.o
- .debug_line    0x0000000000004566      0x816 build_solax/stm32f7xx_it.o
- .debug_line    0x0000000000004d7c     0x2378 build_solax/intf_usart.o
- .debug_line    0x00000000000070f4      0xbef build_solax/intf_gpio.o
- .debug_line    0x0000000000007ce3      0x82e build_solax/main.o
- .debug_line    0x0000000000008511      0x687 build_solax/system_stm32f7xx.o
- .debug_line    0x0000000000008b98      0xc80 build_solax/stm32f7xx_ll_utils.o
- .debug_line    0x0000000000009818      0x9b0 build_solax/stm32f7xx_hal.o
- .debug_line    0x000000000000a1c8      0xf10 build_solax/tparse.o
+.debug_line     0x0000000000000000     0xb31e
+ .debug_line    0x0000000000000000     0x2c58 build_solax/solax_bms_interp.o
+ .debug_line    0x0000000000002c58       0x6a build_solax/startup_stm32f767xx.o
+ .debug_line    0x0000000000002cc2     0x19ab build_solax/intf_can.o
+ .debug_line    0x000000000000466d      0x816 build_solax/stm32f7xx_it.o
+ .debug_line    0x0000000000004e83     0x2378 build_solax/intf_usart.o
+ .debug_line    0x00000000000071fb      0xbef build_solax/intf_gpio.o
+ .debug_line    0x0000000000007dea      0x82e build_solax/main.o
+ .debug_line    0x0000000000008618      0x687 build_solax/system_stm32f7xx.o
+ .debug_line    0x0000000000008c9f      0xc80 build_solax/stm32f7xx_ll_utils.o
+ .debug_line    0x000000000000991f      0x9b0 build_solax/stm32f7xx_hal.o
+ .debug_line    0x000000000000a2cf     0x104f build_solax/tparse.o
 
-.debug_str      0x0000000000000000   0x104cff
- .debug_str     0x0000000000000000   0x10201c build_solax/solax_bms_interp.o
-                                     0x10325c (size before relaxing)
- .debug_str     0x000000000010201c       0x28 build_solax/startup_stm32f767xx.o
+.debug_str      0x0000000000000000   0x104d36
+ .debug_str     0x0000000000000000   0x102052 build_solax/solax_bms_interp.o
+                                     0x103298 (size before relaxing)
+ .debug_str     0x0000000000102052       0x28 build_solax/startup_stm32f767xx.o
                                          0x76 (size before relaxing)
- .debug_str     0x0000000000102044      0x1cc build_solax/intf_can.o
+ .debug_str     0x000000000010207a      0x1cc build_solax/intf_can.o
                                      0x100aef (size before relaxing)
- .debug_str     0x0000000000102210       0x41 build_solax/stm32f7xx_it.o
+ .debug_str     0x0000000000102246       0x41 build_solax/stm32f7xx_it.o
                                       0xfff63 (size before relaxing)
- .debug_str     0x0000000000102251      0x449 build_solax/intf_usart.o
+ .debug_str     0x0000000000102287      0x449 build_solax/intf_usart.o
                                      0x100705 (size before relaxing)
- .debug_str     0x000000000010269a       0x50 build_solax/intf_gpio.o
+ .debug_str     0x00000000001026d0       0x50 build_solax/intf_gpio.o
                                      0x100023 (size before relaxing)
- .debug_str     0x00000000001026ea       0x32 build_solax/main.o
+ .debug_str     0x0000000000102720       0x32 build_solax/main.o
                                       0xfff82 (size before relaxing)
- .debug_str     0x000000000010271c       0x6f build_solax/system_stm32f7xx.o
+ .debug_str     0x0000000000102752       0x6f build_solax/system_stm32f7xx.o
                                       0xee675 (size before relaxing)
- .debug_str     0x000000000010278b     0x1f38 build_solax/stm32f7xx_ll_utils.o
+ .debug_str     0x00000000001027c1     0x1f38 build_solax/stm32f7xx_ll_utils.o
                                       0xf96da (size before relaxing)
- .debug_str     0x00000000001046c3      0x49a build_solax/stm32f7xx_hal.o
+ .debug_str     0x00000000001046f9      0x49a build_solax/stm32f7xx_hal.o
                                       0xef1c5 (size before relaxing)
- .debug_str     0x0000000000104b5d      0x1a2 build_solax/tparse.o
-                                       0x6fcf (size before relaxing)
+ .debug_str     0x0000000000104b93      0x1a3 build_solax/tparse.o
+                                       0x7f87 (size before relaxing)
 
 .comment        0x0000000000000000       0x49
  .comment       0x0000000000000000       0x49 build_solax/solax_bms_interp.o
@@ -12724,7 +12752,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .comment       0x0000000000000049       0x4a build_solax/stm32f7xx_hal.o
  .comment       0x0000000000000049       0x4a build_solax/tparse.o
 
-.debug_frame    0x0000000000000000     0x1078
+.debug_frame    0x0000000000000000     0x1084
  .debug_frame   0x0000000000000000      0x2b0 build_solax/solax_bms_interp.o
  .debug_frame   0x00000000000002b0      0x198 build_solax/intf_can.o
  .debug_frame   0x0000000000000448       0x30 build_solax/stm32f7xx_it.o
@@ -12734,23 +12762,23 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_frame   0x0000000000000608       0x38 build_solax/system_stm32f7xx.o
  .debug_frame   0x0000000000000640       0xe0 build_solax/stm32f7xx_ll_utils.o
  .debug_frame   0x0000000000000720      0x22c build_solax/stm32f7xx_hal.o
- .debug_frame   0x000000000000094c      0x2b8 build_solax/tparse.o
- .debug_frame   0x0000000000000c04       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-init.o)
- .debug_frame   0x0000000000000c30       0x28 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memmove.o)
- .debug_frame   0x0000000000000c58       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memset.o)
- .debug_frame   0x0000000000000c78       0x50 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-snprintf.o)
- .debug_frame   0x0000000000000cc8       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-strstr.o)
- .debug_frame   0x0000000000000cf4       0x74 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-svfprintf.o)
- .debug_frame   0x0000000000000d68       0x54 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-vfprintf_i.o)
- .debug_frame   0x0000000000000dbc       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memchr-stub.o)
- .debug_frame   0x0000000000000ddc       0x28 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memcpy-stub.o)
- .debug_frame   0x0000000000000e04       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-freer.o)
- .debug_frame   0x0000000000000e30       0x50 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
- .debug_frame   0x0000000000000e80       0x34 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-reallocr.o)
- .debug_frame   0x0000000000000eb4       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-sbrkr.o)
- .debug_frame   0x0000000000000ee0       0x40 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-mlock.o)
- .debug_frame   0x0000000000000f20       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-msizer.o)
- .debug_frame   0x0000000000000f40       0x48 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-reent.o)
- .debug_frame   0x0000000000000f88       0xb0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-lock.o)
- .debug_frame   0x0000000000001038       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_udivsi3.o)
- .debug_frame   0x0000000000001058       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_divsi3.o)
+ .debug_frame   0x000000000000094c      0x2c4 build_solax/tparse.o
+ .debug_frame   0x0000000000000c10       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-init.o)
+ .debug_frame   0x0000000000000c3c       0x28 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memmove.o)
+ .debug_frame   0x0000000000000c64       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memset.o)
+ .debug_frame   0x0000000000000c84       0x50 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-snprintf.o)
+ .debug_frame   0x0000000000000cd4       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-strstr.o)
+ .debug_frame   0x0000000000000d00       0x74 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-svfprintf.o)
+ .debug_frame   0x0000000000000d74       0x54 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-vfprintf_i.o)
+ .debug_frame   0x0000000000000dc8       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memchr-stub.o)
+ .debug_frame   0x0000000000000de8       0x28 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-memcpy-stub.o)
+ .debug_frame   0x0000000000000e10       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-freer.o)
+ .debug_frame   0x0000000000000e3c       0x50 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-mallocr.o)
+ .debug_frame   0x0000000000000e8c       0x34 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-reallocr.o)
+ .debug_frame   0x0000000000000ec0       0x2c /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-sbrkr.o)
+ .debug_frame   0x0000000000000eec       0x40 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-mlock.o)
+ .debug_frame   0x0000000000000f2c       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-nano-msizer.o)
+ .debug_frame   0x0000000000000f4c       0x48 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-reent.o)
+ .debug_frame   0x0000000000000f94       0xb0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(lib_a-lock.o)
+ .debug_frame   0x0000000000001044       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_udivsi3.o)
+ .debug_frame   0x0000000000001064       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_divsi3.o)

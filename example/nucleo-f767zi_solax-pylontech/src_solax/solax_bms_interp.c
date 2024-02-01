@@ -212,6 +212,18 @@ const uint8_t solax_pw_cfg_gmppt_pv1_low[] = {
 const uint8_t solax_pw_cfg_gmppt_pv1_high[] = {
   0xaa, 0x55, 0x09, 0x09, 0x6a, 0x03, 0x00, 0x7e, 0x01
 };
+
+const uint8_t solax_pw_cfg_gmppt_pv2_off[] = {
+  0xaa, 0x55, 0x09, 0x09, 0xc2, 0x00, 0x00, 0xd3, 0x01
+};
+const uint8_t solax_pw_cfg_gmppt_pv2_low[] = {
+  0xaa, 0x55, 0x09, 0x09, 0xc2, 0x01, 0x00, 0xd4, 0x01
+};
+const uint8_t solax_pw_cfg_gmppt_pv2_high[] = {
+  0xaa, 0x55, 0x09, 0x09, 0xc2, 0x03, 0x00, 0xd6, 0x01
+};
+
+
 #define SOLAX_PW_QUEUE_SIZE 3 // schedule a mode change while reading a status response
 struct {
   uint8_t*  cmd;
@@ -890,8 +902,11 @@ void interp(void) {
             // if it's the line starting with integer and not a text line
             if (val != -1UL) { 
               pylontech.precise_voltage = (int32_t)val;
-              pylontech.precise_current = (int32_t)tparse_token_i32(&tp_bms); // Curr
-
+              int32_t valcurr = (int32_t)tparse_token_i32(&tp_bms); // Curr
+              // keep non 0 values (captured using mAh diff)
+              if (valcurr != 0) {
+                pylontech.precise_current = valcurr;
+              }
               tparse_token(&tp_bms, &val, 4); // tempr
               tparse_token(&tp_bms, &val, 4); // btlow
               tparse_token(&tp_bms, &val, 4); // bthigh
@@ -906,16 +921,18 @@ void interp(void) {
               tparse_token(&tp_bms, &val, 4); // curr.st
               tparse_token(&tp_bms, &val, 4); // temp.st
               tparse_token(&tp_bms, &val, 4); // coulomb %
-              val = tparse_token_u32(&tp_bms); // coulomb mAh
-              if (val != -1UL) {
+              uint32_t mah = tparse_token_u32(&tp_bms); // coulomb mAh
+              if (mah != -1UL) {
                 // only update value when different from previous, to better compute mean consumption
-                if (val != pylontech.precise_mAh) {
-                  // report current drain when 0 is notified
-                  if (pylontech.precise_current == 0) {
-                    pylontech.precise_current = (val - pylontech.precise_mAh) * (36000) / (uwTick - pylontech.precise_mAh_ts) * 100;
+                // report current drain when 0 is notified
+                if (mah != pylontech.precise_mAh) {
+                  if (valcurr == 0) {
+                    pylontech.precise_current = ((int32_t)mah - (int32_t)pylontech.precise_mAh) * ((int32_t)3600000) 
+                                                / ((int32_t)uwTick - (int32_t)pylontech.precise_mAh_ts);
                   }
-                  pylontech.precise_mAh = val;
+                  // only uptade timestamp when value changes
                   pylontech.precise_mAh_ts = uwTick;
+                  pylontech.precise_mAh = mah;
                 }
               }
               tparse_token(&tp_bms, &val, 4); // mAh
@@ -1606,6 +1623,21 @@ void I2C_Slave_Reception_Callback(void) {
       if (solax_pw_queue_free()>=2) {
         solax_pw_queue_push(solax_pw_cfg_PIN, sizeof(solax_pw_cfg_PIN), 7);
         solax_pw_queue_push(solax_pw_cfg_gmppt_pv1_high, sizeof(solax_pw_cfg_gmppt_pv1_high), 7);
+      }
+      break;
+    case 3:
+      master_log("I2C: pv2 gmppt off\n");
+      // perform gmppt wakeup
+      if (solax_pw_queue_free()>=2) {
+        solax_pw_queue_push(solax_pw_cfg_PIN, sizeof(solax_pw_cfg_PIN), 7);
+        solax_pw_queue_push(solax_pw_cfg_gmppt_pv2_off, sizeof(solax_pw_cfg_gmppt_pv2_off), 7);
+      }
+      break;
+    case 4:
+      master_log("I2C: pv2 gmppt high\n");
+      if (solax_pw_queue_free()>=2) {
+        solax_pw_queue_push(solax_pw_cfg_PIN, sizeof(solax_pw_cfg_PIN), 7);
+        solax_pw_queue_push(solax_pw_cfg_gmppt_pv2_high, sizeof(solax_pw_cfg_gmppt_pv2_high), 7);
       }
       break;
     case 0xA:

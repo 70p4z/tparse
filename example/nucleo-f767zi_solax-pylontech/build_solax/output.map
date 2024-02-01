@@ -12529,18 +12529,18 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
 LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/libm.a
 LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a
 
-.debug_info     0x0000000000000000     0xde1c
- .debug_info    0x0000000000000000     0x5079 build_solax/solax_bms_interp.o
- .debug_info    0x0000000000005079       0x26 build_solax/startup_stm32f767xx.o
- .debug_info    0x000000000000509f     0x2263 build_solax/intf_can.o
- .debug_info    0x0000000000007302      0x138 build_solax/stm32f7xx_it.o
- .debug_info    0x000000000000743a     0x34d0 build_solax/intf_usart.o
- .debug_info    0x000000000000a90a      0x82d build_solax/intf_gpio.o
- .debug_info    0x000000000000b137      0x199 build_solax/main.o
- .debug_info    0x000000000000b2d0      0x3cf build_solax/system_stm32f7xx.o
- .debug_info    0x000000000000b69f      0xd5e build_solax/stm32f7xx_ll_utils.o
- .debug_info    0x000000000000c3fd      0xb0f build_solax/stm32f7xx_hal.o
- .debug_info    0x000000000000cf0c      0xf10 build_solax/tparse.o
+.debug_info     0x0000000000000000     0xde50
+ .debug_info    0x0000000000000000     0x50ad build_solax/solax_bms_interp.o
+ .debug_info    0x00000000000050ad       0x26 build_solax/startup_stm32f767xx.o
+ .debug_info    0x00000000000050d3     0x2263 build_solax/intf_can.o
+ .debug_info    0x0000000000007336      0x138 build_solax/stm32f7xx_it.o
+ .debug_info    0x000000000000746e     0x34d0 build_solax/intf_usart.o
+ .debug_info    0x000000000000a93e      0x82d build_solax/intf_gpio.o
+ .debug_info    0x000000000000b16b      0x199 build_solax/main.o
+ .debug_info    0x000000000000b304      0x3cf build_solax/system_stm32f7xx.o
+ .debug_info    0x000000000000b6d3      0xd5e build_solax/stm32f7xx_ll_utils.o
+ .debug_info    0x000000000000c431      0xb0f build_solax/stm32f7xx_hal.o
+ .debug_info    0x000000000000cf40      0xf10 build_solax/tparse.o
 
 .debug_abbrev   0x0000000000000000     0x18d1
  .debug_abbrev  0x0000000000000000      0x50a build_solax/solax_bms_interp.o
@@ -12555,15 +12555,15 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_abbrev  0x0000000000001445      0x216 build_solax/stm32f7xx_hal.o
  .debug_abbrev  0x000000000000165b      0x276 build_solax/tparse.o
 
-.debug_loc      0x0000000000000000     0x9054
- .debug_loc     0x0000000000000000     0x202b build_solax/solax_bms_interp.o
- .debug_loc     0x000000000000202b     0x1bcf build_solax/intf_can.o
- .debug_loc     0x0000000000003bfa     0x31ed build_solax/intf_usart.o
- .debug_loc     0x0000000000006de7      0x70c build_solax/intf_gpio.o
- .debug_loc     0x00000000000074f3      0x1a1 build_solax/system_stm32f7xx.o
- .debug_loc     0x0000000000007694      0x76f build_solax/stm32f7xx_ll_utils.o
- .debug_loc     0x0000000000007e03      0x141 build_solax/stm32f7xx_hal.o
- .debug_loc     0x0000000000007f44     0x1110 build_solax/tparse.o
+.debug_loc      0x0000000000000000     0x90b2
+ .debug_loc     0x0000000000000000     0x2089 build_solax/solax_bms_interp.o
+ .debug_loc     0x0000000000002089     0x1bcf build_solax/intf_can.o
+ .debug_loc     0x0000000000003c58     0x31ed build_solax/intf_usart.o
+ .debug_loc     0x0000000000006e45      0x70c build_solax/intf_gpio.o
+ .debug_loc     0x0000000000007551      0x1a1 build_solax/system_stm32f7xx.o
+ .debug_loc     0x00000000000076f2      0x76f build_solax/stm32f7xx_ll_utils.o
+ .debug_loc     0x0000000000007e61      0x141 build_solax/stm32f7xx_hal.o
+ .debug_loc     0x0000000000007fa2     0x1110 build_solax/tparse.o
 
 .debug_aranges  0x0000000000000000      0x4e0
  .debug_aranges
@@ -12702,41 +12702,41 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_macro   0x0000000000029c67      0x1f5 build_solax/tparse.o
  .debug_macro   0x0000000000029e5c       0x16 build_solax/tparse.o
 
-.debug_line     0x0000000000000000     0xb31e
- .debug_line    0x0000000000000000     0x2c58 build_solax/solax_bms_interp.o
- .debug_line    0x0000000000002c58       0x6a build_solax/startup_stm32f767xx.o
- .debug_line    0x0000000000002cc2     0x19ab build_solax/intf_can.o
- .debug_line    0x000000000000466d      0x816 build_solax/stm32f7xx_it.o
- .debug_line    0x0000000000004e83     0x2378 build_solax/intf_usart.o
- .debug_line    0x00000000000071fb      0xbef build_solax/intf_gpio.o
- .debug_line    0x0000000000007dea      0x82e build_solax/main.o
- .debug_line    0x0000000000008618      0x687 build_solax/system_stm32f7xx.o
- .debug_line    0x0000000000008c9f      0xc80 build_solax/stm32f7xx_ll_utils.o
- .debug_line    0x000000000000991f      0x9b0 build_solax/stm32f7xx_hal.o
- .debug_line    0x000000000000a2cf     0x104f build_solax/tparse.o
+.debug_line     0x0000000000000000     0xb32a
+ .debug_line    0x0000000000000000     0x2c64 build_solax/solax_bms_interp.o
+ .debug_line    0x0000000000002c64       0x6a build_solax/startup_stm32f767xx.o
+ .debug_line    0x0000000000002cce     0x19ab build_solax/intf_can.o
+ .debug_line    0x0000000000004679      0x816 build_solax/stm32f7xx_it.o
+ .debug_line    0x0000000000004e8f     0x2378 build_solax/intf_usart.o
+ .debug_line    0x0000000000007207      0xbef build_solax/intf_gpio.o
+ .debug_line    0x0000000000007df6      0x82e build_solax/main.o
+ .debug_line    0x0000000000008624      0x687 build_solax/system_stm32f7xx.o
+ .debug_line    0x0000000000008cab      0xc80 build_solax/stm32f7xx_ll_utils.o
+ .debug_line    0x000000000000992b      0x9b0 build_solax/stm32f7xx_hal.o
+ .debug_line    0x000000000000a2db     0x104f build_solax/tparse.o
 
-.debug_str      0x0000000000000000   0x104d36
- .debug_str     0x0000000000000000   0x102052 build_solax/solax_bms_interp.o
-                                     0x103298 (size before relaxing)
- .debug_str     0x0000000000102052       0x28 build_solax/startup_stm32f767xx.o
+.debug_str      0x0000000000000000   0x104d3e
+ .debug_str     0x0000000000000000   0x10205a build_solax/solax_bms_interp.o
+                                     0x1032a0 (size before relaxing)
+ .debug_str     0x000000000010205a       0x28 build_solax/startup_stm32f767xx.o
                                          0x76 (size before relaxing)
- .debug_str     0x000000000010207a      0x1cc build_solax/intf_can.o
+ .debug_str     0x0000000000102082      0x1cc build_solax/intf_can.o
                                      0x100aef (size before relaxing)
- .debug_str     0x0000000000102246       0x41 build_solax/stm32f7xx_it.o
+ .debug_str     0x000000000010224e       0x41 build_solax/stm32f7xx_it.o
                                       0xfff63 (size before relaxing)
- .debug_str     0x0000000000102287      0x449 build_solax/intf_usart.o
+ .debug_str     0x000000000010228f      0x449 build_solax/intf_usart.o
                                      0x100705 (size before relaxing)
- .debug_str     0x00000000001026d0       0x50 build_solax/intf_gpio.o
+ .debug_str     0x00000000001026d8       0x50 build_solax/intf_gpio.o
                                      0x100023 (size before relaxing)
- .debug_str     0x0000000000102720       0x32 build_solax/main.o
+ .debug_str     0x0000000000102728       0x32 build_solax/main.o
                                       0xfff82 (size before relaxing)
- .debug_str     0x0000000000102752       0x6f build_solax/system_stm32f7xx.o
+ .debug_str     0x000000000010275a       0x6f build_solax/system_stm32f7xx.o
                                       0xee675 (size before relaxing)
- .debug_str     0x00000000001027c1     0x1f38 build_solax/stm32f7xx_ll_utils.o
+ .debug_str     0x00000000001027c9     0x1f38 build_solax/stm32f7xx_ll_utils.o
                                       0xf96da (size before relaxing)
- .debug_str     0x00000000001046f9      0x49a build_solax/stm32f7xx_hal.o
+ .debug_str     0x0000000000104701      0x49a build_solax/stm32f7xx_hal.o
                                       0xef1c5 (size before relaxing)
- .debug_str     0x0000000000104b93      0x1a3 build_solax/tparse.o
+ .debug_str     0x0000000000104b9b      0x1a3 build_solax/tparse.o
                                        0x7f87 (size before relaxing)
 
 .comment        0x0000000000000000       0x49

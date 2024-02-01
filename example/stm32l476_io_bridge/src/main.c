@@ -134,7 +134,7 @@ __attribute__((weak)) void interp(void) {
           "ctx", "crx", "cavail", "ccfg",
           "i2cfg", "isocfg",
           "i2cwc", "i2cwclast",
-          "i2crxfer",
+          "i2crxfer", "spix"
       };
       cmd = tparse_token_in(tp, (char**)cmds, sizeof(cmds)/sizeof(cmds[0]), (char*)tmp, &ts);
       switch (cmd) {
@@ -682,6 +682,19 @@ __attribute__((weak)) void interp(void) {
         while (tlen);
         uart_send_dma("\n", 1); // we're DMA enabled in that transfer;
         break;
+
+      case __COUNTER__:
+        // spix <data>
+        len = tparse_token_hex(tp, tmp, sizeof(tmp));
+        if (len > 256) {
+          uart_send("ERROR: invalid frame len (max 256 bytes)\n");
+          break;
+        }
+        len = spi_xfer(tmp, len);
+        uart_send("OK:");
+        uart_send_hex(tmp, len);
+        uart_send("\n");
+        break;
       }
     end_cmd:
       // discard any remnant of the processed line
@@ -770,6 +783,8 @@ int main(void)
   Configure_UART5(USART_BAUDRATE_UART5);
 
   Configure_I2C1(400);
+
+  Configure_SPI1();
 
   Configure_USART1_ISO();
 

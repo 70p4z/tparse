@@ -122,4 +122,5 @@ class IOBridge(UsartIface):
 		else:
 			raise IOBridgeException()
 		self.exchange("ctx " + hex(cid) + " " + cidkind + " " + binascii.hexlify(data).decode("utf8"))
-
+	def spi_xfer(self, data):
+		return binascii.unhexlify(self.exchange("spix " + binascii.hexlify(data).decode("utf8")))

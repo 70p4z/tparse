@@ -37,6 +37,7 @@ extern "C" {
 #include "stm32l4xx_ll_utils.h"
 #include "stm32l4xx_ll_system.h"
 #include "stm32l4xx_ll_i2c.h"
+#include "stm32l4xx_ll_spi.h"
 #include "stm32l4xx_ll_exti.h"
 
 #ifndef MAX
@@ -90,6 +91,9 @@ void Configure_CAN(uint32_t frequency, uint32_t auto_retransmit);
 size_t can_fifo_avail(void);
 size_t can_fifo_rx(uint32_t * id, size_t * id_bitlen, uint8_t* frame, size_t frame_max_len);
 size_t can_tx(uint32_t id, size_t id_bitlen, uint8_t *frame, size_t frame_len);
+
+int32_t Configure_SPI1(void);
+size_t spi_xfer(uint8_t* buf, size_t len);
 
 void Configure_USART1_ISO(void);
 void Configure_USART1_ISO_CLK(uint32_t smartcard_clock);

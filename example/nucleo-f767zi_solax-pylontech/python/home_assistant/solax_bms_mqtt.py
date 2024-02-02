@@ -69,6 +69,22 @@ def mqtt_start():
     mqtt_client.publish('homeassistant/switch/solax_pv1_gmppt/config', payload=json.dumps({"name": "PV1 GMPPT", "command_topic": "homeassistant/switch/solax_pv1_gmppt/set"}), retain=True)
     mqtt_client.subscribe('homeassistant/switch/solax_pv1_gmppt/set')
 
+    # PV2 GMPPT state
+    def on_message_solax_pv2_gmppt(client, userdata, msg):
+      try:
+        if msg.payload.decode('utf-8') == "ON":
+          msg=b'\x04'
+        else:
+          msg=b'\x03'
+        with i2clock:
+          write = i2c_msg.write(i2c_addr, msg)
+          i2cbus.i2c_rdwr(write)
+      except:
+        traceback.print_exc()
+    mqtt_client.message_callback_add('homeassistant/switch/solax_pv2_gmppt/set', on_message_solax_pv2_gmppt)
+    mqtt_client.publish('homeassistant/switch/solax_pv2_gmppt/config', payload=json.dumps({"name": "PV2 GMPPT", "command_topic": "homeassistant/switch/solax_pv2_gmppt/set"}), retain=True)
+    mqtt_client.subscribe('homeassistant/switch/solax_pv2_gmppt/set')
+
     # force grid tie
     def on_message_solax_force_grid_tie(client, userdata, msg):
       try:

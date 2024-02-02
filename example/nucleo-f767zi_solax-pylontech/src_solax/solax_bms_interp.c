@@ -12,7 +12,7 @@
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 5 
 #define GRID_CONNECT_SOC    25 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
-#define GRID_DISCONNECT_SOC 31 // disconnect grid when over or equal
+#define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
 
 
 #define SOLAX_MAX_CHARGE_SOC 97 // limit battery wearing
@@ -927,8 +927,13 @@ void interp(void) {
                 // report current drain when 0 is notified
                 if (mah != pylontech.precise_mAh) {
                   if (valcurr == 0) {
-                    pylontech.precise_current = ((int32_t)mah - (int32_t)pylontech.precise_mAh) * ((int32_t)3600000) 
+                    int32_t precise_current = ((int32_t)mah - (int32_t)pylontech.precise_mAh) * ((int32_t)3600000) 
                                                 / ((int32_t)uwTick - (int32_t)pylontech.precise_mAh_ts);
+                    // anti oups due to timestamp counter rollover
+                    // over +/-100mA, the current is accounted correctly in the CAN frame
+                    if (pylontech.precise_current < 100 && pylontech.precise_current > -100) {
+                      pylontech.precise_current = precise_current;
+                    }
                   }
                   // only uptade timestamp when value changes
                   pylontech.precise_mAh_ts = uwTick;

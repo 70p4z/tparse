@@ -37,6 +37,7 @@ extern "C" {
 #include "stm32l0xx_ll_utils.h"
 #include "stm32l0xx_ll_system.h"
 #include "stm32l0xx_ll_i2c.h"
+#include "stm32l0xx_ll_spi.h"
 #include "stm32l0xx_ll_exti.h"
 
 #ifndef MAX
@@ -82,6 +83,10 @@ int32_t Configure_I2C1(uint32_t khz);
 uint32_t i2c_strobe(uint32_t addr);
 size_t i2c_read(uint8_t addr, uint8_t* buf, size_t maxlen);
 size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len);
+
+int32_t Configure_SPI1(void);
+size_t spi_xfer(uint8_t* buf, size_t len);
+
 
 void Configure_USART1_ISO(void);
 void Configure_USART1_ISO_CLK(uint32_t smartcard_clock);

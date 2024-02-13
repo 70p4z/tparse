@@ -903,44 +903,50 @@ void interp(void) {
             if (val != -1UL) { 
               pylontech.precise_voltage = (int32_t)val;
               int32_t valcurr = (int32_t)tparse_token_i32(&tp_bms); // Curr
+
+              #ifdef WIP_PRECISE_CURRENT_FROM_CAPACITY
               // keep non 0 values (captured using mAh diff)
-              if (valcurr != 0) {
+              if (valcurr != 0) 
+              #endif // WIP_PRECISE_CURRENT_FROM_CAPACITY
+              {
                 pylontech.precise_current = valcurr;
               }
-              tparse_token(&tp_bms, &val, 4); // tempr
-              tparse_token(&tp_bms, &val, 4); // btlow
-              tparse_token(&tp_bms, &val, 4); // bthigh
-              tparse_token(&tp_bms, &val, 4); // bvlow
-              tparse_token(&tp_bms, &val, 4); // bvhigh
-              tparse_token(&tp_bms, &val, 4); // utlow
-              tparse_token(&tp_bms, &val, 4); // uthigh
-              tparse_token(&tp_bms, &val, 4); // uvlow
-              tparse_token(&tp_bms, &val, 4); // uvhigh
-              tparse_token(&tp_bms, &val, 4); // base.st
-              tparse_token(&tp_bms, &val, 4); // volt.st
-              tparse_token(&tp_bms, &val, 4); // curr.st
-              tparse_token(&tp_bms, &val, 4); // temp.st
-              tparse_token(&tp_bms, &val, 4); // coulomb %
+              tparse_token(&tp_bms, (char*)&val, 4); // tempr
+              tparse_token(&tp_bms, (char*)&val, 4); // btlow
+              tparse_token(&tp_bms, (char*)&val, 4); // bthigh
+              tparse_token(&tp_bms, (char*)&val, 4); // bvlow
+              tparse_token(&tp_bms, (char*)&val, 4); // bvhigh
+              tparse_token(&tp_bms, (char*)&val, 4); // utlow
+              tparse_token(&tp_bms, (char*)&val, 4); // uthigh
+              tparse_token(&tp_bms, (char*)&val, 4); // uvlow
+              tparse_token(&tp_bms, (char*)&val, 4); // uvhigh
+              tparse_token(&tp_bms, (char*)&val, 4); // base.st
+              tparse_token(&tp_bms, (char*)&val, 4); // volt.st
+              tparse_token(&tp_bms, (char*)&val, 4); // curr.st
+              tparse_token(&tp_bms, (char*)&val, 4); // temp.st
+              tparse_token(&tp_bms, (char*)&val, 4); // coulomb %
               uint32_t mah = tparse_token_u32(&tp_bms); // coulomb mAh
               if (mah != -1UL) {
                 // only update value when different from previous, to better compute mean consumption
                 // report current drain when 0 is notified
                 if (mah != pylontech.precise_mAh) {
+                  #ifdef WIP_PRECISE_CURRENT_FROM_CAPACITY
                   if (valcurr == 0) {
                     int32_t precise_current = ((int32_t)mah - (int32_t)pylontech.precise_mAh) * ((int32_t)3600000) 
                                                 / ((int32_t)uwTick - (int32_t)pylontech.precise_mAh_ts);
                     // anti oups due to timestamp counter rollover
                     // over +/-100mA, the current is accounted correctly in the CAN frame
-                    if (pylontech.precise_current < 100 && pylontech.precise_current > -100) {
+                    if (precise_current < 100 && precise_current > -100) {
                       pylontech.precise_current = precise_current;
                     }
                   }
+                  #endif // WIP_PRECISE_CURRENT_FROM_CAPACITY
                   // only uptade timestamp when value changes
                   pylontech.precise_mAh_ts = uwTick;
                   pylontech.precise_mAh = mah;
                 }
               }
-              tparse_token(&tp_bms, &val, 4); // mAh
+              tparse_token(&tp_bms, (char*)&val, 4); // mAh
               val = tparse_token_u32(&tp_bms); // coulomb % mWh
               if (val != -1UL) {
                 pylontech.soc_mWh = val;
@@ -954,7 +960,7 @@ void interp(void) {
               snprintf((char*)tmp, sizeof(tmp), "  voltage: %ld\n  current: %ld\n  wattage: %ld\n capacity: %ld\n", pylontech.precise_voltage, pylontech.precise_current, pylontech.precise_wattage, pylontech.precise_mAh);
               master_log((char*)tmp);
               // invariant check
-              if ((pylontech.precise_current < 0 && pylontech.precise_wattage >0 )
+              if ((pylontech.precise_current < 0 && pylontech.precise_wattage > 0 )
                 || (pylontech.precise_current > 0 && pylontech.precise_wattage < 0 )) {
                 master_log("error: invalid precise wattage computation\n");
                 pylontech.precise_wattage=0;

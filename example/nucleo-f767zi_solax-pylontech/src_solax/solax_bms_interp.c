@@ -17,6 +17,13 @@
 
 #define SOLAX_MAX_CHARGE_SOC 97 // limit battery wearing
 
+// Solax X1G4 has an offset when respecting battery max charge current (maybe some inside DC bus consumption)
+// 50W / 200 = 
+// X1G4 for type 0x83 1.8A => 1.0A
+// X1G4 for type 0x83 2.0A => 1.2A
+// W1G4 for type 0x83 1.0A => 0.1A
+#define SOLAX_BATTERY_CHARGE_OFFSET_DA 8
+
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
 // #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
 
@@ -731,6 +738,13 @@ void interp(void) {
             break;
           }
 
+          // ensure respecting maxcharge, taking into account the inner charge cap offset
+          if (maxch) {
+            maxch += SOLAX_BATTERY_CHARGE_OFFSET_DA;
+            tmp[4] = maxch&0xFF;
+            tmp[5] = (maxch>>8)&0xFF;
+          }
+
           pylontech.max_charge = maxch;
           pylontech.max_discharge = maxdis;
 #if 0
@@ -746,12 +760,14 @@ void interp(void) {
             tmp[5] = ((pylontech.max_charge)>>8)&0xFF;
           }
 #endif
+#if 0
           // force disabling charge, in order to avoid driving the battery to retrieve too less energy from the PVs.
           if (batt_forced_charge >= 0) {
             master_log("force batt charge\n");
             tmp[4] = batt_forced_charge&0xFF;
             tmp[5] = (batt_forced_charge>>8)&0xFF;
           }
+#endif
           // disallow discharge when battery is too low
           if (pylontech.soc <= 10) {
             master_log("soc < 10\n");

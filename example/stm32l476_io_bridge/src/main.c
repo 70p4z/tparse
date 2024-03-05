@@ -134,7 +134,7 @@ __attribute__((weak)) void interp(void) {
           "ctx", "crx", "cavail", "ccfg",
           "i2cfg", "isocfg",
           "i2cwc", "i2cwclast",
-          "i2crxfer", "spix"
+          "i2crxfer", "spix", "rel",
       };
       cmd = tparse_token_in(tp, (char**)cmds, sizeof(cmds)/sizeof(cmds[0]), (char*)tmp, &ts);
       switch (cmd) {
@@ -694,6 +694,38 @@ __attribute__((weak)) void interp(void) {
         uart_send("OK:");
         uart_send_hex(tmp, len);
         uart_send("\n");
+        break;
+      case __COUNTER__:
+        uart_send("OK:\n");
+        // rel
+        // this command release all PINs, to allow for external IO operation, it requires a 'reset' afterwards
+        // before resuming operations
+        __GPIOA_CLK_ENABLE();
+        GPIOA->MODER = (GPIOA->MODER&0x3C0000F0)|0xC3FFFF0FU;
+        __GPIOB_CLK_ENABLE();
+        GPIOB->MODER = 0xFFFFFFFFU;
+        __GPIOC_CLK_ENABLE();
+        GPIOC->MODER = 0xFFFFFFFFU;
+        #ifdef GPIOD_BASE
+        __GPIOD_CLK_ENABLE();
+        GPIOD->MODER = 0xFFFFFFFFU;
+        #endif // GPIOD_BASE
+        #ifdef GPIOE_BASE
+        __GPIOE_CLK_ENABLE();
+        GPIOE->MODER = 0xFFFFFFFFU;
+        #endif // GPIOE_BASE
+        #ifdef GPIOF_BASE
+        __GPIOF_CLK_ENABLE();
+        GPIOF->MODER = 0xFFFFFFFFU;
+        #endif // GPIOF_BASE
+        #ifdef GPIOG_BASE
+        __GPIOG_CLK_ENABLE();
+        GPIOG->MODER = 0xFFFFFFFFU;
+        #endif // GPIOG_BASE
+        #ifdef GPIOH_BASE
+        __GPIOH_CLK_ENABLE();
+        GPIOH->MODER = 0xFFFFFFFFU;
+        #endif // GPIOH_BASE
         break;
       }
     end_cmd:

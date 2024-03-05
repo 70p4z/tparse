@@ -248,7 +248,7 @@ uint32_t tparse_eol_reached(tparse_ctx_t* ctx) {
 
 size_t tparse_token_count(tparse_ctx_t* ctx) {
 	// count tokens until
-	uint32_t off=0;
+	size_t off=0;
 	uint32_t len=tparse_avail(ctx);
 	size_t count=0;
 	char* token;

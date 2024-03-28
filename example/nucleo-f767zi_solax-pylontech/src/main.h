@@ -78,9 +78,9 @@ void Configure_UARTPW(uint32_t baudrate);
 void Configure_UARTBMS(uint32_t baudrate);
 #define USBVCP_BUFFER_SIZE_B (32+512*2)
 extern char uart_usbvcp_buffer[USBVCP_BUFFER_SIZE_B];
-#define UARTPW_BUFFER_SIZE_B 2048
+#define UARTPW_BUFFER_SIZE_B 4096
 extern char uart_pw_buffer[UARTPW_BUFFER_SIZE_B];
-#define UARTBMS_BUFFER_SIZE_B 2048
+#define UARTBMS_BUFFER_SIZE_B 4096
 extern char uart_bms_buffer[UARTBMS_BUFFER_SIZE_B];
 #define TMP_BUFFER_SIZE_B 1024
 extern uint8_t tmp[TMP_BUFFER_SIZE_B];

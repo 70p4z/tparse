@@ -15,13 +15,15 @@
 #define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
 
 
-#define SOLAX_MAX_CHARGE_SOC 97 // limit battery wearing
+#define SOLAX_MAX_CHARGE_SOC 98 // limit battery wearing
 
 // Solax X1G4 has an offset when respecting battery max charge current (maybe some inside DC bus consumption)
 // 50W / 200 = 
 // X1G4 for type 0x83 1.8A => 1.0A
 // X1G4 for type 0x83 2.0A => 1.2A
+// X1G4 for type 0x83 2.0A => 1.6A (when not output EPS power)
 // W1G4 for type 0x83 1.0A => 0.1A
+//#define SOLAX_BATTERY_CHARGE_OFFSET_DA 4 WITH NO EPS POWERING
 #define SOLAX_BATTERY_CHARGE_OFFSET_DA 8
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
@@ -169,6 +171,9 @@ enum bms_uart_state_e {
   BMS_UART_STATE_IDLE,
   BMS_UART_STATE_WAIT,
   BMS_UART_STATE_WAIT_USER,
+  BMS_UART_STATE_WAIT_PWR,
+  BMS_UART_STATE_WAIT_INFO,
+  BMS_UART_STATE_WAIT_UNIT,
 };
 
 enum solax_pw_state_e {
@@ -369,6 +374,8 @@ struct {
   uint8_t grid_connect_soc;
   uint8_t grid_disconnect_soc;
 } solax;
+
+#define PYLONTECH_MAX_BMUS 20
 struct {
   uint16_t voltage;
   uint32_t precise_voltage;
@@ -389,6 +396,16 @@ struct {
   uint8_t charge_request;
   uint16_t cycles;
   uint8_t fix2_31;
+  uint32_t total_capacity_mAh;
+  uint8_t bmu_idx;
+  uint8_t bmu_idx_tmp;
+  struct {
+    uint8_t soc;
+    uint8_t soc_mWh;
+    uint16_t vlow;
+    uint16_t vhigh;
+    uint8_t pcba[32+1];
+  } bmu[PYLONTECH_MAX_BMUS];
 } pylontech;
 
 void pv1_switch(uint32_t state) {
@@ -593,7 +610,7 @@ void interp(void) {
       len = can_fifo_rx(CAN1, &cid, &cid_bitlen, tmp, sizeof(tmp));
       if (cid == 0x1871) {
         // clear screen before starting decoding
-        master_log("\x1b[2J");
+        // annoying when trying to log into a single window // master_log("\x1b[2J");
       }
       master_log_can("inv >>>     | ", cid, cid_bitlen, tmp, len);
       // other request from the inverter are discarded
@@ -711,6 +728,9 @@ void interp(void) {
             tmp[4] = batt_forced_soc&0xFF;
             tmp[5] = 0;
           }
+          if (batt_forced_charge >= 0) {
+            tmp[4] = MIN(pylontech.soc, 90); // ensure charging when forcing charge
+          }
           forward = 1;
           break;
         case 0x1872: {
@@ -760,14 +780,6 @@ void interp(void) {
             tmp[5] = ((pylontech.max_charge)>>8)&0xFF;
           }
 #endif
-#if 0
-          // force disabling charge, in order to avoid driving the battery to retrieve too less energy from the PVs.
-          if (batt_forced_charge >= 0) {
-            master_log("force batt charge\n");
-            tmp[4] = batt_forced_charge&0xFF;
-            tmp[5] = (batt_forced_charge>>8)&0xFF;
-          }
-#endif
           // disallow discharge when battery is too low
           if (pylontech.soc <= 10) {
             master_log("soc < 10\n");
@@ -780,6 +792,13 @@ void interp(void) {
             tmp[4] = 0;
             tmp[5] = 0;
           }
+#if 1
+          if (batt_forced_charge >= 0) {
+            master_log("force batt charge\n");
+            tmp[4] = batt_forced_charge&0xFF;
+            tmp[5] = (batt_forced_charge>>8)&0xFF;
+          }
+#endif
           forward = 1;
           break;
         }
@@ -901,22 +920,25 @@ void interp(void) {
           // send request to the bms
           uart_select_intf(USART6);
           uart_send_mem("pwr\n",4);
-          bms_uart_state = BMS_UART_STATE_WAIT;
+          bms_uart_state = BMS_UART_STATE_WAIT_PWR;
           bms_uart_next = uwTick + BMS_UART_NEXT_INTERVAL;
         }
         bms_uart_timeout = uwTick + BMS_UART_TIMEOUT;
         break;
-      case BMS_UART_STATE_WAIT:
+      case BMS_UART_STATE_WAIT_PWR:
+      case BMS_UART_STATE_WAIT_UNIT:
+      case BMS_UART_STATE_WAIT_INFO:
       case BMS_UART_STATE_WAIT_USER:
         // line received?
         if (tparse_has_line(&tp_bms)) {
           size_t read = tparse_peek_line(&tp_bms, (char*)tmp, sizeof(tmp));
           master_log("UARTBMS << ");
           master_log_mem(tmp,read);
-          if (bms_uart_state == BMS_UART_STATE_WAIT) {
+          switch(bms_uart_state) {
+          case BMS_UART_STATE_WAIT_PWR: {
             uint32_t val = tparse_token_u32(&tp_bms); // Volt
             // if it's the line starting with integer and not a text line
-            if (val != -1UL) { 
+            if (val != -1UL) {
               pylontech.precise_voltage = (int32_t)val;
               int32_t valcurr = (int32_t)tparse_token_i32(&tp_bms); // Curr
 
@@ -981,25 +1003,143 @@ void interp(void) {
                 master_log("error: invalid precise wattage computation\n");
                 pylontech.precise_wattage=0;
               }
-              bms_uart_timeout = 0; // disable timeout
-              bms_uart_state = BMS_UART_STATE_IDLE; // enable next request sending
+              tparse_discard_line(&tp_bms);
             }
-            tparse_discard_line(&tp_bms);
+            // end?
+            else if (read >= 3 && strstr((const char *)tmp, "\r$$") == (const char *)tmp) {
+              tparse_discard(&tp_bms);
+              master_log("UARTBMS >> info\n");
+              // send request to the bms
+              uart_select_intf(USART6);
+              uart_send_mem("info\n",5);
+              pylontech.bmu_idx_tmp=0;
+              bms_uart_state = BMS_UART_STATE_WAIT_INFO; 
+              bms_uart_timeout = uwTick + BMS_UART_TIMEOUT;
+            }
+            else {
+              tparse_token_u32(&tp_bms);
+              tparse_discard_line(&tp_bms);
+            }
+            break;
+          } 
+          case BMS_UART_STATE_WAIT_INFO: {
+            /*
+            pylon>info
+            @
+            Device address      : 0
+            Manufacturer        : Pylon
+            Device name         : CMU_A
+            Board version       : TISP01V10R02_1
+            Hard  version       : V10R9C2
+            Main Soft version   : B52.28.0
+            Soft  version       : V5.2
+            Boot  version       : V1.4
+            Comm version        : V2.0
+            Release Date        : 21-06-21
+
+            Barcode             :                 
+            PCBA Barcode        : H10****************226          
+            Module Barcode      : PP***********050                
+            PowerSupply Barcode : H20****************058          
+
+            Device Test Time    : 2021-07-10 10:27:10
+
+            Specification       : 384V/50AH
+            Cell Number         : 120
+            Max Dischg Curr     : -40000mA
+            Max Charge Curr     : 40000mA
+            Shut Circuit        : Yes  
+            Relay Feedback      : Yes  
+            New Board           : Yes  
+
+            BMU 7 Barcode   
+            Module:   : HP***********402                
+            PCBA:     : H200***************198         
+
+            BMU 6 Barcode   
+            Module:   : HP***********402                
+            PCBA:     : H200***************198          
+            ...
+            */
+            if (read >= 13 && strstr((const char *)tmp, "\rPCBA:     : ") == (const char *)tmp) {
+              tparse_token(&tp_bms, (char*)tmp, sizeof(tmp)); // PCBA:
+              tparse_token(&tp_bms, (char*)tmp, sizeof(tmp)); // :
+              tparse_token(&tp_bms, 
+                           (char*)pylontech.bmu[pylontech.bmu_idx_tmp].pcba, 
+                           sizeof(pylontech.bmu[pylontech.bmu_idx_tmp].pcba)); // PCBA value
+              pylontech.bmu_idx_tmp++;
+              tparse_discard_line(&tp_bms);
+            }
+            // end?
+            else if (read >= 3 && strstr((const char *)tmp, "\r$$") == (const char *)tmp) {
+              tparse_discard(&tp_bms);
+              master_log("UARTBMS >> unit\n");
+              // send request to the bms
+              uart_select_intf(USART6);
+              uart_send_mem("unit\n",5);
+              pylontech.bmu_idx = pylontech.bmu_idx_tmp; // validate new count, so that i2c are not desynch
+              bms_uart_state = BMS_UART_STATE_WAIT_UNIT; 
+              bms_uart_timeout = uwTick + BMS_UART_TIMEOUT;
+            }
+            else {
+              tparse_token_u32(&tp_bms);
+              tparse_discard_line(&tp_bms);
+            }
+            break;
           }
-          else {
-            tparse_token_u32(&tp_bms);
-            if (strstr((const char *)tmp, "$$")) {
+          case BMS_UART_STATE_WAIT_UNIT: {
+            // unit info lines start with index value
+            uint32_t idx = tparse_token_u32(&tp_bms)-1; // index
+            if (idx >= 0 && idx < pylontech.bmu_idx && idx < PYLONTECH_MAX_BMUS) {
+              /*
+              Index  Volt   Curr   Tempr  BTlow  BThigh BVlow  BVhigh Base.St  Volt.St  Temp.St  CoulombAH                CoulombWH               Time               
+              1      50682  753    28000  25000  25000  3378   3380    Charge   Normal   Normal    93%          46477 mAH  93%            2238 WH 2000-11-27 01:37:22 
+              */
+              tparse_token_u32(&tp_bms); // volt
+              tparse_token_u32(&tp_bms); // current
+              tparse_token_u32(&tp_bms); // tempr
+              tparse_token_u32(&tp_bms); // btlow
+              tparse_token_u32(&tp_bms); // bthigh
+              pylontech.bmu[idx].vlow = tparse_token_u32(&tp_bms); // bvlow
+              pylontech.bmu[idx].vhigh = tparse_token_u32(&tp_bms); // bvhigh
+              tparse_token_u32(&tp_bms); // base.st
+              tparse_token_u32(&tp_bms); // volt.st
+              tparse_token_u32(&tp_bms); // temp.st
+              pylontech.bmu[idx].soc = tparse_token_u32(&tp_bms);
+              tparse_token_u32(&tp_bms); // mAh
+              tparse_token_u32(&tp_bms); // 'mAh'
+              pylontech.bmu[idx].soc_mWh = tparse_token_u32(&tp_bms); // CoulombWH
+              tparse_discard_line(&tp_bms);
+            }
+            // end?
+            else if (read >= 3 && strstr((const char *)tmp, "\r$$") == (const char *)tmp) {
+              tparse_discard(&tp_bms);
+              master_log("UARTBMS end\n");
+              bms_uart_state = BMS_UART_STATE_IDLE; 
+              bms_uart_timeout = 0;
+            }
+            else {
+              tparse_token_u32(&tp_bms);
+              tparse_discard_line(&tp_bms);
+            }
+            break;
+          }
+          default:
+            tparse_token_u32(&tp_bms); // consume one token to ensure consumption is complete
+            if (read >= 3 && strstr((const char *)tmp, "\r$$") == (const char *)tmp) {
               // last line of the command, THANKS pylontech for that delimiter
               bms_uart_next = 0;
               bms_uart_state = BMS_UART_STATE_IDLE;
             }
             tparse_discard_line(&tp_bms);
+            break;
           }
         }
         // timeout waiting for the command, reset the state and prepare a new command
         if ( bms_uart_timeout && EXPIRED(bms_uart_timeout)) {
-          bms_uart_next = 0;
-          bms_uart_state = BMS_UART_STATE_IDLE;
+          bms_uart_timeout = 0;
+          bms_uart_next = 0; // immediate next command
+          bms_uart_state = BMS_UART_STATE_IDLE; // send PWR again
           pylontech.precise_wattage = 0; // avoid relaying outdated data
         }
         break;
@@ -1159,8 +1299,8 @@ void interp(void) {
             }
 
             // only reset condition when a packet can be interpreted
-            batt_forced_charge = -1;
-            batt_forced_soc = -1;
+            //batt_forced_charge = -1;
+            //batt_forced_soc = -1;
             batt_drain_fix_cause = 0;
 
             // not NIGHT
@@ -1201,7 +1341,7 @@ void interp(void) {
               {
                 batt_drain_fix_cause = 1;
                 master_log("cause 1\n");
-                batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
+                //batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
                 //batt_forced_soc = 100;
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
                 if (solax_pw_queue_free() >= 2 
@@ -1226,7 +1366,7 @@ void interp(void) {
                 ) {
                 batt_drain_fix_cause = 4;
                 master_log("cause 4\n");
-                batt_forced_charge = 0; // deny charge
+                //batt_forced_charge = 0; // deny charge
                 // batt_forced_soc = 100;
                 // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
 
@@ -1246,7 +1386,7 @@ void interp(void) {
               if (pylontech.soc >= 98) {
                 batt_drain_fix_cause = 3;
                 master_log("cause 3\n");
-                batt_forced_charge = 0;
+                //batt_forced_charge = 0;
                 // batt_forced_soc = 100;
                 if (solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
                    && solax_pw_queue_free()
@@ -1422,8 +1562,8 @@ void interp(void) {
           solax_pw_queue_pop();
           // discard causes due to timeout of the request
           batt_drain_fix_cause = 0;
-          batt_forced_charge = -1;
-          batt_forced_soc = -1;
+          //batt_forced_charge = -1;
+          //batt_forced_soc = -1;
 
           Configure_UARTPW(9600);
           uart_select_intf(UARTPW);
@@ -1522,7 +1662,7 @@ void interp(void) {
 
 #define SLAVE_OWN_ADDRESS 0x44
 
-uint8_t i2c_xfer_buffer[128];
+uint8_t i2c_xfer_buffer[256];
 uint32_t i2c_xfer_w_length;
 uint32_t i2c_xfer_r_offset;
 uint32_t i2c_xfer_r_length;
@@ -1540,7 +1680,7 @@ void I2C_Slave_Reception_Callback(void) {
   // instruction byte interp, for single byte commands
   if (i2c_xfer_w_length == 1) {
     switch(i2c_xfer_buffer[0]) {
-    case 0:
+    case 0: // get info
       // read stats
       // don't process when an error has been detected, only ignore optimization rules (< 0x70)
       if (batt_drain_fix_cause < 70) 
@@ -1632,6 +1772,18 @@ void I2C_Slave_Reception_Callback(void) {
         U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, pylontech.precise_mWh);
         i2c_xfer_r_length+=4;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.soc_mWh;
+        for (int i = 0; i < pylontech.bmu_idx && i2c_xfer_r_length+8 < sizeof(i2c_xfer_buffer); i++) {
+          // if frame >= 128 bytes, then next frame is wrongly retrieved. this is weird
+          //i2c_xfer_buffer[i2c_xfer_r_length++] = ((pylontech.bmu[i].pcba[18]-0x30)<<4)|(pylontech.bmu[i].pcba[19]-0x30);
+          i2c_xfer_buffer[i2c_xfer_r_length++] = ((pylontech.bmu[i].pcba[20]-0x30)<<4)|(pylontech.bmu[i].pcba[21]-0x30);
+          i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.bmu[i].soc;
+          i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.bmu[i].soc_mWh;
+          i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.bmu[i].vlow>>8)&0xFF;
+          i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.bmu[i].vlow)&0xFF;
+          i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.bmu[i].vhigh>>8)&0xFF;
+          i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.bmu[i].vhigh)&0xFF;
+        }
+
         // encode total length
         i2c_xfer_buffer[0] = i2c_xfer_r_length;
       }
@@ -1708,6 +1860,10 @@ void I2C_Slave_Reception_Callback(void) {
       // automatic stop/allow discharge based on percentage
       self_use_auto = 1;
       break;
+
+    case 0x13:
+      batt_forced_charge = -1;
+      break;
     }
   }
   else {
@@ -1722,6 +1878,10 @@ void I2C_Slave_Reception_Callback(void) {
         break;
       case 0x12:
         pylontech.max_charge_soc = i2c_xfer_buffer[1];
+        break;
+        // force charge (to balance batteries)
+      case 0x14:
+        batt_forced_charge = i2c_xfer_buffer[1]; // in dA
         break;
       }
     }

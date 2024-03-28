@@ -78,6 +78,7 @@ void uart_select_intf(USART_TypeDef* usart);
 // rx is done through DMA, use the CNDTR value to detect were the data are
 
 uint32_t gpio_get(uint32_t port, uint32_t pin);
+void gpio_cfg_input(uint32_t port, uint32_t pin);
 void gpio_set(uint32_t port, uint32_t pin, uint32_t value);
 
 int32_t Configure_I2C1(uint32_t khz);

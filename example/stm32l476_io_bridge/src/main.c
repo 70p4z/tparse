@@ -128,7 +128,7 @@ __attribute__((weak)) void interp(void) {
           "i2cr", "i2cw", 
           "t0", "t0c", "t0clast", 
           "i2ci",
-          "gpo", "gpi", "atr", "off",
+          "gpo", "gpi", "cfgi", "atr", "off",
           "info", "on", "i2ciwait", "i2cscan",
           "reset",
           "ctx", "crx", "cavail", "ccfg",
@@ -333,6 +333,21 @@ __attribute__((weak)) void interp(void) {
         val = val?1:0;
         uart_send_hex((uint8_t*)&val, 1);
         uart_send("\n");
+        break;
+      case __COUNTER__:
+        // cfgi
+        port = tparse_token_u32(tp);
+        if (port > 7) {
+          uart_send("ERROR: invalid port\n");
+          break;
+        }
+        pin = tparse_token_u32(tp);
+        if (pin > 15) {
+          uart_send("ERROR: invalid pin\n");
+          break;
+        }
+        gpio_cfg_input(port, pin);
+        uart_send("OK:\n");
         break;
       case __COUNTER__:
         // ATR

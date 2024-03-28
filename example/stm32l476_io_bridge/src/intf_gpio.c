@@ -9,11 +9,11 @@ const struct {
   {0, 13}, // STLINK SWD
   {0, 14}, // STLINK SWD
   //(0, 5),  // ISO SWP         (D13) =1 at boot, mutable by UART
-  //{0, 6},  // I2C INT         (D12)
-  {0, 8},  // ISO CLK         (D7)
-  {0, 9},  // ISO IO          (D8) (also I2C interrupt)
+  //{0, 6},  // I2C INT         (D12) PA6
+  //{0, 8},  // ISO CLK         (D7)
+  //{0, 9},  // ISO IO          (D8) (also I2C interrupt)
   //{1, 6},  // ISO GND         (D10) (SE POWER)
-  {2, 7},  // ISO RST         (D9)
+  //{2, 7},  // ISO RST         (D9)
   {1, 8},  // I2C SCL         (D15)
   {1, 9},  // I2C SDA         (D14)
   {0, 11}, // CAN RX          (CN10-14)
@@ -58,4 +58,10 @@ again:
       goto again;
   }
   return GPIO->IDR & PIN;
+}
+
+void gpio_cfg_input(uint32_t port, uint32_t pin) {
+  GPIO_TypeDef* GPIO = (GPIO_TypeDef*)((uintptr_t)GPIOA_BASE + 0x400*port);
+  uint32_t PIN = 1<<pin;
+  LL_GPIO_SetPinMode(GPIO, PIN, LL_GPIO_MODE_INPUT);
 }

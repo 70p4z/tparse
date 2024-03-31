@@ -1499,6 +1499,8 @@ void interp(void) {
                 && solax.status != INVERTER_STATUS_FAULT
                 && solax.status != INVERTER_STATUS_EPS // don't require EPS when already in EPS
                 && solax.status != INVERTER_STATUS_EPS_WAIT // don't require EPS when already in EPS
+                && solax.status != INVERTER_STATUS_WAITING // going to normal
+                && solax.status != INVERTER_STATUS_CHECKING // going to normal
                 ) {
                 master_log("Antisurge: disconnect GRID, force EPS\n");
                 eps_mode_switch(1);
@@ -1683,7 +1685,7 @@ void I2C_Slave_Reception_Callback(void) {
     case 0: // get info
       // read stats
       // don't process when an error has been detected, only ignore optimization rules (< 0x70)
-      if (batt_drain_fix_cause < 70) 
+      if (batt_drain_fix_cause < 70 && pylontech.soc != 0 && pylontech.soc != 255) 
       {
         i2c_xfer_r_length = 0; // wipe the previous buffer content
         // data encoding version

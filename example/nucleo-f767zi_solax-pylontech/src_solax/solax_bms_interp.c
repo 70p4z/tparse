@@ -1497,8 +1497,10 @@ void interp(void) {
                 /* we inject */ //&& (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)
                 && solax.status != INVERTER_STATUS_ERROR 
                 && solax.status != INVERTER_STATUS_FAULT
-                && solax.status != INVERTER_STATUS_EPS // don't require EPS when already in EPS
-                && solax.status != INVERTER_STATUS_EPS_WAIT // don't require EPS when already in EPS
+                // COMMENTED: don't require EPS when already in EPS // avoid switching to grid when reconnecting 
+                // the grid => avoid checking mode, and then a 5 seconds injection window after reaching normal mode
+                //&& solax.status != INVERTER_STATUS_EPS 
+                //&& solax.status != INVERTER_STATUS_EPS_WAIT // don't require EPS when already in EPS
                 && solax.status != INVERTER_STATUS_WAITING // going to normal
                 && solax.status != INVERTER_STATUS_CHECKING // going to normal
                 ) {

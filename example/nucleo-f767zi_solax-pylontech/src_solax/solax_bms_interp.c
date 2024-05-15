@@ -1501,8 +1501,10 @@ void interp(void) {
                 // the grid => avoid checking mode, and then a 5 seconds injection window after reaching normal mode
                 //&& solax.status != INVERTER_STATUS_EPS 
                 //&& solax.status != INVERTER_STATUS_EPS_WAIT // don't require EPS when already in EPS
-                && solax.status != INVERTER_STATUS_WAITING // going to normal
-                && solax.status != INVERTER_STATUS_CHECKING // going to normal
+                // 
+                //&& solax.status != INVERTER_STATUS_WAITING // going to normal
+                // when disabled during checking, then it oftenly fails
+                //&& solax.status != INVERTER_STATUS_CHECKING // going to normal 
                 ) {
                 master_log("Antisurge: disconnect GRID, force EPS\n");
                 eps_mode_switch(1);

@@ -729,7 +729,7 @@ void interp(void) {
             tmp[5] = 0;
           }
           if (batt_forced_charge >= 0) {
-            tmp[4] = MIN(pylontech.soc, 90); // ensure charging when forcing charge
+            tmp[4] = MIN(pylontech.soc, 75); // ensure charging when forcing charge
           }
           forward = 1;
           break;

@@ -792,13 +792,18 @@ void interp(void) {
             tmp[4] = 0;
             tmp[5] = 0;
           }
-#if 1
           if (batt_forced_charge >= 0) {
+            // use the max value of forced charge
+            maxch = batt_forced_charge;
+            // take int oaccount the battery max charge value until max charge soc is reached
+            if (pylontech.soc < pylontech.max_charge_soc) {
+              maxch = MAX(batt_forced_charge, maxch);
+            }
             master_log("force batt charge\n");
-            tmp[4] = batt_forced_charge&0xFF;
-            tmp[5] = (batt_forced_charge>>8)&0xFF;
+            tmp[4] = maxch&0xFF;
+            tmp[5] = (maxch>>8)&0xFF;
           }
-#endif
+
           forward = 1;
           break;
         }

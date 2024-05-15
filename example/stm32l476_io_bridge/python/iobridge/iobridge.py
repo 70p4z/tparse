@@ -52,9 +52,9 @@ class IOBridge(UsartIface):
 			if rline == None or len(rline) == 0 or not rline.startswith('OK:'):
 				if not rline:
 					rline = b''
+				if self.logger:
+					self.logger.debug(rline)
 				if rline.startswith('#'):
-					if self.logger:
-						self.logger.debug(rline)
 					continue
 				if self.logger:
 					self.logger.error("Error: " + cmd)
@@ -106,6 +106,8 @@ class IOBridge(UsartIface):
 		self.exchange("gpo " + hex(port) + " " + hex(pin) + " " + hex(state))
 	def gpio_get(self, port, pin):
 		return self.exchange("gpi " + hex(port) + " " + hex(pin)) == "01"
+	def gpio_cfg_input(self, port, pin):
+		self.exchange("cfgi " + hex(port) + " " + hex(pin))
 	def can_available(self):
 		rep = self.exchange("cavail")
 		return int(rep, 16)

@@ -20,9 +20,11 @@ const struct {
   {0, 12}, // CAN TX          (CN10-12)
   {2, 10},  // USART3 TX      (CN7-1)
   {2, 11},  // USART3 RX      (CN7-2)
+  /*
   {1, 4},  // SPI MISO        (D5)
   {1, 5},  // SPI MOSI        (D4)
   {1, 3},  // SPI SCLK        (D3)
+  */
 };
 
 void gpio_set(uint32_t port, uint32_t pin, uint32_t value) {

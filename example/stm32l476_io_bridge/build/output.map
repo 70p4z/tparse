@@ -2421,7 +2421,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
 .iplt           0x00000000080042fc        0x0
  .iplt          0x00000000080042fc        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
 
-.rodata         0x00000000080042fc      0x520
+.rodata         0x00000000080042fc      0x518
                 0x00000000080042fc                . = ALIGN (0x4)
  *(.rodata)
  .rodata        0x00000000080042fc        0x2 build/main.o
@@ -2434,61 +2434,60 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x0000000008004320       0x20 build/iso7816.o
                 0x0000000008004320                ISO7816_TA_F
  .rodata.gpio_reserved
-                0x0000000008004340       0x1a build/intf_gpio.o
+                0x0000000008004340       0x14 build/intf_gpio.o
                 0x0000000008004340                gpio_reserved
- *fill*         0x000000000800435a        0x2 
  .rodata.interp.str1.4
-                0x000000000800435c      0x396 build/main.o
+                0x0000000008004354      0x396 build/main.o
                                         0x39a (size before relaxing)
- *fill*         0x00000000080046f2        0x2 
+ *fill*         0x00000000080046ea        0x2 
  .rodata.str1.4
-                0x00000000080046f4       0xbc build/main.o
+                0x00000000080046ec       0xbc build/main.o
  .rodata.cmds.0
-                0x00000000080047b0       0x6c build/main.o
-                0x000000000800481c                . = ALIGN (0x4)
+                0x00000000080047a8       0x6c build/main.o
+                0x0000000008004814                . = ALIGN (0x4)
 
-.rel.dyn        0x000000000800481c        0x0
- .rel.iplt      0x000000000800481c        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
+.rel.dyn        0x0000000008004814        0x0
+ .rel.iplt      0x0000000008004814        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
 
-.ARM.extab      0x000000000800481c        0x0
-                0x000000000800481c                . = ALIGN (0x4)
+.ARM.extab      0x0000000008004814        0x0
+                0x0000000008004814                . = ALIGN (0x4)
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x000000000800481c                . = ALIGN (0x4)
+                0x0000000008004814                . = ALIGN (0x4)
 
-.ARM            0x000000000800481c        0x0
-                0x000000000800481c                . = ALIGN (0x4)
-                0x000000000800481c                __exidx_start = .
+.ARM            0x0000000008004814        0x0
+                0x0000000008004814                . = ALIGN (0x4)
+                0x0000000008004814                __exidx_start = .
  *(.ARM.exidx*)
-                0x000000000800481c                __exidx_end = .
-                0x000000000800481c                . = ALIGN (0x4)
+                0x0000000008004814                __exidx_end = .
+                0x0000000008004814                . = ALIGN (0x4)
 
-.preinit_array  0x000000000800481c        0x0
-                0x000000000800481c                . = ALIGN (0x4)
-                0x000000000800481c                PROVIDE (__preinit_array_start = .)
+.preinit_array  0x0000000008004814        0x0
+                0x0000000008004814                . = ALIGN (0x4)
+                0x0000000008004814                PROVIDE (__preinit_array_start = .)
  *(.preinit_array*)
-                0x000000000800481c                PROVIDE (__preinit_array_end = .)
-                0x000000000800481c                . = ALIGN (0x4)
+                0x0000000008004814                PROVIDE (__preinit_array_end = .)
+                0x0000000008004814                . = ALIGN (0x4)
 
-.init_array     0x000000000800481c        0x4
-                0x000000000800481c                . = ALIGN (0x4)
-                0x000000000800481c                PROVIDE (__init_array_start = .)
+.init_array     0x0000000008004814        0x4
+                0x0000000008004814                . = ALIGN (0x4)
+                0x0000000008004814                PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
- .init_array    0x000000000800481c        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
-                0x0000000008004820                PROVIDE (__init_array_end = .)
-                0x0000000008004820                . = ALIGN (0x4)
+ .init_array    0x0000000008004814        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
+                0x0000000008004818                PROVIDE (__init_array_end = .)
+                0x0000000008004818                . = ALIGN (0x4)
 
-.fini_array     0x0000000008004820        0x4
-                0x0000000008004820                . = ALIGN (0x4)
+.fini_array     0x0000000008004818        0x4
+                0x0000000008004818                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
- .fini_array    0x0000000008004820        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
+ .fini_array    0x0000000008004818        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
                 [!provide]                        PROVIDE (__fini_array_end = .)
-                0x0000000008004824                . = ALIGN (0x4)
-                0x0000000008004824                _sidata = LOADADDR (.data)
+                0x000000000800481c                . = ALIGN (0x4)
+                0x000000000800481c                _sidata = LOADADDR (.data)
 
-.data           0x0000000020000000        0x4 load address 0x0000000008004824
+.data           0x0000000020000000        0x4 load address 0x000000000800481c
                 0x0000000020000000                . = ALIGN (0x4)
                 0x0000000020000000                _sdata = .
  *(.data)
@@ -2501,11 +2500,11 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x0000000020000004                . = ALIGN (0x4)
                 0x0000000020000004                _edata = .
 
-.igot.plt       0x0000000020000004        0x0 load address 0x0000000008004828
+.igot.plt       0x0000000020000004        0x0 load address 0x0000000008004820
  .igot.plt      0x0000000020000004        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
                 0x0000000020000004                . = ALIGN (0x4)
 
-.bss            0x0000000020000004     0x21c8 load address 0x0000000008004828
+.bss            0x0000000020000004     0x21c8 load address 0x0000000008004820
                 0x0000000020000004                _sbss = .
                 0x0000000020000004                __bss_start__ = _sbss
  *(.bss)
@@ -2549,7 +2548,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x00000000200021cc                __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x00000000200021cc      0x604 load address 0x0000000008004828
+                0x00000000200021cc      0x604 load address 0x0000000008004820
                 0x00000000200021d0                . = ALIGN (0x8)
  *fill*         0x00000000200021cc        0x4 
                 [!provide]                        PROVIDE (end = .)
@@ -2802,7 +2801,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_macro   0x0000000000028618       0x16 build/tparse.o
  .debug_macro   0x000000000002862e      0x145 build/tparse.o
 
-.debug_line     0x0000000000000000     0xc2f1
+.debug_line     0x0000000000000000     0xc2f2
  .debug_line    0x0000000000000000      0x6d4 build/system_stm32l4xx.o
  .debug_line    0x00000000000006d4      0x8ee build/stm32l4xx_it.o
  .debug_line    0x0000000000000fc2      0x7c6 build/iso7816.o
@@ -2810,12 +2809,12 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_line    0x0000000000002886       0x7c build/startup_stm32l476rgtx.o
  .debug_line    0x0000000000002902     0x149b build/intf_iso.o
  .debug_line    0x0000000000003d9d     0x25a2 build/intf_usart.o
- .debug_line    0x000000000000633f      0xbaa build/intf_gpio.o
- .debug_line    0x0000000000006ee9     0x14cf build/main.o
- .debug_line    0x00000000000083b8     0x1025 build/intf_spi.o
- .debug_line    0x00000000000093dd     0x115d build/intf_i2c.o
- .debug_line    0x000000000000a53a      0xd40 build/stm32l4xx_ll_utils.o
- .debug_line    0x000000000000b27a     0x1077 build/tparse.o
+ .debug_line    0x000000000000633f      0xbab build/intf_gpio.o
+ .debug_line    0x0000000000006eea     0x14cf build/main.o
+ .debug_line    0x00000000000083b9     0x1025 build/intf_spi.o
+ .debug_line    0x00000000000093de     0x115d build/intf_i2c.o
+ .debug_line    0x000000000000a53b      0xd40 build/stm32l4xx_ll_utils.o
+ .debug_line    0x000000000000b27b     0x1077 build/tparse.o
 
 .debug_str      0x0000000000000000    0xf6804
  .debug_str     0x0000000000000000    0xe4763 build/system_stm32l4xx.o

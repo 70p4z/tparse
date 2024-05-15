@@ -150,8 +150,12 @@ if __name__ == '__main__':
     # wait atr
     iob.i2c_wait_interrupt()
 
+  if iob.i2c_is_interrupt():
+    datar = i2c_exchange(iob, b'', 255, args.addr)
+    print(binascii.hexlify(datar).decode("utf8"))
+
   # negociate MTU with the device
-  mtu = i2c_negociate_mtu(args.mtu)
+  mtu = i2c_negociate_mtu(iob, args.mtu)
 
   for line in sys.stdin:
     line = line.rstrip("\n").rstrip("\r")

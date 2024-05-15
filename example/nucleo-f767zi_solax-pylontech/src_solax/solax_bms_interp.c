@@ -397,6 +397,10 @@ struct {
   uint16_t cycles;
   uint8_t fix2_31;
   uint32_t total_capacity_mAh;
+  uint8_t vcellmax;
+  uint8_t vcellmin;
+  uint8_t tcellmax;
+  uint8_t tcellmin;
   uint8_t bmu_idx;
   uint8_t bmu_idx_tmp;
   struct {
@@ -728,7 +732,7 @@ void interp(void) {
             tmp[4] = batt_forced_soc&0xFF;
             tmp[5] = 0;
           }
-          if (batt_forced_charge >= 0) {
+          if (batt_forced_charge >= 0 && pylontech.vcellmax >= 31 && pylontech.vcellmax < 35) {
             tmp[4] = MIN(pylontech.soc, 75); // ensure charging when forcing charge
           }
           forward = 1;
@@ -792,16 +796,23 @@ void interp(void) {
             tmp[4] = 0;
             tmp[5] = 0;
           }
+
+          // only allow forced charge when voltage is compliant, /!\ avoid fires
           if (batt_forced_charge >= 0) {
-            // use the max value of forced charge
-            maxch = batt_forced_charge;
-            // take int oaccount the battery max charge value until max charge soc is reached
-            if (pylontech.soc < pylontech.max_charge_soc) {
-              maxch = MAX(batt_forced_charge, maxch);
+            if (pylontech.vcellmax >= 31 && pylontech.vcellmax < 35) {
+              // use the max value of forced charge
+              maxch = batt_forced_charge;
+              // take int oaccount the battery max charge value until max charge soc is reached
+              if (pylontech.soc < pylontech.max_charge_soc) {
+                maxch = MAX(batt_forced_charge, maxch);
+              }
+              master_log("force batt charge\n");
+              tmp[4] = maxch&0xFF;
+              tmp[5] = (maxch>>8)&0xFF;
             }
-            master_log("force batt charge\n");
-            tmp[4] = maxch&0xFF;
-            tmp[5] = (maxch>>8)&0xFF;
+            else {
+              master_log("forced batt charge ignored\n");
+            }
           }
 
           forward = 1;
@@ -862,6 +873,10 @@ void interp(void) {
 
         // discarded
         case 0x1874:
+          pylontech.tcellmax=S2LE(tmp, 0);
+          pylontech.tcellmin=S2LE(tmp, 2);
+          pylontech.vcellmax=S2LE(tmp, 4);
+          pylontech.vcellmin=S2LE(tmp, 6);
           snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Tcellmax=%d.%d°C\tTcellmin=%d.%d°C\tVcellmax=%d.%dV\tVcellmin=%d.%dV\n", 
                    S2LE(tmp, 0)/10,S2LE(tmp, 0)%10,
                    S2LE(tmp, 2)/10,S2LE(tmp, 2)%10,

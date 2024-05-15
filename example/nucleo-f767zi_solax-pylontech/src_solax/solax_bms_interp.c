@@ -10,7 +10,7 @@
 
 // ensure 5 seconds steady state before making up a decision
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
-#define GRID_SWITCH_STATE_COUNT 5 
+#define GRID_SWITCH_STATE_COUNT 3
 #define GRID_CONNECT_SOC    25 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
 #define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
 

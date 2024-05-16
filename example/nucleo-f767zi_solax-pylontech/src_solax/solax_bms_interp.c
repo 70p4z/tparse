@@ -804,7 +804,7 @@ void interp(void) {
               maxch = batt_forced_charge;
               // take int oaccount the battery max charge value until max charge soc is reached
               if (pylontech.soc < pylontech.max_charge_soc) {
-                maxch = MAX(batt_forced_charge, maxch);
+                maxch = MAX(batt_forced_charge, pylontech.max_charge);
               }
               master_log("force batt charge\n");
               tmp[4] = maxch&0xFF;
@@ -1319,8 +1319,6 @@ void interp(void) {
             }
 
             // only reset condition when a packet can be interpreted
-            //batt_forced_charge = -1;
-            //batt_forced_soc = -1;
             batt_drain_fix_cause = 0;
 
             // not NIGHT
@@ -1361,9 +1359,6 @@ void interp(void) {
               {
                 batt_drain_fix_cause = 1;
                 master_log("cause 1\n");
-                //batt_forced_charge = 0; // deny charge (which drains battery when not enough solar)
-                //batt_forced_soc = 100;
-                // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE;
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
                   && solax_pw_mode_change_ready == 0
@@ -1386,10 +1381,6 @@ void interp(void) {
                 ) {
                 batt_drain_fix_cause = 4;
                 master_log("cause 4\n");
-                //batt_forced_charge = 0; // deny charge
-                // batt_forced_soc = 100;
-                // batt_forced_soc = SOLAX_BAT_MIN_SOC_SELFUSE; // deny discharge for self-use
-
                 if (solax_pw_queue_free() >= 2 
                   && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
                   && solax_pw_mode_change_ready == 0
@@ -1406,8 +1397,6 @@ void interp(void) {
               if (pylontech.soc >= 98) {
                 batt_drain_fix_cause = 3;
                 master_log("cause 3\n");
-                //batt_forced_charge = 0;
-                // batt_forced_soc = 100;
                 if (solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
                    && solax_pw_queue_free()
                    && solax_pw_mode_change_ready == 0
@@ -1452,7 +1441,6 @@ void interp(void) {
                 if (timeout_pv1_switch_on == 0) {
                 batt_drain_fix_cause = 7;
                 master_log("cause 7\n");
-                //batt_forced_charge = 0;
                 if (solax_pw_queue_free() 
                   && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
                   && solax_pw_mode_change_ready == 0
@@ -1588,8 +1576,6 @@ void interp(void) {
           solax_pw_queue_pop();
           // discard causes due to timeout of the request
           batt_drain_fix_cause = 0;
-          //batt_forced_charge = -1;
-          //batt_forced_soc = -1;
 
           Configure_UARTPW(9600);
           uart_select_intf(UARTPW);

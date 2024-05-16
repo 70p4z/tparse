@@ -197,11 +197,11 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
 
-          # avoid oups, by disabling forced charge after a while
-          if mqtt_client.forced_charge_stop_timer:
-            mqtt_client.forced_charge_stop_timer.cancel()
-          mqtt_client.forced_charge_stop_timer = threading.Timer(60, solax_forced_charge_stop)
-          mqtt_client.forced_charge_stop_timer.start()
+          # # avoid oups, by disabling forced charge after a while
+          # if mqtt_client.forced_charge_stop_timer:
+          #   mqtt_client.forced_charge_stop_timer.cancel()
+          # mqtt_client.forced_charge_stop_timer = threading.Timer(60, solax_forced_charge_stop)
+          # mqtt_client.forced_charge_stop_timer.start()
 
           msg=b'\x14\x32' # 5.0A
           with i2clock:
@@ -218,11 +218,11 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
 
-          ## avoid oups, by disabling forced charge after a while
-          #if mqtt_client.forced_charge_stop_timer:
-          #  mqtt_client.forced_charge_stop_timer.cancel()
-          #mqtt_client.forced_charge_stop_timer = threading.Timer(60, solax_forced_charge_stop)
-          #mqtt_client.forced_charge_stop_timer.start()
+          # # avoid oups, by disabling forced charge after a while
+          # if mqtt_client.forced_charge_stop_timer:
+          #   mqtt_client.forced_charge_stop_timer.cancel()
+          # mqtt_client.forced_charge_stop_timer = threading.Timer(60, solax_forced_charge_stop)
+          # mqtt_client.forced_charge_stop_timer.start()
 
           msg=b'\x14\x03'
           with i2clock:

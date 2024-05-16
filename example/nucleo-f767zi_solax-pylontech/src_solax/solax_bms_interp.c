@@ -26,6 +26,10 @@
 //#define SOLAX_BATTERY_CHARGE_OFFSET_DA 4 WITH NO EPS POWERING
 #define SOLAX_BATTERY_CHARGE_OFFSET_DA 8
 
+// When charge is not possible anymore, use this value to make the inverter thinks it can charge and 
+// avoid draining the battery when PV power is still available
+#define SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN 3
+
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
 // #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
 
@@ -485,6 +489,9 @@ void interp(void) {
   // init the queue
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
   pylontech_cache_clear();
+
+  // setup default charge enforcing
+  batt_forced_charge = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
 
   // automatic state switching and eps disconnect mode by default
   self_use_auto = 1;

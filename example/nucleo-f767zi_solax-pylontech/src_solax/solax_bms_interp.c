@@ -15,7 +15,7 @@
 #define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
 
 
-#define SOLAX_MAX_CHARGE_SOC 98 // limit battery wearing
+#define SOLAX_MAX_CHARGE_SOC 95 // limit battery wearing
 
 // Solax X1G4 has an offset when respecting battery max charge current (maybe some inside DC bus consumption)
 // 50W / 200 = 

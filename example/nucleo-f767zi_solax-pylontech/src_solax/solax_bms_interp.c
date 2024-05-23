@@ -52,7 +52,7 @@
 #define BMS_KIND_BLANK2 0x55
 #define BMS_KIND_TP200 0x81
 #define BMS_KIND_TP201 0x82 
-#define BMS_KIND_TP202 0x83 // ok 8x H48050
+#define BMS_KIND_TP202 0x83 // ok [1,2,4,3,7,8]x H48050
 // change depending on the battery configuration if it doesn't work out
 #define BMS_KIND BMS_KIND_TP202
 

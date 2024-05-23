@@ -28,7 +28,7 @@
 
 // When charge is not possible anymore, use this value to make the inverter thinks it can charge and 
 // avoid draining the battery when PV power is still available
-#define SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN 3
+#define SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN 5 // 0.5A => more charging than discharging
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
 // #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
@@ -1882,6 +1882,10 @@ void I2C_Slave_Reception_Callback(void) {
 
     case 0x13:
       batt_forced_charge = -1;
+      break;
+      
+    case 0x15:
+      batt_forced_charge = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
       break;
     }
   }

@@ -213,25 +213,34 @@ def mqtt_start():
     mqtt_client.publish('homeassistant/switch/solax_forced_charge_start/config', payload=json.dumps({"name": "Solax Start Forced Charge", "command_topic": "homeassistant/switch/solax_forced_charge_start/set", "state_topic": "homeassistant/switch/solax_forced_charge_start/state"}), retain=True)
     mqtt_client.subscribe('homeassistant/switch/solax_forced_charge_start/set')
 
+    # ensure minimal charge value from the battery to compensate with solax invalid 
+    # management of its internal consumption threshold
+    def on_message_solax_workaround(client, userdata, msg):
+      try:
+        if msg.payload.decode('utf-8') == "ON":
+          msg=b'\x15'
+          with i2clock:
+            write = i2c_msg.write(i2c_addr, msg)
+            i2cbus.i2c_rdwr(write)
+      except:
+        traceback.print_exc()
+    mqtt_client.message_callback_add('homeassistant/switch/solax_workaround/set', on_message_solax_workaround)
+    mqtt_client.publish('homeassistant/switch/solax_workaround/config', payload=json.dumps({"name": "Solax Battery First When Full Workaround", "command_topic": "homeassistant/switch/solax_workaround/set", "state_topic": "homeassistant/switch/solax_workaround/state"}), retain=True)
+    mqtt_client.subscribe('homeassistant/switch/solax_workaround/set')
+
+
     # start forced slow charge
     def on_message_solax_forced_slow_charge_start(client, userdata, msg):
       try:
         if msg.payload.decode('utf-8') == "ON":
-
-          # # avoid oups, by disabling forced charge after a while
-          # if mqtt_client.forced_charge_stop_timer:
-          #   mqtt_client.forced_charge_stop_timer.cancel()
-          # mqtt_client.forced_charge_stop_timer = threading.Timer(60, solax_forced_charge_stop)
-          # mqtt_client.forced_charge_stop_timer.start()
-
-          msg=b'\x14\x03'
+          msg=b'\x14\x0A'
           with i2clock:
             write = i2c_msg.write(i2c_addr, msg)
             i2cbus.i2c_rdwr(write)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_forced_slow_charge_start/set', on_message_solax_forced_slow_charge_start)
-    mqtt_client.publish('homeassistant/switch/solax_forced_slow_charge_start/config', payload=json.dumps({"name": "Solax Start Forced Slow Charge", "command_topic": "homeassistant/switch/solax_forced_slow_charge_start/set", "state_topic": "homeassistant/switch/solax_forced_slow_charge_start/state"}), retain=True)
+    mqtt_client.publish('homeassistant/switch/solax_forced_slow_charge_start/config', payload=json.dumps({"name": "Solax Start Forced Slow Charge 1.0A", "command_topic": "homeassistant/switch/solax_forced_slow_charge_start/set", "state_topic": "homeassistant/switch/solax_forced_slow_charge_start/state"}), retain=True)
     mqtt_client.subscribe('homeassistant/switch/solax_forced_slow_charge_start/set')
 
   def on_connect(client, userdata, flags, rc):

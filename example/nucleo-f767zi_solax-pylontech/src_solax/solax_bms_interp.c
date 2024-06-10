@@ -52,7 +52,7 @@
 #define BMS_KIND_BLANK2 0x55
 #define BMS_KIND_TP200 0x81
 #define BMS_KIND_TP201 0x82 
-#define BMS_KIND_TP202 0x83 // ok [1,2,4,3,7,8]x H48050
+#define BMS_KIND_TP202 0x83 // ok from 1 to 8 H48050 connected
 // change depending on the battery configuration if it doesn't work out
 #define BMS_KIND BMS_KIND_TP202
 
@@ -739,8 +739,12 @@ void interp(void) {
             tmp[4] = batt_forced_soc&0xFF;
             tmp[5] = 0;
           }
-          if (batt_forced_charge >= 0 && pylontech.vcellmax >= 31 && pylontech.vcellmax < 35) {
-            tmp[4] = MIN(pylontech.soc, 75); // ensure charging when forcing charge
+
+          // always apply a SoC that allosw the inverter to charge. to ensure battery full workaround is effective
+          //if (batt_forced_charge >= 0)
+          {
+            // ensure charging when forcing charge (invert will not deny charge at that value)
+            tmp[4] = MIN(pylontech.soc, 75);
           }
           forward = 1;
           break;
@@ -800,28 +804,42 @@ void interp(void) {
           }
           // max charge reached?
           if (pylontech.soc >= pylontech.max_charge_soc) {
+#if 0
             tmp[4] = 0;
             tmp[5] = 0;
+#else
+            // apply workaround for battery full first, instead of PV first
+            // make the inverter respect the priorities: PV > BAT > GRID > House
+            maxch = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
+            tmp[4] = maxch&0xFF;
+            tmp[5] = (maxch>>8)&0xFF;
+#endif
           }
 
           // only allow forced charge when voltage is compliant, /!\ avoid fires
           if (batt_forced_charge >= 0) {
-            if (pylontech.vcellmax >= 31 && pylontech.vcellmax < 35) {
-              // use the max value of forced charge
-              maxch = batt_forced_charge;
-              // take int oaccount the battery max charge value until max charge soc is reached
-              if (pylontech.soc < pylontech.max_charge_soc) {
-                maxch = MAX(batt_forced_charge, pylontech.max_charge);
-              }
-              master_log("force batt charge\n");
-              tmp[4] = maxch&0xFF;
-              tmp[5] = (maxch>>8)&0xFF;
+            // use the max value of forced charge
+            maxch = batt_forced_charge;
+            // take into account the battery max charge value until max charge soc is reached
+            if (pylontech.soc < pylontech.max_charge_soc) {
+              maxch = MAX(batt_forced_charge, pylontech.max_charge);
+            }
+            else if (pylontech.vcellmax >= 35) {
+              master_log("batt voltage too high (3.5V), only workaround battery drain\n");
+              maxch = MIN(batt_forced_charge, SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN);
             }
             else {
-              master_log("forced batt charge ignored\n");
+              master_log("force batt charge\n");
             }
+            tmp[4] = maxch&0xFF;
+            tmp[5] = (maxch>>8)&0xFF;
           }
 
+          if (pylontech.vcellmax >= 36) {
+            master_log("batt voltage dangerous (3.6V), stop forced charge to avoid wearing\n");
+            tmp[4] = 0;
+            tmp[5] = 0;
+          }
           forward = 1;
           break;
         }
@@ -1883,7 +1901,8 @@ void I2C_Slave_Reception_Callback(void) {
     case 0x13:
       batt_forced_charge = -1;
       break;
-      
+
+    // restore anti power routing fix
     case 0x15:
       batt_forced_charge = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
       break;

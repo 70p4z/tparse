@@ -28,7 +28,11 @@
 
 // When charge is not possible anymore, use this value to make the inverter thinks it can charge and 
 // avoid draining the battery when PV power is still available
-#define SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN 5 // 0.5A => more charging than discharging
+#define SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN 3 // 0.5A => more charging than discharging
+// average offset accounted in the inverter
+#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 320 
+#define SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT 4
+#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS (SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT*3/4*1000)
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
 // #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
@@ -324,6 +328,9 @@ const char * const solax_forced_work_mode_str [] = {
 
 int32_t batt_forced_soc = -1;
 int32_t batt_forced_charge = -1;
+int32_t batt_full_drain_workaround_current_dA = 0;
+int32_t batt_full_drain_workaround_last_change_ms = 0;
+int32_t batt_full_drain_workaround_values[SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT];
 uint32_t batt_drain_fix_cause = 0;
 uint32_t self_use_auto;
 uint32_t eps_mode_switch_auto;
@@ -490,8 +497,12 @@ void interp(void) {
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
   pylontech_cache_clear();
 
-  // setup default charge enforcing
-  batt_forced_charge = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
+  // disable forced charge
+  batt_forced_charge = -1;
+  // default algorithm start with base current
+  batt_full_drain_workaround_current_dA = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
+  batt_full_drain_workaround_last_change_ms = uwTick;
+  memset(batt_full_drain_workaround_values, 0, sizeof(batt_full_drain_workaround_values));
 
   // automatic state switching and eps disconnect mode by default
   self_use_auto = 1;
@@ -802,18 +813,55 @@ void interp(void) {
             tmp[6] = 0;
             tmp[7] = 0;
           }
+
           // max charge reached?
           if (pylontech.soc >= pylontech.max_charge_soc) {
-#if 0
-            tmp[4] = 0;
-            tmp[5] = 0;
-#else
             // apply workaround for battery full first, instead of PV first
             // make the inverter respect the priorities: PV > BAT > GRID > House
-            maxch = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
+
+            // when no batt forced charge, then apply auto adjust
+            // get the best current approx in mA
+            int32_t batt_current = pylontech.current * 100;
+            int32_t batt_compensated_curr_dA = SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE * 100
+                                            / pylontech.voltage;
+            if (pylontech.precise_wattage != 0 ) {
+              batt_current = pylontech.precise_current;
+            }
+            int32_t current_average = 0;
+            for (int i = 0; i < SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT-1; i++) {
+              batt_full_drain_workaround_values[i] = batt_full_drain_workaround_values[i+1];
+              current_average += batt_full_drain_workaround_values[i];
+            }
+            batt_full_drain_workaround_values[SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT-1] = batt_current;
+            current_average += batt_current;
+            current_average /= SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT;
+
+            if (EXPIRED(batt_full_drain_workaround_last_change_ms)) {
+              batt_full_drain_workaround_last_change_ms = uwTick + SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS;
+
+              // /!\ dont' do it but only when panel have juice.
+              // how/when to reset?
+              if (current_average < 100) {
+                batt_full_drain_workaround_current_dA
+                  = MIN(batt_full_drain_workaround_current_dA + 1, batt_compensated_curr_dA);
+              }
+              else if (current_average > 150) {
+                // if it charges when requested max charge is 0, then well, yeah, have fun boyz
+                batt_full_drain_workaround_current_dA 
+                  = MAX(1, batt_full_drain_workaround_current_dA - 1);
+              }
+              else {
+                // when it's between bounds, it's just fine
+                master_log("no change in charge current\n");
+              }
+            }
+            snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldmA, avg: %ldmA, forced value %ldmA\n", current_average, batt_current, batt_full_drain_workaround_current_dA*100);
+            master_log(tmp+128);
+
+            // use last computed value
+            maxch = batt_full_drain_workaround_current_dA;
             tmp[4] = maxch&0xFF;
             tmp[5] = (maxch>>8)&0xFF;
-#endif
           }
 
           // only allow forced charge when voltage is compliant, /!\ avoid fires
@@ -823,10 +871,6 @@ void interp(void) {
             // take into account the battery max charge value until max charge soc is reached
             if (pylontech.soc < pylontech.max_charge_soc) {
               maxch = MAX(batt_forced_charge, pylontech.max_charge);
-            }
-            else if (pylontech.vcellmax >= 35) {
-              master_log("batt voltage too high (3.5V), only workaround battery drain\n");
-              maxch = MIN(batt_forced_charge, SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN);
             }
             else {
               master_log("force batt charge\n");
@@ -1760,8 +1804,14 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.max_discharge>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_discharge&0xFF;
         // bat forced max charge
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (batt_forced_charge>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_charge&0xFF;
+        if (batt_forced_charge == -1) {
+          i2c_xfer_buffer[i2c_xfer_r_length++] = (batt_full_drain_workaround_current_dA>>8)&0xFF;
+          i2c_xfer_buffer[i2c_xfer_r_length++] = batt_full_drain_workaround_current_dA&0xFF;
+        }
+        else {
+          i2c_xfer_buffer[i2c_xfer_r_length++] = (batt_forced_charge>>8)&0xFF;
+          i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_charge&0xFF;
+        }
         // last rule executed
         i2c_xfer_buffer[i2c_xfer_r_length++] = batt_drain_fix_cause;
         // solax work_mode
@@ -1900,11 +1950,6 @@ void I2C_Slave_Reception_Callback(void) {
 
     case 0x13:
       batt_forced_charge = -1;
-      break;
-
-    // restore anti power routing fix
-    case 0x15:
-      batt_forced_charge = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
       break;
     }
   }

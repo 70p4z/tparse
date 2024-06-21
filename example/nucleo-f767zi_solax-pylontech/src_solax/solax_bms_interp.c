@@ -22,16 +22,17 @@
 // X1G4 for type 0x83 1.8A => 1.0A
 // X1G4 for type 0x83 2.0A => 1.2A
 // X1G4 for type 0x83 2.0A => 1.6A (when not output EPS power)
-// W1G4 for type 0x83 1.0A => 0.1A
+// X1G4 for type 0x83 1.0A => 0.1A
 //#define SOLAX_BATTERY_CHARGE_OFFSET_DA 4 WITH NO EPS POWERING
-#define SOLAX_BATTERY_CHARGE_OFFSET_DA 8
+//#define SOLAX_BATTERY_CHARGE_OFFSET_DA 8
+#define SOLAX_BATTERY_CHARGE_OFFSET_DA 6 // reduce a bit to avoid 4.4kwh instead of 4kwh
 
 // When charge is not possible anymore, use this value to make the inverter thinks it can charge and 
 // avoid draining the battery when PV power is still available
 #define SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN 3 // 0.5A => more charging than discharging
 // average offset accounted in the inverter
 #define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 320 
-#define SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT 4
+#define SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT 10
 #define SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS (SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT*3/4*1000)
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
@@ -841,7 +842,7 @@ void interp(void) {
 
               // /!\ dont' do it but only when panel have juice.
               // how/when to reset?
-              if (current_average < 100) {
+              if (current_average < 0) {
                 batt_full_drain_workaround_current_dA
                   = MIN(batt_full_drain_workaround_current_dA + 1, batt_compensated_curr_dA);
               }
@@ -875,8 +876,11 @@ void interp(void) {
             else {
               master_log("force batt charge\n");
             }
-            tmp[4] = maxch&0xFF;
-            tmp[5] = (maxch>>8)&0xFF;
+            // only force charge when battery voltage levels are safe
+            if (pylontech.vcellmax < 35) {
+              tmp[4] = maxch&0xFF;
+              tmp[5] = (maxch>>8)&0xFF;
+            }
           }
 
           if (pylontech.vcellmax >= 36) {

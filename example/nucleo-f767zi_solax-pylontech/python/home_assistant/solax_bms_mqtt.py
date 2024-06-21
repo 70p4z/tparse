@@ -190,19 +190,10 @@ def mqtt_start():
     mqtt_client.publish('homeassistant/switch/solax_forced_charge_stop/config', payload=json.dumps({"name": "Solax Stop Forced Charge", "command_topic": "homeassistant/switch/solax_forced_charge_stop/set", "state_topic": "homeassistant/switch/solax_forced_charge_stop/state" }), retain=True)
     mqtt_client.subscribe('homeassistant/switch/solax_forced_charge_stop/set')
 
-    mqtt_client.forced_charge_stop_timer=None
-
     # start forced charge
     def on_message_solax_forced_charge_start(client, userdata, msg):
       try:
         if msg.payload.decode('utf-8') == "ON":
-
-          # # avoid oups, by disabling forced charge after a while
-          # if mqtt_client.forced_charge_stop_timer:
-          #   mqtt_client.forced_charge_stop_timer.cancel()
-          # mqtt_client.forced_charge_stop_timer = threading.Timer(60, solax_forced_charge_stop)
-          # mqtt_client.forced_charge_stop_timer.start()
-
           msg=b'\x14\x32' # 5.0A
           with i2clock:
             write = i2c_msg.write(i2c_addr, msg)
@@ -218,7 +209,7 @@ def mqtt_start():
     def on_message_solax_workaround(client, userdata, msg):
       try:
         if msg.payload.decode('utf-8') == "ON":
-          msg=b'\x15'
+          msg=b'\x13'
           with i2clock:
             write = i2c_msg.write(i2c_addr, msg)
             i2cbus.i2c_rdwr(write)

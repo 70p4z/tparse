@@ -621,9 +621,12 @@ void interp(void) {
     /* Refresh IWDG down-counter to default value */
     LL_IWDG_ReloadCounter(IWDG);
     // reset in case of CAN activity timeout
-    if (EXPIRED(last_INV_CAN_activity_timeout)
-      || EXPIRED(last_BMS_CAN_activity_timeout)) {
-      master_log("INV or CAN activity timeout\n");
+    if (EXPIRED(last_INV_CAN_activity_timeout)) {
+      master_log("INV activity timeout\n");
+      NVIC_SystemReset();
+    }
+    if (EXPIRED(last_BMS_CAN_activity_timeout)) {
+      master_log("CAN activity timeout\n");
       NVIC_SystemReset();
     }
 

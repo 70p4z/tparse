@@ -225,7 +225,7 @@ static void Configure_CAN_generic(CAN_TypeDef* _CAN, uint32_t frequency, uint32_
     case 500000:
       //_CAN->BTR = CFG_BTR(2, 3, 4, 4); // 0x01230003 // some disconnect after 30000sec of activity
       //_CAN->BTR = CFG_BTR(1, 7, 8, 2);
-      _CAN->BTR = CFG_BTR(1, 3, 12, 2); // troubles after a while
+      //_CAN->BTR = CFG_BTR(1, 3, 12, 2); // troubles after a while
       _CAN->BTR = 0x001c0001;
       //_CAN->BTR = 0x00050003;
       break;

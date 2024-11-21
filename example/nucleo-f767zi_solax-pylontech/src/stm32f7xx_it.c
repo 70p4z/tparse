@@ -66,8 +66,10 @@
 /**
   * @brief This function handles Non maskable interrupt.
   */
+void master_log(char*);
 void NMI_Handler(void)
 {
+  master_log("NMI_Handler\n");
   __asm volatile("bkpt");
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
   for(;;);

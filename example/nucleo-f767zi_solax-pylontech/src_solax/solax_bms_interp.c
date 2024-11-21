@@ -11,11 +11,11 @@
 // ensure 5 seconds steady state before making up a decision
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 3
-#define GRID_CONNECT_SOC    25 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
+#define GRID_CONNECT_SOC    20 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
 #define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
 
 
-#define SOLAX_MAX_CHARGE_SOC 95 // limit battery wearing
+#define SOLAX_MAX_CHARGE_SOC 100 // limit battery wearing
 
 // Solax X1G4 has an offset when respecting battery max charge current (maybe some inside DC bus consumption)
 // 50W / 200 = 
@@ -82,8 +82,8 @@
 
 // before 80% of charge of battery, be conservative, and charge first
 #define SOLAX_SELFUSE_MIN_BATTERY_SOC (GRID_DISCONNECT_SOC-1) // ensure starting selfuse before disconecting the grid to avoid glitch and mini outtage
-#define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_SU 30 /* at least % of the solar power usable must go to the battery */
-#define SOLAX_SELFUSE_MIN_BATTERY_CHARGE_PERCENTAGE_SW_FS 20
+#define SOLAX_SELFUSE_START_SOC (GRID_DISCONNECT_SOC-1)
+#define SOLAX_SELFUSE_STOP_SOC (GRID_CONNECT_SOC+1)
 #define HAVE_SOLAX_SWITCH_MODE
 
 #define SOLAX_PV_CUTOFF_VOLTAGE_V 90
@@ -92,7 +92,6 @@
 
 // not more than a switch into EPS mode per 10 minute, to avoid wearing the physical switch (not a SSR)
 #define SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS 600000 // 10min interval 20 years durability for a 1M toggling cycles device
-#define SOLAX_EPS_MODE_SWITCH_MIN_SOC 80 // won't switch EPS if not at least charged at 80% (normally)
 
 #define DISPLAY_TIMEOUT 1000
 // at least a CAN communication must have taken place within that period
@@ -1480,7 +1479,10 @@ void interp(void) {
                 }
               }
               // when the battery goes lower than the requested charge level, switch to charge only (no self use)
-              else if (pylontech.soc < SOLAX_SELFUSE_MIN_BATTERY_SOC) {
+              #if SOLAX_SELFUSE_STOP_SOC >= SOLAX_SELFUSE_START_SOC
+              #error ensure some hysterisis for self use start/stop SoC (and must be start > stop)
+              #endif // SOLAX_SELFUSE_STOP_SOC >= SOLAX_SELFUSE_START_SOC
+              else if (pylontech.soc <= SOLAX_SELFUSE_STOP_SOC) {
                 batt_drain_fix_cause = 8;
                 master_log("cause 8\n");
                 if (solax_pw_queue_free() >= 2 
@@ -1494,7 +1496,7 @@ void interp(void) {
                 }
               }
               // when battery reached the requested charge level, enter self use
-              else if (pylontech.soc > SOLAX_SELFUSE_MIN_BATTERY_SOC) {
+              else if (pylontech.soc >= SOLAX_SELFUSE_START_SOC) {
                 // power the grid
                 batt_drain_fix_cause = 6;
                 master_log("cause 6\n");
@@ -1534,7 +1536,7 @@ void interp(void) {
           // only do this after the inverter status is stable and ready for connection
           if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
             // when max charge value is degraded, then severs the grid connection
-            if (pylontech.soc >= solax.grid_disconnect_soc
+            if (pylontech.soc > solax.grid_disconnect_soc
               || pylontech.max_charge < pylontech.max_discharge
               || pylontech.soc >= pylontech.max_charge_soc
               ) {

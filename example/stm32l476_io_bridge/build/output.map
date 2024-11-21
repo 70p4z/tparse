@@ -1179,7 +1179,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_exti.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_exti.o
  .debug_line    0x0000000000000000       0x4d build/stm32l4xx_ll_exti.o
- .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_exti.o
+ .debug_str     0x0000000000000000     0x2d1c build/stm32l4xx_ll_exti.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_exti.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_exti.o
@@ -1194,7 +1194,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_gpio.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_gpio.o
  .debug_line    0x0000000000000000       0x4d build/stm32l4xx_ll_gpio.o
- .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_gpio.o
+ .debug_str     0x0000000000000000     0x2d1c build/stm32l4xx_ll_gpio.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_gpio.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_gpio.o
@@ -1209,7 +1209,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_opamp.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_opamp.o
  .debug_line    0x0000000000000000       0x4e build/stm32l4xx_ll_opamp.o
- .debug_str     0x0000000000000000     0x2d1c build/stm32l4xx_ll_opamp.o
+ .debug_str     0x0000000000000000     0x2d1d build/stm32l4xx_ll_opamp.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_opamp.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_opamp.o
@@ -1224,7 +1224,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_rcc.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_rcc.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_rcc.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_rcc.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_rcc.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_rcc.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_rcc.o
@@ -1239,7 +1239,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_rng.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_rng.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_rng.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_rng.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_rng.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_rng.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_rng.o
@@ -1254,7 +1254,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_dac.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_dac.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_dac.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_dac.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_dac.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_dac.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_dac.o
@@ -1269,7 +1269,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_i2c.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_i2c.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_i2c.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_i2c.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_i2c.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_i2c.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_i2c.o
@@ -1360,7 +1360,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x44 build/stm32l4xx_ll_sdmmc.o
  .debug_macro   0x0000000000000000      0x330 build/stm32l4xx_ll_sdmmc.o
  .debug_line    0x0000000000000000      0x5cd build/stm32l4xx_ll_sdmmc.o
- .debug_str     0x0000000000000000    0xe5622 build/stm32l4xx_ll_sdmmc.o
+ .debug_str     0x0000000000000000    0xe5623 build/stm32l4xx_ll_sdmmc.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_sdmmc.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_sdmmc.o
@@ -1375,7 +1375,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_spi.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_spi.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_spi.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_spi.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_spi.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_spi.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_spi.o
@@ -1390,7 +1390,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_pka.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_pka.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_pka.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_pka.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_pka.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_pka.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_pka.o
@@ -1405,7 +1405,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_dma2d.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_dma2d.o
  .debug_line    0x0000000000000000       0x4e build/stm32l4xx_ll_dma2d.o
- .debug_str     0x0000000000000000     0x2d1c build/stm32l4xx_ll_dma2d.o
+ .debug_str     0x0000000000000000     0x2d1d build/stm32l4xx_ll_dma2d.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_dma2d.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_dma2d.o
@@ -1420,7 +1420,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_crs.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_crs.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_crs.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_crs.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_crs.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_crs.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_crs.o
@@ -1511,7 +1511,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x44 build/stm32l4xx_ll_fmc.o
  .debug_macro   0x0000000000000000      0x330 build/stm32l4xx_ll_fmc.o
  .debug_line    0x0000000000000000      0x5cb build/stm32l4xx_ll_fmc.o
- .debug_str     0x0000000000000000    0xe5620 build/stm32l4xx_ll_fmc.o
+ .debug_str     0x0000000000000000    0xe5621 build/stm32l4xx_ll_fmc.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_fmc.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_fmc.o
@@ -1526,7 +1526,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_dma.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_dma.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_dma.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_dma.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_dma.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_dma.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_dma.o
@@ -1541,7 +1541,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_usart.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_usart.o
  .debug_line    0x0000000000000000       0x4e build/stm32l4xx_ll_usart.o
- .debug_str     0x0000000000000000     0x2d1c build/stm32l4xx_ll_usart.o
+ .debug_str     0x0000000000000000     0x2d1d build/stm32l4xx_ll_usart.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_usart.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_usart.o
@@ -1556,7 +1556,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_tim.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_tim.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_tim.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_tim.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_tim.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_tim.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_tim.o
@@ -1571,7 +1571,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_lptim.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_lptim.o
  .debug_line    0x0000000000000000       0x4e build/stm32l4xx_ll_lptim.o
- .debug_str     0x0000000000000000     0x2d1c build/stm32l4xx_ll_lptim.o
+ .debug_str     0x0000000000000000     0x2d1d build/stm32l4xx_ll_lptim.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_lptim.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_lptim.o
@@ -1586,7 +1586,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_pwr.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_pwr.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_pwr.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_pwr.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_pwr.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_pwr.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_pwr.o
@@ -1601,7 +1601,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_rtc.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_rtc.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_rtc.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_rtc.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_rtc.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_rtc.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_rtc.o
@@ -1616,7 +1616,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_comp.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_comp.o
  .debug_line    0x0000000000000000       0x4d build/stm32l4xx_ll_comp.o
- .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_comp.o
+ .debug_str     0x0000000000000000     0x2d1c build/stm32l4xx_ll_comp.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_comp.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_comp.o
@@ -1631,7 +1631,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_crc.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_crc.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_crc.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_crc.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_crc.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_crc.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_crc.o
@@ -1825,7 +1825,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x44 build/stm32l4xx_ll_usb.o
  .debug_macro   0x0000000000000000      0x330 build/stm32l4xx_ll_usb.o
  .debug_line    0x0000000000000000      0x5cb build/stm32l4xx_ll_usb.o
- .debug_str     0x0000000000000000    0xe5620 build/stm32l4xx_ll_usb.o
+ .debug_str     0x0000000000000000    0xe5621 build/stm32l4xx_ll_usb.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_usb.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_usb.o
@@ -1840,7 +1840,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_swpmi.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_swpmi.o
  .debug_line    0x0000000000000000       0x4e build/stm32l4xx_ll_swpmi.o
- .debug_str     0x0000000000000000     0x2d1c build/stm32l4xx_ll_swpmi.o
+ .debug_str     0x0000000000000000     0x2d1d build/stm32l4xx_ll_swpmi.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_swpmi.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_swpmi.o
@@ -1855,7 +1855,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_lpuart.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_lpuart.o
  .debug_line    0x0000000000000000       0x4f build/stm32l4xx_ll_lpuart.o
- .debug_str     0x0000000000000000     0x2d1d build/stm32l4xx_ll_lpuart.o
+ .debug_str     0x0000000000000000     0x2d1e build/stm32l4xx_ll_lpuart.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_lpuart.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_lpuart.o
@@ -1870,7 +1870,7 @@ Discarded input sections
  .debug_macro   0x0000000000000000       0x11 build/stm32l4xx_ll_adc.o
  .debug_macro   0x0000000000000000      0xa7e build/stm32l4xx_ll_adc.o
  .debug_line    0x0000000000000000       0x4c build/stm32l4xx_ll_adc.o
- .debug_str     0x0000000000000000     0x2d1a build/stm32l4xx_ll_adc.o
+ .debug_str     0x0000000000000000     0x2d1b build/stm32l4xx_ll_adc.o
  .comment       0x0000000000000000       0x4a build/stm32l4xx_ll_adc.o
  .ARM.attributes
                 0x0000000000000000       0x34 build/stm32l4xx_ll_adc.o
@@ -2074,7 +2074,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x0000000008000000                g_pfnVectors
                 0x0000000008000188                . = ALIGN (0x4)
 
-.text           0x0000000008000188     0x4174
+.text           0x0000000008000188     0x41b4
                 0x0000000008000188                . = ALIGN (0x4)
  *(.text)
  .text          0x0000000008000188       0x40 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
@@ -2309,185 +2309,185 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .text.tparse_check_command
                 0x0000000008002430       0x60 build/main.o
                 0x0000000008002430                tparse_check_command
- .text.interp   0x0000000008002490      0xcb4 build/main.o
+ .text.interp   0x0000000008002490      0xccc build/main.o
                 0x0000000008002490                interp
  .text.SystemClock_Config
-                0x0000000008003144       0xbc build/main.o
-                0x0000000008003144                SystemClock_Config
- .text.main     0x0000000008003200       0x88 build/main.o
-                0x0000000008003200                main
+                0x000000000800315c       0xbc build/main.o
+                0x000000000800315c                SystemClock_Config
+ .text.main     0x0000000008003218       0x88 build/main.o
+                0x0000000008003218                main
  .text.spi_xfer
-                0x0000000008003288       0x48 build/intf_spi.o
-                0x0000000008003288                spi_xfer
+                0x00000000080032a0       0x48 build/intf_spi.o
+                0x00000000080032a0                spi_xfer
  .text.Configure_SPI1
-                0x00000000080032d0      0x3e8 build/intf_spi.o
-                0x00000000080032d0                Configure_SPI1
+                0x00000000080032e8      0x3e8 build/intf_spi.o
+                0x00000000080032e8                Configure_SPI1
  .text.i2c_stop
-                0x00000000080036b8       0x38 build/intf_i2c.o
-                0x00000000080036b8                i2c_stop
+                0x00000000080036d0       0x38 build/intf_i2c.o
+                0x00000000080036d0                i2c_stop
  .text.i2c_strobe
-                0x00000000080036f0       0x6c build/intf_i2c.o
-                0x00000000080036f0                i2c_strobe
+                0x0000000008003708       0x6c build/intf_i2c.o
+                0x0000000008003708                i2c_strobe
  .text.i2c_read
-                0x000000000800375c       0xc0 build/intf_i2c.o
-                0x000000000800375c                i2c_read
+                0x0000000008003774       0xd0 build/intf_i2c.o
+                0x0000000008003774                i2c_read
  .text.i2c_write
-                0x000000000800381c       0xc0 build/intf_i2c.o
-                0x000000000800381c                i2c_write
+                0x0000000008003844       0xd8 build/intf_i2c.o
+                0x0000000008003844                i2c_write
  .text.Configure_I2C1
-                0x00000000080038dc      0x3c0 build/intf_i2c.o
-                0x00000000080038dc                Configure_I2C1
+                0x000000000800391c      0x3c0 build/intf_i2c.o
+                0x000000000800391c                Configure_I2C1
  .text.LL_mDelay
-                0x0000000008003c9c       0x2a build/stm32l4xx_ll_utils.o
-                0x0000000008003c9c                LL_mDelay
- *fill*         0x0000000008003cc6        0x2 
+                0x0000000008003cdc       0x2a build/stm32l4xx_ll_utils.o
+                0x0000000008003cdc                LL_mDelay
+ *fill*         0x0000000008003d06        0x2 
  .text.LL_SetSystemCoreClock
-                0x0000000008003cc8        0xc build/stm32l4xx_ll_utils.o
-                0x0000000008003cc8                LL_SetSystemCoreClock
+                0x0000000008003d08        0xc build/stm32l4xx_ll_utils.o
+                0x0000000008003d08                LL_SetSystemCoreClock
  .text.tparse_init
-                0x0000000008003cd4       0x28 build/tparse.o
-                0x0000000008003cd4                tparse_init
+                0x0000000008003d14       0x28 build/tparse.o
+                0x0000000008003d14                tparse_init
  .text.tparse_finger
-                0x0000000008003cfc       0x20 build/tparse.o
-                0x0000000008003cfc                tparse_finger
+                0x0000000008003d3c       0x20 build/tparse.o
+                0x0000000008003d3c                tparse_finger
  .text.tparse_discard_line
-                0x0000000008003d1c       0x68 build/tparse.o
-                0x0000000008003d1c                tparse_discard_line
+                0x0000000008003d5c       0x68 build/tparse.o
+                0x0000000008003d5c                tparse_discard_line
  .text.tparse_token_internal
-                0x0000000008003d84      0x106 build/tparse.o
-                0x0000000008003d84                tparse_token_internal
+                0x0000000008003dc4      0x106 build/tparse.o
+                0x0000000008003dc4                tparse_token_internal
  .text.tparse_token_p
-                0x0000000008003e8a       0x16 build/tparse.o
-                0x0000000008003e8a                tparse_token_p
+                0x0000000008003eca       0x16 build/tparse.o
+                0x0000000008003eca                tparse_token_p
  .text.tparse_avail
-                0x0000000008003ea0       0x14 build/tparse.o
-                0x0000000008003ea0                tparse_avail
+                0x0000000008003ee0       0x14 build/tparse.o
+                0x0000000008003ee0                tparse_avail
  .text.tparse_has_line
-                0x0000000008003eb4       0x30 build/tparse.o
-                0x0000000008003eb4                tparse_has_line
+                0x0000000008003ef4       0x30 build/tparse.o
+                0x0000000008003ef4                tparse_has_line
  .text.tparse_token_size
-                0x0000000008003ee4       0x3e build/tparse.o
-                0x0000000008003ee4                tparse_token_size
+                0x0000000008003f24       0x3e build/tparse.o
+                0x0000000008003f24                tparse_token_size
  .text.tparse_token_parts
-                0x0000000008003f22       0x68 build/tparse.o
-                0x0000000008003f22                tparse_token_parts
+                0x0000000008003f62       0x68 build/tparse.o
+                0x0000000008003f62                tparse_token_parts
  .text.tparse_token
-                0x0000000008003f8a       0x56 build/tparse.o
-                0x0000000008003f8a                tparse_token
+                0x0000000008003fca       0x56 build/tparse.o
+                0x0000000008003fca                tparse_token
  .text.tparse_token_in
-                0x0000000008003fe0       0xc4 build/tparse.o
-                0x0000000008003fe0                tparse_token_in
+                0x0000000008004020       0xc4 build/tparse.o
+                0x0000000008004020                tparse_token_in
  .text.tparse_token_hex
-                0x00000000080040a4       0xba build/tparse.o
-                0x00000000080040a4                tparse_token_hex
+                0x00000000080040e4       0xba build/tparse.o
+                0x00000000080040e4                tparse_token_hex
  .text.tparse_token_u32_base
-                0x000000000800415e       0xd0 build/tparse.o
-                0x000000000800415e                tparse_token_u32_base
+                0x000000000800419e       0xd0 build/tparse.o
+                0x000000000800419e                tparse_token_u32_base
  .text.tparse_token_u32
-                0x000000000800422e        0xa build/tparse.o
-                0x000000000800422e                tparse_token_u32
+                0x000000000800426e        0xa build/tparse.o
+                0x000000000800426e                tparse_token_u32
  .text.__libc_init_array
-                0x0000000008004238       0x48 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-init.o)
-                0x0000000008004238                __libc_init_array
- .text.memcmp   0x0000000008004280       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memcmp.o)
-                0x0000000008004280                memcmp
- .text.memmove  0x00000000080042a0       0x34 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memmove.o)
-                0x00000000080042a0                memmove
- .text.memset   0x00000000080042d4       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memset.o)
-                0x00000000080042d4                memset
+                0x0000000008004278       0x48 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-init.o)
+                0x0000000008004278                __libc_init_array
+ .text.memcmp   0x00000000080042c0       0x20 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memcmp.o)
+                0x00000000080042c0                memcmp
+ .text.memmove  0x00000000080042e0       0x34 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memmove.o)
+                0x00000000080042e0                memmove
+ .text.memset   0x0000000008004314       0x10 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(lib_a-memset.o)
+                0x0000000008004314                memset
  *(.glue_7)
- .glue_7        0x00000000080042e4        0x0 linker stubs
+ .glue_7        0x0000000008004324        0x0 linker stubs
  *(.glue_7t)
- .glue_7t       0x00000000080042e4        0x0 linker stubs
+ .glue_7t       0x0000000008004324        0x0 linker stubs
  *(.eh_frame)
- .eh_frame      0x00000000080042e4        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
+ .eh_frame      0x0000000008004324        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
  *(.init)
- .init          0x00000000080042e4        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crti.o
-                0x00000000080042e4                _init
- .init          0x00000000080042e8        0x8 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtn.o
+ .init          0x0000000008004324        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crti.o
+                0x0000000008004324                _init
+ .init          0x0000000008004328        0x8 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtn.o
  *(.fini)
- .fini          0x00000000080042f0        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crti.o
-                0x00000000080042f0                _fini
- .fini          0x00000000080042f4        0x8 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtn.o
-                0x00000000080042fc                . = ALIGN (0x4)
-                0x00000000080042fc                _etext = .
+ .fini          0x0000000008004330        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crti.o
+                0x0000000008004330                _fini
+ .fini          0x0000000008004334        0x8 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtn.o
+                0x000000000800433c                . = ALIGN (0x4)
+                0x000000000800433c                _etext = .
 
-.vfp11_veneer   0x00000000080042fc        0x0
- .vfp11_veneer  0x00000000080042fc        0x0 linker stubs
+.vfp11_veneer   0x000000000800433c        0x0
+ .vfp11_veneer  0x000000000800433c        0x0 linker stubs
 
-.v4_bx          0x00000000080042fc        0x0
- .v4_bx         0x00000000080042fc        0x0 linker stubs
+.v4_bx          0x000000000800433c        0x0
+ .v4_bx         0x000000000800433c        0x0 linker stubs
 
-.iplt           0x00000000080042fc        0x0
- .iplt          0x00000000080042fc        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
+.iplt           0x000000000800433c        0x0
+ .iplt          0x000000000800433c        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
 
-.rodata         0x00000000080042fc      0x518
-                0x00000000080042fc                . = ALIGN (0x4)
+.rodata         0x000000000800433c      0x50c
+                0x000000000800433c                . = ALIGN (0x4)
  *(.rodata)
- .rodata        0x00000000080042fc        0x2 build/main.o
+ .rodata        0x000000000800433c        0x2 build/main.o
  *(.rodata*)
- *fill*         0x00000000080042fe        0x2 
+ *fill*         0x000000000800433e        0x2 
  .rodata.ISO7816_TA_D
-                0x0000000008004300       0x20 build/iso7816.o
-                0x0000000008004300                ISO7816_TA_D
+                0x0000000008004340       0x20 build/iso7816.o
+                0x0000000008004340                ISO7816_TA_D
  .rodata.ISO7816_TA_F
-                0x0000000008004320       0x20 build/iso7816.o
-                0x0000000008004320                ISO7816_TA_F
+                0x0000000008004360       0x20 build/iso7816.o
+                0x0000000008004360                ISO7816_TA_F
  .rodata.gpio_reserved
-                0x0000000008004340       0x14 build/intf_gpio.o
-                0x0000000008004340                gpio_reserved
+                0x0000000008004380       0x14 build/intf_gpio.o
+                0x0000000008004380                gpio_reserved
  .rodata.interp.str1.4
-                0x0000000008004354      0x396 build/main.o
-                                        0x39a (size before relaxing)
- *fill*         0x00000000080046ea        0x2 
+                0x0000000008004394      0x37e build/main.o
+                                        0x382 (size before relaxing)
+ *fill*         0x0000000008004712        0x2 
  .rodata.str1.4
-                0x00000000080046ec       0xbc build/main.o
+                0x0000000008004714       0xc4 build/main.o
  .rodata.cmds.0
-                0x00000000080047a8       0x6c build/main.o
-                0x0000000008004814                . = ALIGN (0x4)
+                0x00000000080047d8       0x70 build/main.o
+                0x0000000008004848                . = ALIGN (0x4)
 
-.rel.dyn        0x0000000008004814        0x0
- .rel.iplt      0x0000000008004814        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
+.rel.dyn        0x0000000008004848        0x0
+ .rel.iplt      0x0000000008004848        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
 
-.ARM.extab      0x0000000008004814        0x0
-                0x0000000008004814                . = ALIGN (0x4)
+.ARM.extab      0x0000000008004848        0x0
+                0x0000000008004848                . = ALIGN (0x4)
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x0000000008004814                . = ALIGN (0x4)
+                0x0000000008004848                . = ALIGN (0x4)
 
-.ARM            0x0000000008004814        0x0
-                0x0000000008004814                . = ALIGN (0x4)
-                0x0000000008004814                __exidx_start = .
+.ARM            0x0000000008004848        0x0
+                0x0000000008004848                . = ALIGN (0x4)
+                0x0000000008004848                __exidx_start = .
  *(.ARM.exidx*)
-                0x0000000008004814                __exidx_end = .
-                0x0000000008004814                . = ALIGN (0x4)
+                0x0000000008004848                __exidx_end = .
+                0x0000000008004848                . = ALIGN (0x4)
 
-.preinit_array  0x0000000008004814        0x0
-                0x0000000008004814                . = ALIGN (0x4)
-                0x0000000008004814                PROVIDE (__preinit_array_start = .)
+.preinit_array  0x0000000008004848        0x0
+                0x0000000008004848                . = ALIGN (0x4)
+                0x0000000008004848                PROVIDE (__preinit_array_start = .)
  *(.preinit_array*)
-                0x0000000008004814                PROVIDE (__preinit_array_end = .)
-                0x0000000008004814                . = ALIGN (0x4)
+                0x0000000008004848                PROVIDE (__preinit_array_end = .)
+                0x0000000008004848                . = ALIGN (0x4)
 
-.init_array     0x0000000008004814        0x4
-                0x0000000008004814                . = ALIGN (0x4)
-                0x0000000008004814                PROVIDE (__init_array_start = .)
+.init_array     0x0000000008004848        0x4
+                0x0000000008004848                . = ALIGN (0x4)
+                0x0000000008004848                PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
- .init_array    0x0000000008004814        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
-                0x0000000008004818                PROVIDE (__init_array_end = .)
-                0x0000000008004818                . = ALIGN (0x4)
+ .init_array    0x0000000008004848        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
+                0x000000000800484c                PROVIDE (__init_array_end = .)
+                0x000000000800484c                . = ALIGN (0x4)
 
-.fini_array     0x0000000008004818        0x4
-                0x0000000008004818                . = ALIGN (0x4)
+.fini_array     0x000000000800484c        0x4
+                0x000000000800484c                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
- .fini_array    0x0000000008004818        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
+ .fini_array    0x000000000800484c        0x4 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
                 [!provide]                        PROVIDE (__fini_array_end = .)
-                0x000000000800481c                . = ALIGN (0x4)
-                0x000000000800481c                _sidata = LOADADDR (.data)
+                0x0000000008004850                . = ALIGN (0x4)
+                0x0000000008004850                _sidata = LOADADDR (.data)
 
-.data           0x0000000020000000        0x4 load address 0x000000000800481c
+.data           0x0000000020000000        0x4 load address 0x0000000008004850
                 0x0000000020000000                . = ALIGN (0x4)
                 0x0000000020000000                _sdata = .
  *(.data)
@@ -2500,11 +2500,11 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x0000000020000004                . = ALIGN (0x4)
                 0x0000000020000004                _edata = .
 
-.igot.plt       0x0000000020000004        0x0 load address 0x0000000008004820
+.igot.plt       0x0000000020000004        0x0 load address 0x0000000008004854
  .igot.plt      0x0000000020000004        0x0 /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/crtbegin.o
                 0x0000000020000004                . = ALIGN (0x4)
 
-.bss            0x0000000020000004     0x21c8 load address 0x0000000008004820
+.bss            0x0000000020000004     0x21c8 load address 0x0000000008004854
                 0x0000000020000004                _sbss = .
                 0x0000000020000004                __bss_start__ = _sbss
  *(.bss)
@@ -2548,7 +2548,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
                 0x00000000200021cc                __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x00000000200021cc      0x604 load address 0x0000000008004820
+                0x00000000200021cc      0x604 load address 0x0000000008004854
                 0x00000000200021d0                . = ALIGN (0x8)
  *fill*         0x00000000200021cc        0x4 
                 [!provide]                        PROVIDE (end = .)
@@ -2615,7 +2615,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
 LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libm.a
 LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/thumb/v7e-m+fp/hard/libgcc.a
 
-.debug_info     0x0000000000000000    0x11a16
+.debug_info     0x0000000000000000    0x11a73
  .debug_info    0x0000000000000000      0x5e4 build/system_stm32l4xx.o
  .debug_info    0x00000000000005e4      0x19e build/stm32l4xx_it.o
  .debug_info    0x0000000000000782      0x7b5 build/iso7816.o
@@ -2624,11 +2624,11 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_info    0x0000000000002744     0x2438 build/intf_iso.o
  .debug_info    0x0000000000004b7c     0x4ad3 build/intf_usart.o
  .debug_info    0x000000000000964f      0x986 build/intf_gpio.o
- .debug_info    0x0000000000009fd5     0x2b54 build/main.o
- .debug_info    0x000000000000cb29     0x1757 build/intf_spi.o
- .debug_info    0x000000000000e280     0x185d build/intf_i2c.o
- .debug_info    0x000000000000fadd     0x10da build/stm32l4xx_ll_utils.o
- .debug_info    0x0000000000010bb7      0xe5f build/tparse.o
+ .debug_info    0x0000000000009fd5     0x2b9f build/main.o
+ .debug_info    0x000000000000cb74     0x1757 build/intf_spi.o
+ .debug_info    0x000000000000e2cb     0x186f build/intf_i2c.o
+ .debug_info    0x000000000000fb3a     0x10da build/stm32l4xx_ll_utils.o
+ .debug_info    0x0000000000010c14      0xe5f build/tparse.o
 
 .debug_abbrev   0x0000000000000000     0x1f00
  .debug_abbrev  0x0000000000000000      0x11c build/system_stm32l4xx.o
@@ -2645,18 +2645,18 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_abbrev  0x00000000000019d8      0x2bf build/stm32l4xx_ll_utils.o
  .debug_abbrev  0x0000000000001c97      0x269 build/tparse.o
 
-.debug_loc      0x0000000000000000     0xb922
+.debug_loc      0x0000000000000000     0xb99f
  .debug_loc     0x0000000000000000      0x127 build/system_stm32l4xx.o
  .debug_loc     0x0000000000000127      0x5b5 build/iso7816.o
  .debug_loc     0x00000000000006dc      0xe76 build/intf_can.o
  .debug_loc     0x0000000000001552     0x1891 build/intf_iso.o
  .debug_loc     0x0000000000002de3     0x40c7 build/intf_usart.o
  .debug_loc     0x0000000000006eaa      0x771 build/intf_gpio.o
- .debug_loc     0x000000000000761b      0x7cd build/main.o
- .debug_loc     0x0000000000007de8      0xffa build/intf_spi.o
- .debug_loc     0x0000000000008de2     0x142c build/intf_i2c.o
- .debug_loc     0x000000000000a20e      0x853 build/stm32l4xx_ll_utils.o
- .debug_loc     0x000000000000aa61      0xec1 build/tparse.o
+ .debug_loc     0x000000000000761b      0x7dc build/main.o
+ .debug_loc     0x0000000000007df7      0xffa build/intf_spi.o
+ .debug_loc     0x0000000000008df1     0x149a build/intf_i2c.o
+ .debug_loc     0x000000000000a28b      0x853 build/stm32l4xx_ll_utils.o
+ .debug_loc     0x000000000000aade      0xec1 build/tparse.o
 
 .debug_aranges  0x0000000000000000      0x440
  .debug_aranges
@@ -2801,7 +2801,7 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_macro   0x0000000000028618       0x16 build/tparse.o
  .debug_macro   0x000000000002862e      0x145 build/tparse.o
 
-.debug_line     0x0000000000000000     0xc2f2
+.debug_line     0x0000000000000000     0xc364
  .debug_line    0x0000000000000000      0x6d4 build/system_stm32l4xx.o
  .debug_line    0x00000000000006d4      0x8ee build/stm32l4xx_it.o
  .debug_line    0x0000000000000fc2      0x7c6 build/iso7816.o
@@ -2810,39 +2810,39 @@ LOAD /home/oto/workspace/projects/tacos-buildenv/compilers/gcc/arm/gcc-arm-none-
  .debug_line    0x0000000000002902     0x149b build/intf_iso.o
  .debug_line    0x0000000000003d9d     0x25a2 build/intf_usart.o
  .debug_line    0x000000000000633f      0xbab build/intf_gpio.o
- .debug_line    0x0000000000006eea     0x14cf build/main.o
- .debug_line    0x00000000000083b9     0x1025 build/intf_spi.o
- .debug_line    0x00000000000093de     0x115d build/intf_i2c.o
- .debug_line    0x000000000000a53b      0xd40 build/stm32l4xx_ll_utils.o
- .debug_line    0x000000000000b27b     0x1077 build/tparse.o
+ .debug_line    0x0000000000006eea     0x14dd build/main.o
+ .debug_line    0x00000000000083c7     0x1025 build/intf_spi.o
+ .debug_line    0x00000000000093ec     0x11c1 build/intf_i2c.o
+ .debug_line    0x000000000000a5ad      0xd40 build/stm32l4xx_ll_utils.o
+ .debug_line    0x000000000000b2ed     0x1077 build/tparse.o
 
-.debug_str      0x0000000000000000    0xf6804
- .debug_str     0x0000000000000000    0xe4763 build/system_stm32l4xx.o
-                                      0xe584d (size before relaxing)
- .debug_str     0x00000000000e4763     0xdf84 build/stm32l4xx_it.o
-                                      0xf35a5 (size before relaxing)
- .debug_str     0x00000000000f26e7      0x1cd build/iso7816.o
-                                       0x6f5e (size before relaxing)
- .debug_str     0x00000000000f28b4      0x745 build/intf_can.o
-                                      0xf3e80 (size before relaxing)
- .debug_str     0x00000000000f2ff9       0x2a build/startup_stm32l476rgtx.o
+.debug_str      0x0000000000000000    0xf6805
+ .debug_str     0x0000000000000000    0xe4764 build/system_stm32l4xx.o
+                                      0xe584e (size before relaxing)
+ .debug_str     0x00000000000e4764     0xdf84 build/stm32l4xx_it.o
+                                      0xf35a6 (size before relaxing)
+ .debug_str     0x00000000000f26e8      0x1cd build/iso7816.o
+                                       0x6f5f (size before relaxing)
+ .debug_str     0x00000000000f28b5      0x745 build/intf_can.o
+                                      0xf3e81 (size before relaxing)
+ .debug_str     0x00000000000f2ffa       0x2a build/startup_stm32l476rgtx.o
                                          0x6e (size before relaxing)
- .debug_str     0x00000000000f3023      0x424 build/intf_iso.o
-                                      0xf3c80 (size before relaxing)
- .debug_str     0x00000000000f3447      0x1d2 build/intf_usart.o
-                                      0xf3c2f (size before relaxing)
- .debug_str     0x00000000000f3619       0x5c build/intf_gpio.o
-                                      0xf3602 (size before relaxing)
- .debug_str     0x00000000000f3675      0x3f2 build/main.o
-                                      0xf423a (size before relaxing)
- .debug_str     0x00000000000f3a67      0x187 build/intf_spi.o
-                                      0xf393c (size before relaxing)
- .debug_str     0x00000000000f3bee      0x174 build/intf_i2c.o
-                                      0xf3942 (size before relaxing)
- .debug_str     0x00000000000f3d62     0x1936 build/stm32l4xx_ll_utils.o
-                                      0xec46a (size before relaxing)
- .debug_str     0x00000000000f5698     0x116c build/tparse.o
-                                       0x804a (size before relaxing)
+ .debug_str     0x00000000000f3024      0x424 build/intf_iso.o
+                                      0xf3c81 (size before relaxing)
+ .debug_str     0x00000000000f3448      0x1d2 build/intf_usart.o
+                                      0xf3c30 (size before relaxing)
+ .debug_str     0x00000000000f361a       0x5c build/intf_gpio.o
+                                      0xf3603 (size before relaxing)
+ .debug_str     0x00000000000f3676      0x3f2 build/main.o
+                                      0xf423b (size before relaxing)
+ .debug_str     0x00000000000f3a68      0x187 build/intf_spi.o
+                                      0xf393d (size before relaxing)
+ .debug_str     0x00000000000f3bef      0x174 build/intf_i2c.o
+                                      0xf3943 (size before relaxing)
+ .debug_str     0x00000000000f3d63     0x1936 build/stm32l4xx_ll_utils.o
+                                      0xec46b (size before relaxing)
+ .debug_str     0x00000000000f5699     0x116c build/tparse.o
+                                       0x804b (size before relaxing)
 
 .comment        0x0000000000000000       0x49
  .comment       0x0000000000000000       0x49 build/system_stm32l4xx.o

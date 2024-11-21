@@ -125,7 +125,7 @@ __attribute__((weak)) void interp(void) {
     if (tp) {
       ts = sizeof(tmp);
       static const char * const cmds[] = {
-          "i2cr", "i2cw", 
+          "i2cs", "i2cr", "i2cw", 
           "t0", "t0c", "t0clast", 
           "i2ci",
           "gpo", "gpi", "cfgi", "atr", "off",
@@ -146,6 +146,18 @@ __attribute__((weak)) void interp(void) {
         uart_send("\n");
         break;
       case __COUNTER__:
+        // I2C strobe
+        addr = tparse_token_u32(tp);
+        if (addr >= 0x100 || addr == -1) {
+          uart_send("ERROR: invalid address\n");
+          break;
+        }
+        i2c_strobe(addr);
+        uart_send("OK:");
+        uart_send("\n");
+        break;
+
+      case __COUNTER__:
         // I2C read
         addr = tparse_token_u32(tp);
         if (addr >= 0x100 || addr == -1) {
@@ -153,7 +165,7 @@ __attribute__((weak)) void interp(void) {
           break;
         }
         len = tparse_token_u32(tp);
-        if (len == -1 ||len == 0) {
+        if (len < 0) {
           uart_send("ERROR: invalid length\n");
           break;
         }

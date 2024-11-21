@@ -32,7 +32,7 @@ size_t i2c_read(uint8_t addr, uint8_t* buf, size_t maxlen) {
   size_t len = maxlen;
   // cleanup previous transaction flags
   I2C1->ICR = 0xFFFFFFFF;
-  LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, len, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_READ);
+  LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, len==0?1:len, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_READ);
   uint32_t limit = uwTick + TIMEOUT_1S;
   while (I2C1->CR2 & I2C_CR2_START) {
     if (uwTick - limit < 0x80000000UL) {
@@ -60,6 +60,7 @@ size_t i2c_read(uint8_t addr, uint8_t* buf, size_t maxlen) {
     }
     *buf++ = LL_I2C_ReceiveData8(I2C1);
   }
+  i2c_stop();
   return maxlen;
 }
 
@@ -67,7 +68,7 @@ size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len) {
   size_t l = len;
   // cleanup previous transaction flags
   I2C1->ICR = 0xFFFFFFFF;
-  LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, len, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
+  LL_I2C_HandleTransfer(I2C1, addr, LL_I2C_ADDRSLAVE_7BIT, len==0?1:len, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE);
   uint32_t limit = uwTick + TIMEOUT_1S;
   while (I2C1->CR2 & I2C_CR2_START) {
     if (uwTick - limit < 0x80000000UL) {
@@ -95,6 +96,9 @@ size_t i2c_write(uint8_t addr, uint8_t* buf, size_t len) {
       }
     }
     LL_I2C_TransmitData8(I2C1, *buf++);
+  }
+  if (l == 0) {
+    i2c_stop();
   }
   return l;
 }

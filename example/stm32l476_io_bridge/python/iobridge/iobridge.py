@@ -78,8 +78,8 @@ class IOBridge(UsartIface):
 				pass
 			elif rbin[-2]&0xF0 != 0x90:
 				if self.logger:
-					self.logger.error("Error: CAPDU:" + line)
-					self.logger.error("       RAPDU:" + rline.decode('utf8'))
+					self.logger.error(f"Error: CAPDU: {binascii.hexlify(capdu).decode()}")
+					self.logger.error(f"       RAPDU: {binascii.hexlify(rbin).decode()}")
 				raise IOBridgeException()
 		return rbin
 	def isocfg(self, smartcard_clock_hz):
@@ -88,6 +88,8 @@ class IOBridge(UsartIface):
 		self.exchange("off")
 	def on(self):
 		self.exchange("on")
+	def i2c_strobe(self, addr):
+		return self.exchange("i2cs " + hex(addr))
 	def i2c_write(self, addr, data, retry=5):
 		return self.exchange("i2cw " + hex(addr) + " " + binascii.hexlify(data).decode("utf8") + " " + hex(retry))
 	def i2c_read(self, addr, maxlen, retry=5):

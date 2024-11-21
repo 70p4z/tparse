@@ -25,7 +25,7 @@
 // X1G4 for type 0x83 1.0A => 0.1A
 //#define SOLAX_BATTERY_CHARGE_OFFSET_DA 4 WITH NO EPS POWERING
 //#define SOLAX_BATTERY_CHARGE_OFFSET_DA 8
-#define SOLAX_BATTERY_CHARGE_OFFSET_DA 6 // reduce a bit to avoid 4.4kwh instead of 4kwh
+#define SOLAX_BATTERY_CHARGE_OFFSET_DA 5 // reduce a bit to avoid 4.4kwh instead of 4kwh
 
 // When charge is not possible anymore, use this value to make the inverter thinks it can charge and 
 // avoid draining the battery when PV power is still available
@@ -401,6 +401,7 @@ struct {
   int32_t precise_wattage;
   int16_t max_charge;
   int16_t max_discharge;
+  int16_t effective_charge;
   uint16_t packs;
   uint8_t max_charge_soc;
   uint8_t contactor_on;
@@ -789,6 +790,7 @@ void interp(void) {
             maxch += SOLAX_BATTERY_CHARGE_OFFSET_DA;
             tmp[4] = maxch&0xFF;
             tmp[5] = (maxch>>8)&0xFF;
+            pylontech.effective_charge = maxch;
           }
 
           pylontech.max_charge = maxch;
@@ -815,7 +817,8 @@ void interp(void) {
           }
 
           // max charge reached?
-          if (pylontech.soc >= pylontech.max_charge_soc) {
+          //if (pylontech.soc >= pylontech.max_charge_soc) 
+          {
             // apply workaround for battery full first, instead of PV first
             // make the inverter respect the priorities: PV > BAT > GRID > House
 
@@ -859,9 +862,10 @@ void interp(void) {
             master_log(tmp+128);
 
             // use last computed value
-            maxch = batt_full_drain_workaround_current_dA;
+            maxch = MAX(batt_full_drain_workaround_current_dA, pylontech.max_charge);
             tmp[4] = maxch&0xFF;
             tmp[5] = (maxch>>8)&0xFF;
+            pylontech.effective_charge = maxch;
           }
 
           // only allow forced charge when voltage is compliant, /!\ avoid fires
@@ -869,23 +873,27 @@ void interp(void) {
             // use the max value of forced charge
             maxch = batt_forced_charge;
             // take into account the battery max charge value until max charge soc is reached
-            if (pylontech.soc < pylontech.max_charge_soc) {
-              maxch = MAX(batt_forced_charge, pylontech.max_charge);
+            if (pylontech.soc <= pylontech.max_charge_soc) {
+              maxch = MAX(batt_full_drain_workaround_current_dA, MAX(batt_forced_charge, pylontech.max_charge));
             }
             else {
               master_log("force batt charge\n");
             }
             // only force charge when battery voltage levels are safe
-            if (pylontech.vcellmax < 35) {
+            // TODO: allow for at least a given interval, to avoid on and off when reaching max charge
+            if (pylontech.vcellmax < 36 ) {
               tmp[4] = maxch&0xFF;
               tmp[5] = (maxch>>8)&0xFF;
+              pylontech.effective_charge = maxch;
             }
           }
 
+          // absolute max rating to avoid chemistry degradation
           if (pylontech.vcellmax >= 36) {
             master_log("batt voltage dangerous (3.6V), stop forced charge to avoid wearing\n");
             tmp[4] = 0;
             tmp[5] = 0;
+            pylontech.effective_charge = 0;
           }
           forward = 1;
           break;
@@ -1809,15 +1817,9 @@ void I2C_Slave_Reception_Callback(void) {
         // bat max discharge
         i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.max_discharge>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_discharge&0xFF;
-        // bat forced max charge
-        if (batt_forced_charge == -1) {
-          i2c_xfer_buffer[i2c_xfer_r_length++] = (batt_full_drain_workaround_current_dA>>8)&0xFF;
-          i2c_xfer_buffer[i2c_xfer_r_length++] = batt_full_drain_workaround_current_dA&0xFF;
-        }
-        else {
-          i2c_xfer_buffer[i2c_xfer_r_length++] = (batt_forced_charge>>8)&0xFF;
-          i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_charge&0xFF;
-        }
+        // effective max charge (taking into account forced charge and workaround for battery full)
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.effective_charge>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.effective_charge&0xFF;
         // last rule executed
         i2c_xfer_buffer[i2c_xfer_r_length++] = batt_drain_fix_cause;
         // solax work_mode

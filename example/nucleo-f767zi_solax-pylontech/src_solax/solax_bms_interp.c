@@ -198,12 +198,13 @@ const uint8_t solax_pw_cmd_get_stat_0x197[] = { 0xAA, 0x55, 0x07, 0x01, 0x10, 0x
 const uint8_t solax_pw_cmd_get_stat_0x25F[] = { 0xAA, 0x55, 0x07, 0x01, 0x13, 0x1A, 0x01};
 
 const uint8_t solax_pw_cmd_mode_self_use[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x00, 0x00, 0x2D, 0x01 };
+const uint8_t solax_pw_cmd_mode_feedinprio[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x01, 0x00, 0x2E, 0x01 };
+const uint8_t solax_pw_cmd_mode_backup[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x02, 0x00, 0x2F, 0x01 };
 const uint8_t solax_pw_cmd_mode_manual[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x03, 0x00, 0x30, 0x01 };
-// useless // const uint8_t solax_pw_cmd_mode_backup[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x02, 0x00, 0x30, 0x01 };
       
 const uint8_t solax_pw_cfg_manual_stop[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x00, 0x00, 0x35, 0x01 };
-const uint8_t solax_pw_cfg_manual_charge[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x01, 0x00, 0x35, 0x01 };
-// useless // const uint8_t solax_pw_cfg_manual_discharge[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x02, 0x00, 0x35, 0x01 };
+const uint8_t solax_pw_cfg_manual_charge[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x01, 0x00, 0x36, 0x01 };
+// useless // const uint8_t solax_pw_cfg_manual_discharge[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x02, 0x00, 0x37, 0x01 };
 
 /*
 #set gmppt high
@@ -798,6 +799,7 @@ void interp(void) {
 
           pylontech.max_charge = maxch;
           pylontech.max_discharge = maxdis;
+
 #if 0
           // cover the inverter self consumption which is substracted from the BAT DC charge
           // this bug is kind of weird if you ask me
@@ -1786,7 +1788,7 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_r_length = 0; // wipe the previous buffer content
         // data encoding version
         i2c_xfer_r_length++; // total length, reserve space
-        i2c_xfer_buffer[i2c_xfer_r_length++] = 2; 
+        i2c_xfer_buffer[i2c_xfer_r_length++] = 3; 
 
         // solax state
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.status; 
@@ -1823,6 +1825,7 @@ void I2C_Slave_Reception_Callback(void) {
         // effective max charge (taking into account forced charge and workaround for battery full)
         i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.effective_charge>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.effective_charge&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_charge&0xFF;
         // last rule executed
         i2c_xfer_buffer[i2c_xfer_r_length++] = batt_drain_fix_cause;
         // solax work_mode
@@ -1959,8 +1962,29 @@ void I2C_Slave_Reception_Callback(void) {
       self_use_auto = 1;
       break;
 
+      // auto charge current management
     case 0x13:
       batt_forced_charge = -1;
+      break;
+
+    case 0x15:
+      master_log("I2C: force manual charge from grid\n");
+      // force stop discharge
+      self_use_auto = 0;
+      if (solax_pw_queue_free() >= 2) {
+        solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
+        solax_pw_queue_push(solax_pw_cfg_manual_charge, sizeof(solax_pw_cfg_manual_charge), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_CHARGE;
+      }
+      break;
+    case 0x16:
+      master_log("I2C: force backup mode\n");
+      // allow battery discharge but maintain a high level
+      self_use_auto = 0;
+      if (solax_pw_queue_free()) {
+        solax_pw_queue_push(solax_pw_cmd_mode_backup, sizeof(solax_pw_cmd_mode_backup), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_BACKUP;
+      }
       break;
     }
   }

@@ -5,7 +5,7 @@ ifeq ($(BUILD_DIR),)
 BUILD_DIR = build
 endif
 
-DEFINES += VERSION=\"v1J\"
+DEFINES += VERSION=\"v1K\"
 #DEFINES += BOARD_DEV # for nucleo with hand soldered pcb aggregation
 DEFINES += MODE_SOLAX_BMS
 BUILD_DIR = build_solax

@@ -6,6 +6,7 @@
 
 #ifdef MODE_SOLAX_BMS
 
+#define HAVE_WATCHDOG
 #define USBVCP USART3
 
 // ensure 5 seconds steady state before making up a decision
@@ -177,7 +178,6 @@ void can_bms_tx_log(uint32_t cid, size_t cid_bitlen, uint8_t* canmsg, size_t can
 
 enum bms_uart_state_e {
   BMS_UART_STATE_IDLE,
-  BMS_UART_STATE_WAIT,
   BMS_UART_STATE_WAIT_USER,
   BMS_UART_STATE_WAIT_PWR,
   BMS_UART_STATE_WAIT_INFO,
@@ -593,6 +593,7 @@ void interp(void) {
   /* ------------------------------------------------------------------------- */
   /*  LL_DBGMCU_APB1_GRP1_FreezePeriph(LL_DBGMCU_APB1_GRP1_IWDG_STOP); */
   
+#ifdef HAVE_WATCHDOG
   /* Enable the peripheral clock IWDG */
   /* -------------------------------- */
   LL_RCC_LSI_Enable();
@@ -616,11 +617,14 @@ void interp(void) {
   {
   }
   LL_IWDG_ReloadCounter(IWDG);                      /* (6) */  
+#endif // HAVE_WATCHDOG
 
   while (1) {
 
+#ifdef HAVE_WATCHDOG
     /* Refresh IWDG down-counter to default value */
     LL_IWDG_ReloadCounter(IWDG);
+#endif // HAVE_WATCHDOG
     // reset in case of CAN activity timeout
     if (EXPIRED(last_INV_CAN_activity_timeout)) {
       master_log("INV activity timeout\n");
@@ -864,7 +868,7 @@ void interp(void) {
               }
             }
             snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldmA, avg: %ldmA, forced value %ldmA\n", current_average, batt_current, batt_full_drain_workaround_current_dA*100);
-            master_log(tmp+128);
+            master_log((char*)tmp+128);
 
             // use last computed value
             maxch = MAX(batt_full_drain_workaround_current_dA, pylontech.max_charge);
@@ -2127,6 +2131,13 @@ void I2CS_EV_IRQHandler(void)
   */
 void I2CS_ER_IRQHandler(void)
 {
+  LL_I2C_ClearFlag_ARLO(I2CS);
+  LL_I2C_ClearFlag_BERR(I2CS);
+  LL_I2C_ClearFlag_OVR(I2CS);
+  LL_I2C_ClearSMBusFlag_TIMEOUT(I2CS);
+  LL_I2C_ClearSMBusFlag_ALERT(I2CS);
+  LL_I2C_ClearSMBusFlag_PECERR(I2CS);
+
   /* Call Error function */
   I2C_Error_Callback();
 }
@@ -2270,7 +2281,7 @@ void Configure_I2C_Slave(void)
    */
   LL_I2C_EnableIT_ADDR(I2CS);
   LL_I2C_EnableIT_NACK(I2CS);
-  LL_I2C_EnableIT_ERR(I2CS);
+  //LL_I2C_EnableIT_ERR(I2CS);
   LL_I2C_EnableIT_STOP(I2CS);
   LL_I2C_EnableIT_RX(I2CS);
   LL_I2C_EnableIT_TX(I2CS);

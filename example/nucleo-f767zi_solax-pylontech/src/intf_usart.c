@@ -13,17 +13,31 @@ char uart_bms_buffer[UARTBMS_BUFFER_SIZE_B];
 
 USART_TypeDef* usart_intf;
 
+#define TIMEOUT_1S 1000
+
 void uart_select_intf(USART_TypeDef* usart) {
   usart_intf = usart;
 }
 
 void uart_send_mem(const void* _ptr, size_t len) {
   const uint8_t* ptr = (const uint8_t*) _ptr;
+  uint32_t limit = uwTick + TIMEOUT_1S;
   while (LL_DMA_IsEnabledStream(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX) 
-    && LL_DMA_GetDataLength(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX));
+    && LL_DMA_GetDataLength(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX)) {
+    // timeout waiting for other channel'to finish
+    if (uwTick - limit < 0x80000000UL) {
+      return;
+    }
+  }
   LL_USART_DisableDMAReq_TX(USART_USBVCP);
+  limit = uwTick + TIMEOUT_1S;
   while (len--) {
-    while (!LL_USART_IsActiveFlag_TXE(usart_intf)){}
+    while (!LL_USART_IsActiveFlag_TXE(usart_intf)){
+      // timeout waiting for space in tx dma
+      if (uwTick - limit < 0x80000000UL) {
+        return;
+      }
+    }
     LL_USART_TransmitData8(usart_intf, *ptr++);
   }
 }
@@ -56,7 +70,13 @@ void uart_send_hex(const void* _buf, size_t len) {
 
 void uart_send_dma(const void* buf, size_t len) {
   // wait until previous DMA transfer ended
-  while (LL_DMA_GetDataLength(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX));
+  uint32_t limit = uwTick + TIMEOUT_1S;
+  while (LL_DMA_IsEnabledStream(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX) 
+    && LL_DMA_GetDataLength(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX)) {
+    if (uwTick - limit < 0x80000000UL) {
+      return;
+    }
+  }
   LL_DMA_DisableStream(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX);
   LL_USART_EnableDMAReq_TX(USART_USBVCP);
   LL_DMA_ConfigAddresses(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX,

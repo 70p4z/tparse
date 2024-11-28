@@ -72,6 +72,7 @@ void NMI_Handler(void)
   master_log("NMI_Handler\n");
   __asm volatile("bkpt");
   /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
+  // wait for watchdog to reboot...
   for(;;);
 
   /* USER CODE END NonMaskableInt_IRQn 0 */

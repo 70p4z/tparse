@@ -58,7 +58,7 @@ def mqtt_start():
     def on_message_solax_effective_max_charge_current(client, userdata, msg):
       try:
         print("set: " + msg.payload.decode('utf-8'))
-        intval = int(float(msg.payload.decode('utf-8')))*10
+        intval = int(float(msg.payload.decode('utf-8'))*10)
         msg=b'\x14' + struct.pack(">B", intval)
         with i2clock:
           write = i2c_msg.write(i2c_addr, msg)

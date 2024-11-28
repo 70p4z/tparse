@@ -1557,67 +1557,21 @@ void interp(void) {
               || pylontech.max_charge < pylontech.max_discharge
               || pylontech.soc >= pylontech.max_charge_soc
               ) {
-#if 0
-              switch(solax.status) {
-              case INVERTER_STATUS_EPS_WAIT:
-                // we have already severed connection with the grid, 
-              case INVERTER_STATUS_WAITING:
-              case INVERTER_STATUS_CHECKING:
-              case INVERTER_STATUS_SELFTEST:
-                // no action
-                master_log("Antisurge: do nothing (1)\n");
-                break;
-              // failing states, must reenable grid!!
-              case INVERTER_STATUS_IDLE: // already connected
-              case INVERTER_STATUS_ERROR:
-              case INVERTER_STATUS_FAULT:
-              case INVERTER_STATUS_STANDBY:
-              case INVERTER_STATUS_UPDATE:
-                if (eps_mode_switch_auto) {
-                  master_log("Antisurge: connect GRID (1)\n");
-                  eps_mode_switch(0);
-                  solax.status_count = 0; // avoid glitching too frequently
-                  eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
-                }
-                break;
-              case INVERTER_STATUS_EPS:
-              case INVERTER_STATUS_NORMAL:
-                if (eps_mode_switch_auto) {
-                  if (eps_mode_switch_timeout == 0 || EXPIRED(eps_mode_switch_timeout)) {
-                    master_log("Antisurge: disconnect GRID, force EPS\n");
-                    eps_mode_switch(1);
-                    solax.status_count = 0; // avoid glitching too frequently
-                    eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
-                  }
-                }
-                break;
-              }
-#else 
               if (eps_mode_switch_auto 
-                /* we inject */ //&& (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)
-                && solax.status != INVERTER_STATUS_ERROR 
-                && solax.status != INVERTER_STATUS_FAULT
-                // COMMENTED: don't require EPS when already in EPS // avoid switching to grid when reconnecting 
-                // the grid => avoid checking mode, and then a 5 seconds injection window after reaching normal mode
-                //&& solax.status != INVERTER_STATUS_EPS 
-                //&& solax.status != INVERTER_STATUS_EPS_WAIT // don't require EPS when already in EPS
-                // 
-                //&& solax.status != INVERTER_STATUS_WAITING // going to normal
-                // when disabled during checking, then it oftenly fails
-                //&& solax.status != INVERTER_STATUS_CHECKING // going to normal 
+                // only perform disconnection when we're in sync with the grid and in self use mode, else
+                // no disconnection
+                && solax.status == INVERTER_STATUS_NORMAL 
+                    && (!self_use_auto || solax_forced_work_mode == SOLAX_FORCED_WORK_MODE_SELF_USE)
                 ) {
                 master_log("Antisurge: disconnect GRID, force EPS\n");
                 eps_mode_switch(1);
                 solax.status_count = 0; // avoid glitching too frequently
                 eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
               }
-#endif // 0
             }
             // when SoC is lower than a value, then 
             else if (pylontech.soc <= solax.grid_connect_soc) {
-              if (eps_mode_switch_auto
-                /* we inject */ //&& (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)
-                ) {
+              if (eps_mode_switch_auto) {
                 master_log("Antisurge: connect GRID (2)\n");
                 // restablish the GRID connection, 
                 eps_mode_switch(0);
@@ -1633,9 +1587,7 @@ void interp(void) {
               case INVERTER_STATUS_FAULT:
               case INVERTER_STATUS_STANDBY:
               case INVERTER_STATUS_UPDATE:
-                if (eps_mode_switch_auto
-                  /* we inject */ //&& (self_use_auto || solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP)
-                  ) {
+                if (eps_mode_switch_auto) {
                   master_log("Antisurge: connect GRID (3)\n");
                   eps_mode_switch(0);
                   solax.status_count = 0; // avoid glitching too frequently

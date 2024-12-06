@@ -882,12 +882,12 @@ void interp(void) {
             // use the max value of forced charge
             maxch = batt_forced_charge;
             // take into account the battery max charge value until max charge soc is reached
-            if (pylontech.soc <= pylontech.max_charge_soc) {
-              maxch = MAX(batt_full_drain_workaround_current_dA, MAX(batt_forced_charge, pylontech.max_charge));
-            }
-            else {
-              master_log("force batt charge\n");
-            }
+            // if (pylontech.soc <= pylontech.max_charge_soc) {
+            //   maxch = MAX(batt_full_drain_workaround_current_dA, MAX(batt_forced_charge, pylontech.max_charge));
+            // }
+            // else {
+            //   master_log("force batt charge\n");
+            // }
             // only force charge when battery voltage levels are safe
             // TODO: allow for at least a given interval, to avoid on and off when reaching max charge
             if (pylontech.vcellmax < 36 ) {
@@ -903,6 +903,8 @@ void interp(void) {
             tmp[4] = 0;
             tmp[5] = 0;
             pylontech.effective_charge = 0;
+            // we're overlimit, drop the compensation charge level
+            batt_full_drain_workaround_current_dA = 1;
           }
           forward = 1;
           break;

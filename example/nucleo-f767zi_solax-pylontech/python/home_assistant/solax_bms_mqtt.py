@@ -264,10 +264,18 @@ while True:
       continue
 
     """
-    b'40'
-    b'400207010000000000000000000000003e00fa00faffff070000000000000007e8011512320101000808fc000147860007010101191f61000079db00002e913e'
-    (64, 2, 7, 1, 0, 0, 0, 0, 0, 0, 62, 250, 250, -1, 7, 0, 0, 0, 0, 2024, 1, 21, 18, 50, 1, 1, 8, 2300, 83846, 7, 1, 1, 1, 25, 31, 97, 31195, 11921, 62)
+    v2
+      b'40'
+      b'400207010000000000000000000000003e00fa00faffff070000000000000007e8011512320101000808fc000147860007010101191f61000079db00002e913e'
+      (64, 2, 7, 1, 0, 0, 0, 0, 0, 0, 62, 250, 250, -1, 7, 0, 0, 0, 0, 2024, 1, 21, 18, 50, 1, 1, 8, 2300, 83846, 7, 1, 1, 1, 25, 31, 97, 31195, 11921, 62)
+    v3
+      b'79'
+      b'7903070400000000008e004d00a700b064000000fa000707030002c102c1000007e80b1c11100000000a08fb003a0895000c000101141e640000c28e00004a7f639864640dc40dcf9164640dd10dfc6664640df50e0c3464620d720e0f2464640db00de42264610d740d954764640dcb0e0e1364630d320dcd'
+      (121, 3, 7, 4, 0, 0, 142, 77, 167, 176, 100, 0, 250, 7, 7, 3, 0, 705, 705, 0, 2024, 11, 28, 17, 16, 0, 0, 10, 2299, 3803285, 12, 0, 1, 1, 20, 30, 100, 49806, 19071, 99)
+
     """
+
+
 
     fields = struct.unpack_from(">BBBBhhhhhhBhhhbBBhhhHBBBBBBHHIHBBBBBBIIB", data)
 
@@ -338,7 +346,7 @@ while True:
     mqtt_client.publish('homeassistant/switch/solax_auto_grid/state', payload=mqtt_boolstr(fields[IDX_EPS_SWITCH_AUTO]!=0), retain=True)
     mqtt_client.publish('homeassistant/sensor/solax_state/state', payload=solax_state_names[fields[IDX_STATE]], retain=True)
     mqtt_client.publish('homeassistant/switch/solax_force_stop_discharge/state', payload=mqtt_boolstr(fields[IDX_SELF_USE_AUTO]==0 and fields[IDX_FORCED_MODE]==3), retain=True)
-    mqtt_client.publish('homeassistant/switch/solax_force_charge/state', payload=mqtt_boolstr(fields[IDX_SELF_USE_AUTO]==0 and fields[IDX_FORCED_MODE]==2), retain=True)
+    mqtt_client.publish('homeassistant/switch/solax_force_charge/state', payload=mqtt_boolstr(fields[IDX_SELF_USE_AUTO]==0 and fields[IDX_FORCED_MODE]==4), retain=True)
     mqtt_client.publish('homeassistant/switch/solax_force_self_use/state', payload=mqtt_boolstr(fields[IDX_SELF_USE_AUTO]==0 and fields[IDX_FORCED_MODE]==1), retain=True)
     mqtt_client.publish('homeassistant/switch/solax_auto_mode/state', payload=mqtt_boolstr(fields[IDX_SELF_USE_AUTO]!=0), retain=True)
     mqtt_client.publish('homeassistant/sensor/solax_battery_capacity_mah/state', payload=str(fields[IDX_CAPACITY_MAH]), retain=True)

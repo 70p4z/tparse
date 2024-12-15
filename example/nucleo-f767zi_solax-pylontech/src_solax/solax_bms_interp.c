@@ -867,7 +867,7 @@ void interp(void) {
                 master_log("no change in charge current\n");
               }
             }
-            snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldmA, avg: %ldmA, forced value %ldmA\n", current_average, batt_current, batt_full_drain_workaround_current_dA*100);
+            snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldmA, avg: %ldmA, forced value %ldmA\n", batt_current, current_average, batt_full_drain_workaround_current_dA*100);
             master_log((char*)tmp+128);
 
             // use last computed value

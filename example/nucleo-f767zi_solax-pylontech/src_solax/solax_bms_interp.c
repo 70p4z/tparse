@@ -791,7 +791,14 @@ void interp(void) {
           // the bug has a periodicity of 1h and a duration of a few seconds.
           // it takes to circumvent the bug on the coil level too to make this patch effective.
           if (pylontech.fix2_31) {
-            break;
+            // use previous value for max discharge, to avoid service disruption
+            maxdis = pylontech.max_discharge;
+            tmp[6] = maxdis&0xFF;
+            tmp[7] = (maxdis>>8)&0xFF;
+            // use previous max charge value to avoid charge disruption (and ihccups on the grid export side)
+            maxch = pylontech.max_charge;
+            tmp[4] = maxch&0xFF;
+            tmp[5] = (maxch>>8)&0xFF;
           }
 
           // ensure respecting maxcharge, taking into account the inner charge cap offset

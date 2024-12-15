@@ -15,6 +15,7 @@
 #define GRID_CONNECT_SOC    20 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
 #define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
 
+#define BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DCV 36
 
 #define SOLAX_MAX_CHARGE_SOC 100 // limit battery wearing
 
@@ -890,7 +891,7 @@ void interp(void) {
             // }
             // only force charge when battery voltage levels are safe
             // TODO: allow for at least a given interval, to avoid on and off when reaching max charge
-            if (pylontech.vcellmax < 36 ) {
+            if (pylontech.vcellmax < BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DCV ) {
               tmp[4] = maxch&0xFF;
               tmp[5] = (maxch>>8)&0xFF;
               pylontech.effective_charge = maxch;
@@ -898,7 +899,7 @@ void interp(void) {
           }
 
           // absolute max rating to avoid chemistry degradation
-          if (pylontech.vcellmax >= 36) {
+          if (pylontech.vcellmax >= BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DCV) {
             master_log("batt voltage dangerous (3.6V), stop forced charge to avoid wearing\n");
             tmp[4] = 0;
             tmp[5] = 0;

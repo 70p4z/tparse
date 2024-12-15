@@ -910,9 +910,6 @@ void interp(void) {
           forward = 1;
           break;
         }
-        case 0x1871:
-          //pylontech_cache_clear();
-          __attribute__((fallthrough));
         case 0x1878:
           snprintf((char*)tmp+16, sizeof(tmp)-16, "            | Format=%d\tUnk=%d\tFlagsBMS<<16=%04x\tCapacity=%dWh\n", 
                    tmp[0],

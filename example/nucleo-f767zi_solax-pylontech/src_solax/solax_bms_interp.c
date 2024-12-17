@@ -15,7 +15,7 @@
 #define GRID_CONNECT_SOC    20 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
 #define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
 
-#define BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DCV 36
+#define BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DV 36
 
 #define SOLAX_MAX_CHARGE_SOC 100 // limit battery wearing
 
@@ -415,6 +415,7 @@ struct {
   uint8_t vcellmin;
   uint8_t tcellmax;
   uint8_t tcellmin;
+  uint8_t max_charge_voltage;
   uint8_t bmu_idx;
   uint8_t bmu_idx_tmp;
   struct {
@@ -514,6 +515,7 @@ void interp(void) {
   solax.grid_connect_soc = GRID_CONNECT_SOC;
   solax.grid_disconnect_soc = GRID_DISCONNECT_SOC;
   pylontech.max_charge_soc = SOLAX_MAX_CHARGE_SOC;
+  pylontech.max_charge_voltage = BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DV;
 
   // use BARE HSI (16MHz)
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
@@ -898,7 +900,7 @@ void interp(void) {
             // }
             // only force charge when battery voltage levels are safe
             // TODO: allow for at least a given interval, to avoid on and off when reaching max charge
-            if (pylontech.vcellmax < BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DCV ) {
+            if (pylontech.vcellmax < pylontech.max_charge_voltage ) {
               tmp[4] = maxch&0xFF;
               tmp[5] = (maxch>>8)&0xFF;
               pylontech.effective_charge = maxch;
@@ -906,7 +908,7 @@ void interp(void) {
           }
 
           // absolute max rating to avoid chemistry degradation
-          if (pylontech.vcellmax >= BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DCV) {
+          if (pylontech.vcellmax >= pylontech.max_charge_voltage) {
             master_log("batt voltage dangerous (3.6V), stop forced charge to avoid wearing\n");
             tmp[4] = 0;
             tmp[5] = 0;
@@ -1751,7 +1753,7 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_r_length = 0; // wipe the previous buffer content
         // data encoding version
         i2c_xfer_r_length++; // total length, reserve space
-        i2c_xfer_buffer[i2c_xfer_r_length++] = 3; 
+        i2c_xfer_buffer[i2c_xfer_r_length++] = 4; 
 
         // solax state
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.status; 
@@ -1836,6 +1838,8 @@ void I2C_Slave_Reception_Callback(void) {
         U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, pylontech.precise_mWh);
         i2c_xfer_r_length+=4;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.soc_mWh;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge_voltage;
+        
         for (int i = 0; i < pylontech.bmu_idx && i2c_xfer_r_length+8 < sizeof(i2c_xfer_buffer); i++) {
           // if frame >= 128 bytes, then next frame is wrongly retrieved. this is weird
           //i2c_xfer_buffer[i2c_xfer_r_length++] = ((pylontech.bmu[i].pcba[18]-0x30)<<4)|(pylontech.bmu[i].pcba[19]-0x30);
@@ -1967,6 +1971,9 @@ void I2C_Slave_Reception_Callback(void) {
         // force charge (to balance batteries)
       case 0x14:
         batt_forced_charge = i2c_xfer_buffer[1]; // in dA
+        break;
+      case 0x17:
+        pylontech.max_charge_voltage = i2c_xfer_buffer[1]; // id dV
         break;
       }
     }

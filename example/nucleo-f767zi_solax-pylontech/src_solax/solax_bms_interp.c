@@ -767,6 +767,11 @@ void interp(void) {
             // ensure charging when forcing charge (invert will not deny charge at that value)
             tmp[4] = MIN(pylontech.soc, 75);
           }
+
+          // ensure to avoid overcharge of the battery when overvoltage
+          if(pylontech.vcellmax >= BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DCV) {
+            tmp[4] = 100;
+          }
           forward = 1;
           break;
         case 0x1872: {

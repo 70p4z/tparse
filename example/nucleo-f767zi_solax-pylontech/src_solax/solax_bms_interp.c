@@ -773,6 +773,15 @@ void interp(void) {
           {
             // ensure charging when forcing charge (invert will not deny charge at that value)
             tmp[4] = MIN(pylontech.soc, 75);
+            tmp[5] = 0;
+          }
+
+          // ensure to avoid overcharge of the battery when overvoltage
+          // NOTE: strictly superior, to allow for both anti grid surge and anti full battery drain problems 
+          //       countermeasures to be evaded.
+          if(pylontech.vcellmax >= pylontech.max_charge_voltage) {
+            tmp[4] = 100;
+            tmp[5] = 0;
           }
           forward = 1;
           break;

@@ -762,11 +762,6 @@ void interp(void) {
                    pylontech.wattage,
                    pylontech.soc,
                    U2LE(tmp,6)/100,U2LE(tmp,6)%100);
-          if (batt_forced_soc >= 0) {
-            master_log("force batt soc\n");
-            tmp[4] = batt_forced_soc&0xFF;
-            tmp[5] = 0;
-          }
 
           // always apply a SoC that allosw the inverter to charge. to ensure battery full workaround is effective
           //if (batt_forced_charge >= 0)
@@ -781,6 +776,12 @@ void interp(void) {
           //       countermeasures to be evaded.
           if(pylontech.vcellmax >= pylontech.max_charge_voltage) {
             tmp[4] = 100;
+            tmp[5] = 0;
+          }
+
+          if (batt_forced_soc >= 0) {
+            master_log("force batt soc\n");
+            tmp[4] = batt_forced_soc&0xFF;
             tmp[5] = 0;
           }
           forward = 1;
@@ -1881,6 +1882,7 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_r_length+=4;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.soc_mWh;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge_voltage;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_soc;
         
         for (int i = 0; i < pylontech.bmu_idx && i2c_xfer_r_length+8 < sizeof(i2c_xfer_buffer); i++) {
           // if frame >= 128 bytes, then next frame is wrongly retrieved. this is weird
@@ -2016,6 +2018,10 @@ void I2C_Slave_Reception_Callback(void) {
         break;
       case 0x17:
         pylontech.max_charge_voltage = i2c_xfer_buffer[1]; // id dV
+        break;
+      case 0x18:
+        // if out of [0:100] then disabled the forced soc
+        batt_forced_soc = i2c_xfer_buffer[1]>100?-1U:i2c_xfer_buffer[1]; // reported SoC
         break;
       }
     }

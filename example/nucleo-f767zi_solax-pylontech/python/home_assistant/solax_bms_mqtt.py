@@ -230,6 +230,19 @@ def mqtt_start():
     mqtt_client.publish('homeassistant/switch/solax_auto_charge_current/config', payload=json.dumps({"name": "Solax Battery Auto Charge Current", "command_topic": "homeassistant/switch/solax_auto_charge_current/set", "state_topic": "homeassistant/switch/solax_auto_charge_current/state"}), retain=True)
     mqtt_client.subscribe('homeassistant/switch/solax_auto_charge_current/set')
 
+    def on_message_solax_forced_soc(client, userdata, msg):
+      try:
+        print("set: " + msg.payload.decode('utf-8'))
+        intval = int(msg.payload.decode('utf-8'))
+        msg=b'\x18' + struct.pack(">b", intval)
+        with i2clock:
+          write = i2c_msg.write(i2c_addr, msg)
+          i2cbus.i2c_rdwr(write)
+      except:
+        traceback.print_exc()
+    mqtt_client.message_callback_add('homeassistant/number/solax_battery_forced_soc/set', on_message_solax_forced_soc)
+    mqtt_client.subscribe('homeassistant/number/solax_battery_forced_soc/set')
+    mqtt_client.publish('homeassistant/number/solax_battery_forced_soc/config', payload=json.dumps({"device_class": "voltage", "name": "Solax Battery Forced SoC", "state_topic": "homeassistant/number/solax_battery_forced_soc/state", "unit_of_measurement": "%", "command_topic": "homeassistant/number/solax_battery_forced_soc/set", "min": "-1", "max": "104", "step": "5"}), retain=True)
 
   def on_connect(client, userdata, flags, rc):
     #print(f"on_connect: rc={rc}")
@@ -291,7 +304,7 @@ while True:
 
 
 
-    fields = struct.unpack_from(">BBBBhhhhhhBhhhbBBhhhHBBBBBBHHIHBBBBBBIIBB", data)
+    fields = struct.unpack_from(">BBBBhhhhhhBhhhbBBhhhHBBBBBBHHIHBBBBBBIIBBb", data)
 
     (IDX_LEN,
     IDX_SCHEMA_VERSION,
@@ -333,7 +346,8 @@ while True:
     IDX_CAPACITY_MAH,
     IDX_CAPACITY_MWH,
     IDX_SOC_MWH,
-    IDX_MAX_CHG_VOLTAGE) = range(0, 41)
+    IDX_MAX_CHG_VOLTAGE,
+    IDX_FORCED_SOC) = range(0, 42)
     print (repr(fields))
 
 
@@ -368,8 +382,9 @@ while True:
     mqtt_client.publish('homeassistant/sensor/solax_battery_capacity_mwh/state', payload=str(fields[IDX_CAPACITY_MWH]), retain=True)
     mqtt_client.publish("homeassistant/switch/solax_auto_charge_current/state", payload=mqtt_boolstr(fields[IDX_FORCED_CH] == -1), retain=True)
     mqtt_client.publish("homeassistant/number/solax_battery_max_charge_voltage/state", payload=str(fields[IDX_MAX_CHG_VOLTAGE]/10), retain=True)
+    mqtt_client.publish("homeassistant/number/solax_battery_forced_soc/state", payload=str(fields[IDX_FORCED_SOC]), retain=True)
     
-    packs_info=data[66:]
+    packs_info=data[67:]
     while (len(packs_info) >= 7):
       pack_fields = struct.unpack_from(">BBBhh", packs_info)
       packs_info = packs_info[7:]

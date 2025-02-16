@@ -385,10 +385,11 @@ while True:
     mqtt_client.publish("homeassistant/number/solax_battery_forced_soc/state", payload=str(fields[IDX_FORCED_SOC]), retain=True)
     
     packs_info=data[67:]
+    pack_idx=0
     while (len(packs_info) >= 7):
       pack_fields = struct.unpack_from(">BBBhh", packs_info)
       packs_info = packs_info[7:]
-      str_pack_id=hex(0x100+pack_fields[0])[-2:]
+      str_pack_id=hex(0x100+pack_idx)[-2:]+"_"+hex(0x100+pack_fields[0])[-2:]
       if (pack_fields[1] != 255 and pack_fields[2] != 255 and pack_fields[3] != -1 and pack_fields[4] != -1):
         infos=""
         infos += str(pack_fields[1]) + '/'
@@ -400,6 +401,7 @@ while True:
           mqtt.bms_packs_topic[str_pack_id] = str_pack_id
 
         mqtt_client.publish('homeassistant/sensor/solax_battery_infos_'+str_pack_id+'/state', payload=str(infos), retain=True)
+      pack_idx += 1
 
   except:
     print(traceback.print_exc())

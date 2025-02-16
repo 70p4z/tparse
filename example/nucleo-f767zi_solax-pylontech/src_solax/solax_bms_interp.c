@@ -897,7 +897,7 @@ void interp(void) {
               if (pylontech.bmu_idx > 0) {
                 vcell_lowest = pylontech.bmu[0].vlow; 
                 vcell_highest = pylontech.bmu[0].vhigh;
-                for (uint8_t bmu_idx=1; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
+                for (uint8_t bmu_idx=0; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
                   if (pylontech.bmu[0].vlow < vcell_lowest) {
                     vcell_lowest = pylontech.bmu[0].vlow;
                   }
@@ -1884,7 +1884,9 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge_voltage;
         i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_soc;
         
-        for (int i = 0; i < pylontech.bmu_idx && i2c_xfer_r_length+8 < sizeof(i2c_xfer_buffer); i++) {
+        // BMS units are listed backward (for the farther Link to the closest link)
+        int i = pylontech.bmu_idx;
+        while (i-- && i2c_xfer_r_length+8 < sizeof(i2c_xfer_buffer)) {
           // if frame >= 128 bytes, then next frame is wrongly retrieved. this is weird
           //i2c_xfer_buffer[i2c_xfer_r_length++] = ((pylontech.bmu[i].pcba[18]-0x30)<<4)|(pylontech.bmu[i].pcba[19]-0x30);
           i2c_xfer_buffer[i2c_xfer_r_length++] = ((pylontech.bmu[i].pcba[20]-0x30)<<4)|(pylontech.bmu[i].pcba[21]-0x30);

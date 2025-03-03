@@ -966,6 +966,11 @@ void interp(void) {
             batt_full_drain_workaround_current_dA = 1;
             // TODO, switch to automatic offgrid, and force offgrid! => solax has a bug continuing 
             // to charge when full and still connected on grid even if charge current is set to 0
+            // ignore auto switch here. this is a measure for battery safety!
+            eps_mode_switch(1);
+            eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+            // force auto switch mode. to avoid forcing
+            eps_mode_switch_auto = 1;
           }
           forward = 1;
           break;

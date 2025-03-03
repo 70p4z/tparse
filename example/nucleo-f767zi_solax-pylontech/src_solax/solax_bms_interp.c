@@ -17,8 +17,12 @@
 
 #define BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DV 36
 
+// min difference to enable balancing charge
 #define PYLONTECH_BALANCING_STOP_DIFF_MV 5
-#define PYLONTECH_BALANCING_OPTIMAL_WATTAGE 120
+// max voltage to continue balancing
+#define PYLONTECH_BALANCING_MAX_MV 3550
+// optimal max wattage
+#define PYLONTECH_BALANCING_OPTIMAL_WATTAGE 150
 
 #define SOLAX_MAX_CHARGE_SOC 100 // limit battery wearing
 
@@ -898,17 +902,21 @@ void interp(void) {
                 vcell_lowest = pylontech.bmu[0].vlow; 
                 vcell_highest = pylontech.bmu[0].vhigh;
                 for (uint8_t bmu_idx=0; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
-                  if (pylontech.bmu[0].vlow < vcell_lowest) {
-                    vcell_lowest = pylontech.bmu[0].vlow;
+                  if (pylontech.bmu[bmu_idx].vlow < vcell_lowest) {
+                    vcell_lowest = pylontech.bmu[bmu_idx].vlow;
                   }
-                  if (pylontech.bmu[0].vhigh < vcell_highest) {
-                    vcell_highest = pylontech.bmu[0].vhigh;
+                  if (pylontech.bmu[bmu_idx].vhigh < vcell_highest) {
+                    vcell_highest = pylontech.bmu[bmu_idx].vhigh;
                   }
                 }
               }
+              snprintf((char*)tmp+128, sizeof(tmp)-128, "cell state minV: %dV, maxV: %dV\n", vcell_lowest, vcell_highest);
+              master_log((char*)tmp+128);
               // depending on full or need for balancing, adjust the max allowed wattage
               if (pylontech.soc < pylontech.max_charge_soc
-                || vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest) {
+                // above huge value, stop charging, to avoid too hot battery and faulty state
+                || (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
+                    && vcell_highest < PYLONTECH_BALANCING_MAX_MV)) {
                 // pylontech can perform balancing with a given wattage 
                 batt_full_drain_workaround_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
               }

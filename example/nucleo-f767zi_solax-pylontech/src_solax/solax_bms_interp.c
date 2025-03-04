@@ -905,7 +905,7 @@ void interp(void) {
                   if (pylontech.bmu[bmu_idx].vlow < vcell_lowest) {
                     vcell_lowest = pylontech.bmu[bmu_idx].vlow;
                   }
-                  if (pylontech.bmu[bmu_idx].vhigh < vcell_highest) {
+                  if (pylontech.bmu[bmu_idx].vhigh > vcell_highest) {
                     vcell_highest = pylontech.bmu[bmu_idx].vhigh;
                   }
                 }

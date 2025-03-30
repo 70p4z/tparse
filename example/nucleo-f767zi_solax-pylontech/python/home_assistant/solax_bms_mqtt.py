@@ -1,5 +1,3 @@
-from smbus2 import SMBus
-from smbus2 import i2c_msg
 import binascii 
 import struct
 import traceback
@@ -15,12 +13,41 @@ import threading
 
 i2clock = threading.RLock()
 try:
+  from smbus2 import SMBus
+  from smbus2 import i2c_msg
   #40 pin connector
   i2cbus = SMBus(1)
   i2c_addr = 0x22 # validated on bus 7bit address
+
+  def i2c_write(data):
+    with i2clock:
+      write = i2c_msg.write(i2c_addr, data)
+      i2cbus.i2c_rdwr(write)  
+
+  def i2c_write_read(datawrite, lenread):
+    with i2clock:
+      write = i2c_msg.write(i2c_addr, datawrite)
+      read = i2c_msg.read(i2c_addr, lenread)
+      i2cbus.i2c_rdwr(write, read)
+      data = b''
+      for v in read:
+        data+=bytes([v])
+      return data
 except:
-  traceback.print_exc()
-  sys.exit(-1)
+  import serial
+  from iobridge.iobridge import IOBridge
+  i2c_addr = 0x44 # validated on bus 8bit address (iobridge)
+  port = sys.argv[1]
+  iob = IOBridge(serial.Serial(port=port, baudrate=921600))
+
+  def i2c_write(data):
+    with i2clock:
+      iob.i2c_write(i2c_addr, data)
+
+  def i2c_write_read(datawrite, lenread):
+    with i2clock:
+      iob.i2c_write(i2c_addr, datawrite)
+      return iob.i2c_read(i2c_addr, lenread)
 
 mqtt_client = None
 
@@ -63,9 +90,7 @@ def mqtt_start():
           msg=b'\x14' + struct.pack(">B", intval)
         else:
           msg=b'\x13'
-        with i2clock:
-          write = i2c_msg.write(i2c_addr, msg)
-          i2cbus.i2c_rdwr(write)
+        i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/number/solax_battery_forced_max_charge_current/set', on_message_solax_forced_max_charge_current)
@@ -77,9 +102,7 @@ def mqtt_start():
         print("set: " + msg.payload.decode('utf-8'))
         intval = int(float(msg.payload.decode('utf-8'))*10)
         msg=b'\x17' + struct.pack(">B", intval)
-        with i2clock:
-          write = i2c_msg.write(i2c_addr, msg)
-          i2cbus.i2c_rdwr(write)
+        i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/number/solax_battery_max_charge_voltage/set', on_message_solax_maxcharge_voltage)
@@ -97,9 +120,7 @@ def mqtt_start():
           msg=b'\x02'
         else:
           msg=b'\x01'
-        with i2clock:
-          write = i2c_msg.write(i2c_addr, msg)
-          i2cbus.i2c_rdwr(write)
+        i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_pv1_gmppt/set', on_message_solax_pv1_gmppt)
@@ -113,9 +134,7 @@ def mqtt_start():
           msg=b'\x04'
         else:
           msg=b'\x03'
-        with i2clock:
-          write = i2c_msg.write(i2c_addr, msg)
-          i2cbus.i2c_rdwr(write)
+        i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_pv2_gmppt/set', on_message_solax_pv2_gmppt)
@@ -127,9 +146,7 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
           msg=b'\x0C'
-          with i2clock:
-            write = i2c_msg.write(i2c_addr, msg)
-            i2cbus.i2c_rdwr(write)
+          i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_force_grid_tie/set', on_message_solax_force_grid_tie)
@@ -141,9 +158,7 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
           msg=b'\x0A'
-          with i2clock:
-            write = i2c_msg.write(i2c_addr, msg)
-            i2cbus.i2c_rdwr(write)
+          i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_force_offgrid/set', on_message_solax_force_offgrid)
@@ -155,9 +170,7 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
           msg=b'\x0B'
-          with i2clock:
-            write = i2c_msg.write(i2c_addr, msg)
-            i2cbus.i2c_rdwr(write)
+          i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_auto_grid/set', on_message_solax_auto_grid)
@@ -169,9 +182,7 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
           msg=b'\x0D'
-          with i2clock:
-            write = i2c_msg.write(i2c_addr, msg)
-            i2cbus.i2c_rdwr(write)
+          i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_force_stop_discharge/set', on_message_solax_force_stop_discharge)
@@ -183,9 +194,7 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
           msg=b'\x0E'
-          with i2clock:
-            write = i2c_msg.write(i2c_addr, msg)
-            i2cbus.i2c_rdwr(write)
+          i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_force_self_use/set', on_message_solax_force_self_use)
@@ -197,9 +206,7 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
           msg=b'\x15'
-          with i2clock:
-            write = i2c_msg.write(i2c_addr, msg)
-            i2cbus.i2c_rdwr(write)
+          i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_force_charge/set', on_message_solax_force_charge)
@@ -211,9 +218,7 @@ def mqtt_start():
       try:
         if msg.payload.decode('utf-8') == "ON":
           msg=b'\x0F'
-          with i2clock:
-            write = i2c_msg.write(i2c_addr, msg)
-            i2cbus.i2c_rdwr(write)
+          i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/switch/solax_auto_mode/set', on_message_solax_auto_mode)
@@ -225,9 +230,7 @@ def mqtt_start():
         print("set: " + msg.payload.decode('utf-8'))
         intval = int(msg.payload.decode('utf-8'))
         msg=b'\x18' + struct.pack(">b", intval)
-        with i2clock:
-          write = i2c_msg.write(i2c_addr, msg)
-          i2cbus.i2c_rdwr(write)
+        i2c_write(msg)
       except:
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/number/solax_battery_forced_soc/set', on_message_solax_forced_soc)
@@ -256,22 +259,10 @@ mqtt_start()
 # read values from the solax
 while True:
   try:
-    with i2clock:
-      write = i2c_msg.write(i2c_addr,b'\x00')
-      read = i2c_msg.read(i2c_addr, 1)
-      i2cbus.i2c_rdwr(write, read)
-      # convert as byte array
-      data = b''
-      for v in read:
-        data+=bytes([v])
-      print(binascii.hexlify(data))
-      length=data[0]
-      write = i2c_msg.write(i2c_addr,b'\x00')
-      read = i2c_msg.read(i2c_addr, length)
-      i2cbus.i2c_rdwr(write, read)
-    data = b''
-    for v in read:
-      data+=bytes([v])
+    print("<")
+    length = i2c_write_read(b'\x00', 1)[0]
+    print(">")
+    data = i2c_write_read(b'\x00', length)
     print(binascii.hexlify(data))
 
     #check length and data schema version

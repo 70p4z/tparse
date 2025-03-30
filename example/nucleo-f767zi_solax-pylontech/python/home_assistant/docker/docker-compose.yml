@@ -1,0 +1,23 @@
+
+version: "3"
+services:
+  solax-bms-mqtt:
+    privileged: true #to access dev/serial to reach the iobridge
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # access serial
+    volumes:
+      - /dev:/dev
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+    network_mode: host
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

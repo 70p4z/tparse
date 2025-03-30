@@ -1625,7 +1625,8 @@ void interp(void) {
               if (eps_mode_switch_auto 
                 // only perform disconnection when we're in sync with the grid and in self use mode, else
                 // no disconnection
-                && solax.status == INVERTER_STATUS_NORMAL 
+                // at boot, when in EPS, must stay in EPS!, therefore activate the relay to stay in EPS
+                && (solax.status == INVERTER_STATUS_NORMAL || solax.status == INVERTER_STATUS_EPS)
                     && (!self_use_auto || solax_forced_work_mode == SOLAX_FORCED_WORK_MODE_SELF_USE)
                 ) {
                 master_log("Antisurge: disconnect GRID, force EPS\n");

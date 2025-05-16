@@ -913,20 +913,25 @@ void interp(void) {
                     vcell_highest = pylontech.bmu[bmu_idx].vhigh;
                   }
                 }
-              }
-              snprintf((char*)tmp+128, sizeof(tmp)-128, "cell state minV: %dV, maxV: %dV\n", vcell_lowest, vcell_highest);
-              master_log((char*)tmp+128);
-              // depending on full or need for balancing, adjust the max allowed wattage
-              if (pylontech.soc < pylontech.max_charge_soc
-                // above huge value, stop charging, to avoid too hot battery and faulty state
-                || (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
-                    && vcell_highest < PYLONTECH_BALANCING_MIN_MV)) {
-                // pylontech can perform balancing with a given wattage 
-                batt_full_drain_workaround_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
-              }
-              else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV) {
-                // no more charge req, take action upon next cycle
-                batt_full_drain_workaround_max_wattage = 0;
+                snprintf((char*)tmp+128, sizeof(tmp)-128, "cell state minV: %dV, maxV: %dV\n", vcell_lowest, vcell_highest);
+                master_log((char*)tmp+128);
+                // depending on full or need for balancing, adjust the max allowed wattage
+                if (pylontech.soc < pylontech.max_charge_soc
+                  // above huge value, stop charging, to avoid too hot battery and faulty state
+                  || (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
+                                                                    // bretelles
+                      && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 3700)) {
+                  master_log("cell voltage accepts workaround max_wattage\n");
+                  // pylontech can perform balancing with a given wattage 
+                  batt_full_drain_workaround_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
+                }
+                // avoid some 65K overflow sometimes
+                                                                    // bretelles
+                else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 3700) {
+                  master_log("cell too high, stop workaround max_wattage\n");
+                  // no more charge req, take action upon next cycle
+                  batt_full_drain_workaround_max_wattage = 0;
+                }
               }
               // when it's between bounds, it's just fine
             }

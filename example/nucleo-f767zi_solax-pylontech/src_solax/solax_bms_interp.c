@@ -21,6 +21,7 @@
 #define PYLONTECH_BALANCING_STOP_DIFF_MV 5
 // max voltage to continue balancing
 #define PYLONTECH_BALANCING_MAX_MV 3550
+#define PYLONTECH_BALANCING_MIN_MV 3450
 // optimal max wattage
 #define PYLONTECH_BALANCING_OPTIMAL_WATTAGE 150
 
@@ -40,7 +41,7 @@
 // avoid draining the battery when PV power is still available
 #define SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN 3 // 0.5A => more charging than discharging
 // average offset accounted in the inverter
-#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 320 
+#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 400 // 320 (rounded to 400 to ensure 1A compensation of the DC)
 #define SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT 10
 #define SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS (SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT*3/4*1000)
 
@@ -863,8 +864,11 @@ void interp(void) {
             // when no batt forced charge, then apply auto adjust
             // get the best current approx in mA
             int32_t batt_wattage = pylontech.wattage;
-            int32_t batt_compensated_curr_dA = (SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE + PYLONTECH_BALANCING_OPTIMAL_WATTAGE) * 100
-                                            / pylontech.voltage;
+            int32_t batt_compensated_curr_dA = (/*SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE*/
+                                                (pylontech.voltage /*dV*/ * 10 /*dA*/)/100 
+                                                + PYLONTECH_BALANCING_OPTIMAL_WATTAGE
+                                               ) * 100
+                                               / pylontech.voltage;
             if (pylontech.precise_wattage != 0 ) {
               batt_wattage = pylontech.precise_wattage;
             }
@@ -916,11 +920,11 @@ void interp(void) {
               if (pylontech.soc < pylontech.max_charge_soc
                 // above huge value, stop charging, to avoid too hot battery and faulty state
                 || (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
-                    && vcell_highest < PYLONTECH_BALANCING_MAX_MV)) {
+                    && vcell_highest < PYLONTECH_BALANCING_MIN_MV)) {
                 // pylontech can perform balancing with a given wattage 
                 batt_full_drain_workaround_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
               }
-              else {
+              else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV) {
                 // no more charge req, take action upon next cycle
                 batt_full_drain_workaround_max_wattage = 0;
               }

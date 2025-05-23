@@ -27,6 +27,7 @@ if __name__ == '__main__':
 	import random
 	import time
 	import math
+	import traceback
 	from iobridge.iobridge import IOBridge
 
 	def auto_int(x):
@@ -43,9 +44,10 @@ if __name__ == '__main__':
 	
 	for line in sys.stdin:
 		line = line.rstrip("\n").rstrip("\r")
-		#print(">" + line)
 		#start = time.time();
-		rline = iob.exchange(line)
-		#print("<" + rline)# + " (time:"+str(math.ceil((stop-start)*1000)/1000.0)+"s)")
+		try:
+			rline = iob.exchange(line)
+		except:
+			traceback.print_exc()
 	s.close()
 	sys.stdout.flush()

@@ -816,7 +816,9 @@ void interp(void) {
           // in that case, we won't tranmsit and keep the previous value sent to the inverter
           // the bug has a periodicity of 1h and a duration of a few seconds.
           // it takes to circumvent the bug on the coil level too to make this patch effective.
-          if (pylontech.fix2_31) {
+          if (pylontech.fix2_31 
+            // when max charge is reported below zero (hence discharging?) => send the last good value
+            || maxch < 0) {
             // use previous value for max discharge, to avoid service disruption
             maxdis = pylontech.max_discharge;
             tmp[6] = maxdis&0xFF;

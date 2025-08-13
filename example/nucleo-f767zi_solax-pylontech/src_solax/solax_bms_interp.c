@@ -1571,6 +1571,8 @@ void interp(void) {
                 eps_mode_switch(1);
                 solax.status_count = 0; // avoid glitching too frequently
                 eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+                // disable SoC override to allow for correct reading and get out of the PV -> HOUSE, and use PV+BATT -> HOUSE
+                batt_forced_soc = -1;
               }
             }
             // when SoC is lower than a value, then 
@@ -1581,6 +1583,8 @@ void interp(void) {
                 eps_mode_switch(0);
                 solax.status_count = 0; // avoid glitching too frequently
                 eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+                // force battery soc to ensure no discharge until grid disconnect soc is reached (this forces PV -> HOUSE)
+                batt_forced_soc = MAX(0,solax.grid_connect_soc-1);
               }
             }
             else if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
@@ -1596,6 +1600,8 @@ void interp(void) {
                   eps_mode_switch(0);
                   solax.status_count = 0; // avoid glitching too frequently
                   eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+                  // force battery soc to ensure no discharge until grid disconnect soc is reached (this forces PV -> HOUSE)
+                  batt_forced_soc = MAX(0,solax.grid_connect_soc-1);
                 }
                 break;
               }

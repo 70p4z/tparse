@@ -13,7 +13,7 @@
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 3
 #define GRID_CONNECT_SOC    20 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
-#define GRID_DISCONNECT_SOC 30 // disconnect grid when over or equal
+#define GRID_DISCONNECT_SOC 80 // disconnect grid when over or equal
 
 #define BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DV 36
 
@@ -41,7 +41,9 @@
 // avoid draining the battery when PV power is still available
 #define SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN 3 // 0.5A => more charging than discharging
 // average offset accounted in the inverter
-#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 400 // 320 (rounded to 400 to ensure 1A compensation of the DC)
+//#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 400 // 320 (rounded to 400 to ensure 1A compensation of the DC)
+// allow to compensate charge up to a given value when value is full and ouse load is higher than currently balanced
+#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 1000
 #define SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT 10
 #define SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS (SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT*3/4*1000)
 
@@ -114,6 +116,7 @@
 #define U4BE_ENCODE(buf, off, value) {(buf)[(off)+0] = ((value)>>24)&0xFF;(buf)[(off)+1] = ((value)>>16)&0xFF;(buf)[(off)+2] = ((value)>>8)&0xFF;(buf)[(off)+3] = ((value))&0xFF;}
 
 void Configure_I2C_Slave(void);
+void solax_batt_full_workaround(void);
 
 // for snprintf to work as expected
 void _sbrk(void) {
@@ -338,9 +341,6 @@ const char * const solax_forced_work_mode_str [] = {
 
 int32_t batt_forced_soc = -1;
 int32_t batt_forced_charge = -1;
-int32_t batt_full_drain_workaround_current_dA = 0;
-int32_t batt_full_drain_workaround_last_change_ms = 0;
-int32_t batt_full_drain_workaround_values[SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT];
 uint32_t batt_drain_fix_cause = 0;
 uint32_t self_use_auto;
 uint32_t eps_mode_switch_auto;
@@ -394,6 +394,11 @@ struct {
   uint8_t pv2_switch_on;
   uint8_t grid_connect_soc;
   uint8_t grid_disconnect_soc;
+
+  int32_t batt_full_drain_workaround_last_change_ms;
+  int16_t batt_full_drain_workaround_current_dA;
+  int16_t batt_full_drain_workaround_max_wattage;
+  int16_t batt_full_drain_workaround_values[SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT];
 } solax;
 
 #define PYLONTECH_MAX_BMUS 20
@@ -502,7 +507,6 @@ void interp(void) {
   uint32_t timeout_pv2_switch_on=0;
   uint32_t timeout_pv2_switch_off=0;
   uint32_t eps_mode_switch_timeout=0;
-  int32_t batt_full_drain_workaround_max_wattage = 0;
 
   memset(&solax, 0, sizeof(solax));
   memset(&pylontech, 0, sizeof(pylontech));
@@ -513,10 +517,10 @@ void interp(void) {
   // disable forced charge
   batt_forced_charge = -1;
   // default algorithm start with base current
-  batt_full_drain_workaround_current_dA = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
-  batt_full_drain_workaround_last_change_ms = uwTick;
-  batt_full_drain_workaround_max_wattage = 0;
-  memset(batt_full_drain_workaround_values, 0, sizeof(batt_full_drain_workaround_values));
+  solax.batt_full_drain_workaround_current_dA = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
+  solax.batt_full_drain_workaround_last_change_ms = uwTick;
+  solax.batt_full_drain_workaround_max_wattage = 0;
+  memset(solax.batt_full_drain_workaround_values, 0, sizeof(solax.batt_full_drain_workaround_values));
 
   // automatic state switching and eps disconnect mode by default
   self_use_auto = 1;
@@ -858,88 +862,11 @@ void interp(void) {
           // max charge reached?
           //if (pylontech.soc >= pylontech.max_charge_soc) 
           {
-            // apply workaround for battery full first, instead of PV first
-            // make the inverter respect the priorities: PV > BAT > GRID > House
 
-            // when no batt forced charge, then apply auto adjust
-            // get the best current approx in mA
-            int32_t batt_wattage = pylontech.wattage;
-            int32_t batt_compensated_curr_dA = (/*SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE*/
-                                                (pylontech.voltage /*dV*/ * 10 /*dA*/)/100 
-                                                + PYLONTECH_BALANCING_OPTIMAL_WATTAGE
-                                               ) * 100
-                                               / pylontech.voltage;
-            if (pylontech.precise_wattage != 0 ) {
-              batt_wattage = pylontech.precise_wattage;
-            }
-            int32_t wattage_average = 0;
-            for (int i = 0; i < SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT-1; i++) {
-              batt_full_drain_workaround_values[i] = batt_full_drain_workaround_values[i+1];
-              wattage_average += batt_full_drain_workaround_values[i];
-            }
-            batt_full_drain_workaround_values[SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT-1] = batt_wattage;
-            wattage_average += batt_wattage;
-            wattage_average /= SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT;
-
-            if (EXPIRED(batt_full_drain_workaround_last_change_ms)) {
-              batt_full_drain_workaround_last_change_ms = uwTick + SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS;
-
-              // /!\ dont' do it but only when panel have juice.
-              // how/when to reset?
-              // when not fully charged, then impose a given current to enable load balancing
-              if ((wattage_average < batt_full_drain_workaround_max_wattage/3) ) {
-                batt_full_drain_workaround_current_dA
-                  = MIN(batt_full_drain_workaround_current_dA + 1, batt_compensated_curr_dA);
-              }
-              else if (wattage_average > batt_full_drain_workaround_max_wattage) {
-                // if it charges when requested max charge is 0, then well, yeah, have fun boyz
-                batt_full_drain_workaround_current_dA 
-                  = MAX(1, batt_full_drain_workaround_current_dA - 1);
-              }
-              else { // wattage_average == 0
-                master_log("no change in charge current\n");
-              }
-              // compute value for stop condition of load balancing current
-              uint16_t vcell_lowest = 0;
-              uint16_t vcell_highest = 0;
-              if (pylontech.bmu_idx > 0) {
-                vcell_lowest = pylontech.bmu[0].vlow; 
-                vcell_highest = pylontech.bmu[0].vhigh;
-                for (uint8_t bmu_idx=0; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
-                  if (pylontech.bmu[bmu_idx].vlow < vcell_lowest) {
-                    vcell_lowest = pylontech.bmu[bmu_idx].vlow;
-                  }
-                  if (pylontech.bmu[bmu_idx].vhigh > vcell_highest) {
-                    vcell_highest = pylontech.bmu[bmu_idx].vhigh;
-                  }
-                }
-                snprintf((char*)tmp+128, sizeof(tmp)-128, "cell state minV: %dV, maxV: %dV\n", vcell_lowest, vcell_highest);
-                master_log((char*)tmp+128);
-                // depending on full or need for balancing, adjust the max allowed wattage
-                if (pylontech.soc < pylontech.max_charge_soc
-                  // above huge value, stop charging, to avoid too hot battery and faulty state
-                  || (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
-                                                                    // bretelles
-                      && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 3700)) {
-                  master_log("cell voltage accepts workaround max_wattage\n");
-                  // pylontech can perform balancing with a given wattage 
-                  batt_full_drain_workaround_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
-                }
-                // avoid some 65K overflow sometimes
-                                                                    // bretelles
-                else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 3700) {
-                  master_log("cell too high, stop workaround max_wattage\n");
-                  // no more charge req, take action upon next cycle
-                  batt_full_drain_workaround_max_wattage = 0;
-                }
-              }
-              // when it's between bounds, it's just fine
-            }
-            snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %ldW, forced value %ldmA\n", batt_wattage, wattage_average, batt_full_drain_workaround_max_wattage, batt_full_drain_workaround_current_dA*100);
-            master_log((char*)tmp+128);
+            solax_batt_full_workaround();
 
             // use last computed value
-            maxch = MAX(batt_full_drain_workaround_current_dA, pylontech.max_charge);
+            maxch = MAX(solax.batt_full_drain_workaround_current_dA, pylontech.max_charge);
             tmp[4] = maxch&0xFF;
             tmp[5] = (maxch>>8)&0xFF;
             pylontech.effective_charge = maxch;
@@ -972,7 +899,7 @@ void interp(void) {
             tmp[5] = 0;
             pylontech.effective_charge = 0;
             // we're overlimit, reset the compensation charge level
-            batt_full_drain_workaround_current_dA = 1;
+            solax.batt_full_drain_workaround_current_dA = 1;
             // TODO, switch to automatic offgrid, and force offgrid! => solax has a bug continuing 
             // to charge when full and still connected on grid even if charge current is set to 0
             // ignore auto switch here. this is a measure for battery safety!
@@ -2333,6 +2260,96 @@ void Configure_I2C_Slave(void)
   NVIC_EnableIRQ(I2C4_EV_IRQn);
   NVIC_EnableIRQ(I2C4_ER_IRQn);
 #endif // BOARD_DEV
+}
+
+void solax_batt_full_workaround(void) {
+  // apply workaround for battery full first, instead of PV first
+  // make the inverter respect the priorities: PV > BAT > GRID > House
+
+  // when no batt forced charge, then apply auto adjust
+  // get the best current approx in mA
+  int32_t batt_wattage = pylontech.wattage;
+  int32_t batt_compensated_curr_dA = (SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE
+                                      + (pylontech.voltage /*dV*/ * 10 /*dA*/)/100 
+                                      + PYLONTECH_BALANCING_OPTIMAL_WATTAGE
+                                     ) * 100
+                                     / pylontech.voltage;
+  if (pylontech.precise_wattage != 0 ) {
+    batt_wattage = pylontech.precise_wattage;
+  }
+  int32_t wattage_average = 0;
+  for (int i = 0; i < SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT-1; i++) {
+    solax.batt_full_drain_workaround_values[i] = solax.batt_full_drain_workaround_values[i+1];
+    wattage_average += solax.batt_full_drain_workaround_values[i];
+  }
+  solax.batt_full_drain_workaround_values[SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT-1] = batt_wattage;
+  wattage_average += batt_wattage;
+  wattage_average /= SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT;
+
+  if (EXPIRED(solax.batt_full_drain_workaround_last_change_ms)) {
+    solax.batt_full_drain_workaround_last_change_ms = uwTick + SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS;
+
+    // when target is 150W and current is 40W and voltage is 400V, correction dA is 2.75 (0.275*400 = 110W)
+    // when target is 150W and current is -400W and voltage is 400V, correction dA is 13.75 (1.375*400 = 550W)
+    // when target is 150W and current is 400W and voltage is 400V, correction dA is -6.25 (-0.625*400 = -250W)
+    // max is max_wattage, target is 2/3 of the value to ensure less over/under flows
+    int32_t correction_dA = (2*solax.batt_full_drain_workaround_max_wattage/3 - wattage_average ) * 100 / pylontech.voltage;
+
+    // /!\ dont' do it but only when panel have juice.
+    // how/when to reset?
+    // when not fully charged, then impose a given current to enable load balancing
+    if ((wattage_average < solax.batt_full_drain_workaround_max_wattage/3) ) {
+      solax.batt_full_drain_workaround_current_dA
+        = MIN(solax.batt_full_drain_workaround_current_dA + correction_dA, batt_compensated_curr_dA);
+    }
+    else if (wattage_average > solax.batt_full_drain_workaround_max_wattage) {
+      // if it charges when requested max charge is 0, then well, yeah, have fun boyz
+      solax.batt_full_drain_workaround_current_dA 
+        = MAX(1, solax.batt_full_drain_workaround_current_dA + correction_dA);
+    }
+    else { // wattage_average == 0
+      master_log("no change in charge current\n");
+    }
+    // compute value for stop condition of load balancing current
+    uint16_t vcell_lowest = 0;
+    uint16_t vcell_highest = 0;
+    if (pylontech.bmu_idx > 0) {
+      vcell_lowest = pylontech.bmu[0].vlow; 
+      vcell_highest = pylontech.bmu[0].vhigh;
+      for (uint8_t bmu_idx=0; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
+        if (pylontech.bmu[bmu_idx].vlow < vcell_lowest) {
+          vcell_lowest = pylontech.bmu[bmu_idx].vlow;
+        }
+        if (pylontech.bmu[bmu_idx].vhigh > vcell_highest) {
+          vcell_highest = pylontech.bmu[bmu_idx].vhigh;
+        }
+      }
+      snprintf((char*)tmp+128, sizeof(tmp)-128, "cell state minV: %dV, maxV: %dV\n", vcell_lowest, vcell_highest);
+      master_log((char*)tmp+128);
+      // depending on full or need for balancing, adjust the max allowed wattage
+      if (pylontech.soc < pylontech.max_charge_soc
+        // above huge value, stop charging, to avoid too hot battery and faulty state
+        || (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
+                                                          // bretelles (65k overflow too)
+            && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 3700)) {
+        master_log("cell voltage accepts workaround max_wattage\n");
+        // pylontech can perform balancing with a given wattage 
+        solax.batt_full_drain_workaround_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
+      }
+      // avoid some 65K overflow sometimes
+                                                          // bretelles (65k overflow too)
+      else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 3700) {
+        master_log("cell too high, stop workaround max_wattage\n");
+        // no more charge req, take action upon next cycle
+        solax.batt_full_drain_workaround_max_wattage = 0;
+        // security, solax does not chagre @ 0.1A, it evaporates in the incorrect internal power flow
+        solax.batt_full_drain_workaround_current_dA = 1;
+      }
+    }
+    // when it's between bounds, it's just fine
+  }
+  snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced value %dmA\n", batt_wattage, wattage_average, solax.batt_full_drain_workaround_max_wattage, solax.batt_full_drain_workaround_current_dA*100);
+  master_log((char*)tmp+128);
 }
 
 #endif // MODE_SOLAX_BMS

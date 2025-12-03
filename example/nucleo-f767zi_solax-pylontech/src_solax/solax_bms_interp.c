@@ -4,23 +4,41 @@
 #include "stddef.h"
 #include "stdio.h"
 
+/*
+TODO
+[ ] global charge enable / disable to avoid charging during wrong hours => stay in tempo, that switch would have a timeout to reset itself and go back to auto enable upon low batt
+
+*/
+
 #ifdef MODE_SOLAX_BMS
 
 #define HAVE_WATCHDOG
+#define HAVE_EXT_CHARGER
 #define USBVCP USART3
 
 // ensure 5 seconds steady state before making up a decision
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 3
-#define GRID_CONNECT_SOC    20 // best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
-#define GRID_DISCONNECT_SOC 80 // disconnect grid when over or equal
+#define GRID_DISCONNECT_SOC 50 // disconnect grid when over or equal
+// auto charger stops over that soc
+#define ENABLE_SELF_USE_SOC 40
+// when on grid, below this SoC, we stop self use mode to avoid going too low
+// auto charger starts there
+#define DISABLE_SELF_USE_SOC 30
+// best if equals to the value as the self use end of injection, so that in the end, the inverter is offgrid most of the time
+#define GRID_CONNECT_SOC    20 
+#define STOP_DISCHARGE_SOC  20 // to be retrieve from the UART link
 
-#define BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DV 36
+#define SOLAX_DISABLE_SELF_USE_PV_POWER 150
+#define SOLAX_ENABLE_SELF_USE_PV_POWER 200
+
+#define BMS_MAX_CELL_VOLTAGE_FOR_CURRENT_CHG_DV 36
+#define BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV 35
 
 // min difference to enable balancing charge
 #define PYLONTECH_BALANCING_STOP_DIFF_MV 5
 // max voltage to continue balancing
-#define PYLONTECH_BALANCING_MAX_MV 3550
+#define PYLONTECH_BALANCING_MAX_MV 3500
 #define PYLONTECH_BALANCING_MIN_MV 3450
 // optimal max wattage
 #define PYLONTECH_BALANCING_OPTIMAL_WATTAGE 160
@@ -44,8 +62,8 @@
 //#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 400 // 320 (rounded to 400 to ensure 1A compensation of the DC)
 // allow to compensate charge up to a given value when value is full and ouse load is higher than currently balanced
 #define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 1000
-#define SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT 10
-#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS (SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT*3/4*1000)
+#define COMPUTED_WATTAGE_AVG_COUNT 10
+#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS (COMPUTED_WATTAGE_AVG_COUNT*3/4*1000)
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
 // #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
@@ -92,18 +110,17 @@
 #define SOLAX_SELF_CONSUMPTION_MPPT_W 40 // observed inverter consumption when MPPT is working
 #define SOLAX_SELF_CONSUMPTION_INVERTER_W 40 // observed inverter consumption with only inverter enabled (not system off)
 
+#if 0
 // before 80% of charge of battery, be conservative, and charge first
 #define SOLAX_SELFUSE_MIN_BATTERY_SOC (GRID_DISCONNECT_SOC-1) // ensure starting selfuse before disconecting the grid to avoid glitch and mini outtage
 #define SOLAX_SELFUSE_START_SOC (GRID_DISCONNECT_SOC-1)
 #define SOLAX_SELFUSE_STOP_SOC (GRID_CONNECT_SOC+1)
 #define HAVE_SOLAX_SWITCH_MODE
-
 #define SOLAX_PV_CUTOFF_VOLTAGE_V 90
 #define SOLAX_PV_CUTOFF_TIMEOUT 2000
 #define SOLAX_PV_SWITCHON_TIMEOUT 3000
+#endif // 0
 
-// not more than a switch into EPS mode per 10 minute, to avoid wearing the physical switch (not a SSR)
-#define SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS 600000 // 10min interval 20 years durability for a 1M toggling cycles device
 
 #define DISPLAY_TIMEOUT 1000
 // at least a CAN communication must have taken place within that period
@@ -116,7 +133,8 @@
 #define U4BE_ENCODE(buf, off, value) {(buf)[(off)+0] = ((value)>>24)&0xFF;(buf)[(off)+1] = ((value)>>16)&0xFF;(buf)[(off)+2] = ((value)>>8)&0xFF;(buf)[(off)+3] = ((value))&0xFF;}
 
 void Configure_I2C_Slave(void);
-void solax_batt_full_workaround(void);
+void solax_compute_maxcharge(void);
+void solax_process_data(void);
 
 // for snprintf to work as expected
 void _sbrk(void) {
@@ -204,18 +222,21 @@ enum solax_pw_state_e {
   SOLAX_PW_INVALID_NEXT,
 };
 
+// 0x28 0x173B // charge or discharge end period
+// 0xC4 0x173B // charge of discharge end period
+
 const uint8_t solax_pw_cmd_change_bitrate[] = { 0xAA, 0x55, 0x07, 0x01, 0x85, 0x8C, 0x01};
 
 const uint8_t solax_pw_cmd_get_stat_0x197[] = { 0xAA, 0x55, 0x07, 0x01, 0x10, 0x17, 0x01};
 const uint8_t solax_pw_cmd_get_stat_0x25F[] = { 0xAA, 0x55, 0x07, 0x01, 0x13, 0x1A, 0x01};
 
 const uint8_t solax_pw_cmd_mode_self_use[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x00, 0x00, 0x2D, 0x01 };
-const uint8_t solax_pw_cmd_mode_feedinprio[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x01, 0x00, 0x2E, 0x01 };
-const uint8_t solax_pw_cmd_mode_backup[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x02, 0x00, 0x2F, 0x01 };
-const uint8_t solax_pw_cmd_mode_manual[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x03, 0x00, 0x30, 0x01 };
+//const uint8_t solax_pw_cmd_mode_feedinprio[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x01, 0x00, 0x2E, 0x01 };
+//const uint8_t solax_pw_cmd_mode_backup[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x02, 0x00, 0x2F, 0x01 };
+//const uint8_t solax_pw_cmd_mode_manual[]= { 0xAA, 0x55, 0x09, 0x09, 0x1C, 0x03, 0x00, 0x30, 0x01 };
       
-const uint8_t solax_pw_cfg_manual_stop[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x00, 0x00, 0x35, 0x01 };
-const uint8_t solax_pw_cfg_manual_charge[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x01, 0x00, 0x36, 0x01 };
+//const uint8_t solax_pw_cfg_manual_stop[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x00, 0x00, 0x35, 0x01 };
+//const uint8_t solax_pw_cfg_manual_charge[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x01, 0x00, 0x36, 0x01 };
 // useless // const uint8_t solax_pw_cfg_manual_discharge[]= { 0xAA, 0x55, 0x09, 0x09, 0x24, 0x02, 0x00, 0x37, 0x01 };
 
 /*
@@ -339,12 +360,16 @@ const char * const solax_forced_work_mode_str [] = {
   "FD",
 };
 
-int32_t batt_forced_soc = -1;
-int32_t batt_forced_charge = -1;
-uint32_t batt_drain_fix_cause = 0;
-uint32_t self_use_auto;
-uint32_t eps_mode_switch_auto;
-uint32_t eps_forced_state;
+struct {
+  int32_t forced_soc;
+  int32_t forced_wattage;
+  uint8_t max_charge_voltage;
+  uint8_t max_pylontech_charge_drive;
+} knobs;
+
+uint32_t auto_self_use_from_bat;
+uint32_t auto_grid_connection;
+uint32_t auto_bat_charge;
 enum {
   SOLAX_FORCED_WORK_MODE_NONE,
   SOLAX_FORCED_WORK_MODE_SELF_USE,
@@ -390,24 +415,23 @@ struct {
   uint8_t hour;
   uint8_t minute;
   uint8_t seconds;
-  uint8_t pv1_switch_on;
-  uint8_t pv2_switch_on;
+
   uint8_t grid_connect_soc;
   uint8_t grid_disconnect_soc;
-
-  int32_t batt_full_drain_workaround_last_change_ms;
-  int16_t batt_full_drain_workaround_current_dA;
-  int16_t batt_full_drain_workaround_max_wattage;
-  int16_t batt_full_drain_workaround_values[SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT];
+  uint8_t enable_self_use_soc;
+  uint8_t disable_self_use_soc;
+  uint8_t stop_discharge_soc;
+  uint8_t valid_data;
 } solax;
 
 #define PYLONTECH_MAX_BMUS 20
 struct {
   uint16_t voltage;
-  uint32_t precise_voltage;
+  uint32_t precise_voltage; // mV
   int16_t current;
-  int32_t precise_current;
+  int32_t precise_current;  // mA
   uint8_t soc;
+  uint8_t apparent_soc;
   uint8_t soc_mWh;
   uint32_t precise_mAh;
   uint32_t precise_mAh_ts; // to compute approx current drive, when 0 is reported
@@ -428,7 +452,12 @@ struct {
   uint8_t vcellmin;
   uint8_t tcellmax;
   uint8_t tcellmin;
-  uint8_t max_charge_voltage;
+
+  int32_t computed_last_change_ms;
+  int16_t computed_max_charge;
+  int16_t computed_max_wattage;
+  int16_t computed_wattage_values[COMPUTED_WATTAGE_AVG_COUNT];
+
   uint8_t bmu_idx;
   uint8_t bmu_idx_tmp;
   struct {
@@ -438,34 +467,37 @@ struct {
     uint16_t vhigh;
     uint8_t pcba[32+1];
   } bmu[PYLONTECH_MAX_BMUS];
+  uint16_t vcell_highest;
+  uint16_t vcell_lowest;
 } pylontech;
 
-void pv1_switch(uint32_t state) {
-  // anode green led 
-  // cathode of the optocoupler 1 = off => mosfet defaulty closed, 0 = on => mosfet open
-  gpio_set(1, 0, state); // PB0 (green led)
-#ifndef BOARD_DEV
-  gpio_set(3, 14, state); // PD14
-#endif // BOARD_DEV
-  solax.pv1_switch_on = state; 
-}
-
-void pv2_switch(uint32_t state) {
-  // anode blue led 
-  // cathode of the optocoupler 1 = off => mosfet defaulty closed, 0 = on => mosfet open
-  gpio_set(1, 7, state); // PB7 (blue led)
-#ifndef BOARD_DEV
-  gpio_set(3, 15, state); // PD14
-#endif // BOARD_DEV
-  solax.pv2_switch_on = state;
-}
+#ifdef HAVE_EXT_CHARGER
+#define CHARGER_COM_INTERVAL_MS 700 // different period from the inverter call to try avoiding collision on CAN
+struct {
+  uint8_t charge_enabled;
+  uint16_t max_charge_voltage; // in 0.1V
+  uint16_t max_charge_current; // in 0.1A
+  uint16_t allowed_charge_wattage; // in W
+  uint16_t out_voltage; // in 0.1V
+  uint16_t out_current; // in 0.1A
+  union {
+    uint8_t status;
+    struct {
+      uint8_t hw_failure:1;
+      uint8_t over_temp:1;
+      uint8_t ac_voltage_fault:1;
+      uint8_t batt_disconnected:1;
+      uint8_t comm_failure:1;
+    };
+  };
+} charger;
+#endif // HAVE_EXT_CHARGER
 
 /*
 GPIO=1 + EPS=230V -> (TRIAC=CLOSED) + EPS_relay(NO=COM) -> GRID_relay(OPENED) -> INV=|=GRID
 GPIO=* + EPS=0V   -> (TRIAC=*) + EPS_relay(NC=COM) -> GRID_relay(CLOSED) -> INV===GRID
 */
-void eps_mode_switch(uint32_t eps_mode_requested) {
-  eps_forced_state = eps_mode_requested;
+void offgrid_switch(uint32_t eps_mode_requested) {
   // switch the physical switch to force EPS mode (disconnect from the grid)
   // gpio = 1 => phototriac closed => contactor coil powered => grid contact are severed (Normally Closed)
   gpio_set(1, 14, eps_mode_requested); // PB14 (red led)
@@ -498,38 +530,41 @@ void interp(void) {
 #ifdef USART5_HUMAN_READABLE_SUMMARY_LOG
   uint32_t timeout_next_display = 0;
 #endif // USART5_HUMAN_READABLE_SUMMARY_LOG
-  uint32_t solax_pw_mode_change_ready;
   uint32_t pylontech_timeout = 0;
   uint32_t last_INV_CAN_activity_timeout = 0;
   uint32_t last_BMS_CAN_activity_timeout = 0;
-  uint32_t timeout_pv1_switch_on=0;
-  uint32_t timeout_pv1_switch_off=0;
-  uint32_t timeout_pv2_switch_on=0;
-  uint32_t timeout_pv2_switch_off=0;
-  uint32_t eps_mode_switch_timeout=0;
 
+  memset(&knobs, 0, sizeof(knobs));
   memset(&solax, 0, sizeof(solax));
   memset(&pylontech, 0, sizeof(pylontech));
+#ifdef HAVE_EXT_CHARGER
+  uint32_t charger_com_next_ms = 0;
+  memset(&charger, 0, sizeof(charger));
+#endif // HAVE_EXT_CHARGER
   // init the queue
   memset(solax_pw_queue, 0, sizeof(solax_pw_queue));
   pylontech_cache_clear();
 
-  // disable forced charge
-  batt_forced_charge = -1;
   // default algorithm start with base current
-  solax.batt_full_drain_workaround_current_dA = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
-  solax.batt_full_drain_workaround_last_change_ms = uwTick;
-  solax.batt_full_drain_workaround_max_wattage = 0;
-  memset(solax.batt_full_drain_workaround_values, 0, sizeof(solax.batt_full_drain_workaround_values));
+  pylontech.computed_max_charge = SOLAX_BATTERY_CHARGE_DA_WORKAROUND_BATTERY_DRAIN;
+  pylontech.computed_last_change_ms = uwTick;
+  pylontech.computed_max_wattage = 0;
+  memset(pylontech.computed_wattage_values, 0, sizeof(pylontech.computed_wattage_values));
 
   // automatic state switching and eps disconnect mode by default
-  self_use_auto = 1;
-  eps_mode_switch_auto = 1;
-  eps_forced_state = 0;
+  auto_self_use_from_bat = 1;
+  auto_grid_connection = 1;
+  auto_bat_charge = 1;
   solax.grid_connect_soc = GRID_CONNECT_SOC;
   solax.grid_disconnect_soc = GRID_DISCONNECT_SOC;
-  pylontech.max_charge_soc = SOLAX_MAX_CHARGE_SOC;
-  pylontech.max_charge_voltage = BMS_MAX_BATT_VOLTAGE_FOR_CURRENT_CHG_DV;
+  solax.enable_self_use_soc = ENABLE_SELF_USE_SOC;
+  solax.disable_self_use_soc = DISABLE_SELF_USE_SOC;
+  knobs.max_charge_voltage = BMS_MAX_CELL_VOLTAGE_FOR_CURRENT_CHG_DV;
+  knobs.max_pylontech_charge_drive = BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV;
+  solax.stop_discharge_soc = STOP_DISCHARGE_SOC;
+#ifdef HAVE_EXT_CHARGER
+  charger.allowed_charge_wattage = 2000;
+#endif //HAVE_EXT_CHARGER
 
   // use BARE HSI (16MHz)
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
@@ -545,9 +580,6 @@ void interp(void) {
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOE);
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOF);
-
-  pv1_switch(1);
-  pv2_switch(1);
 
   // USART used for USBVCP communication
   Configure_USBVCP(USART_BAUDRATE_USBVCP);
@@ -591,7 +623,6 @@ void interp(void) {
   // sent ping to the BMS to wake it up at reset moment
   can_bms_tx_log(0x1871, CAN_ID_EXTENDED_LEN, (uint8_t*)"\x01\x00\x01\x00\x00\x00\x00\x00", 8);
 
-  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
 #ifdef BMS_PING
   bms_ping_timeout = uwTick + BMS_PING_INTERVAL_MS;
 #endif // BMS_PING
@@ -737,6 +768,23 @@ void interp(void) {
     }
 #endif // BMS_PING
 
+#ifdef HAVE_EXT_CHARGER
+    if (EXPIRED(charger_com_next_ms)) {
+      // Message 1 (0x1806E5F4) /!\ BIG ENDIAN
+      memset(tmp, 0, 8);
+      // only put values when charger is enabled, we're never too precautious
+      if (charger.charge_enabled) {
+        tmp[0] = charger.max_charge_voltage>>8;
+        tmp[1] = charger.max_charge_voltage&0xFF;
+        tmp[2] = charger.max_charge_current>>8;
+        tmp[3] = charger.max_charge_current&0xFF;
+      }
+      tmp[4] = charger.charge_enabled?0:1; // inverted charge request
+      can_bms_tx_log(0x1806E5F4, CAN_ID_EXTENDED_LEN, tmp, 8);
+      charger_com_next_ms = uwTick + CHARGER_COM_INTERVAL_MS;
+    }
+#endif // HAVE_EXT_CHARGER
+
     // pylontech timeout, serve the cached infos
     if (pylontech_timeout && EXPIRED(pylontech_timeout)) {
       master_log("bms can timeout\n");
@@ -773,24 +821,13 @@ void interp(void) {
                    U2LE(tmp,6)/100,U2LE(tmp,6)%100);
 
           // always apply a SoC that allosw the inverter to charge. to ensure battery full workaround is effective
-          //if (batt_forced_charge >= 0)
-          {
-            // ensure charging when forcing charge (invert will not deny charge at that value)
-            tmp[4] = MIN(pylontech.soc, 75);
-            tmp[5] = 0;
-          }
+          // ensure charging when forcing charge (invert will not deny charge at that value)
+          tmp[4] = pylontech.apparent_soc; // MIN(pylontech.soc, 75);
+          tmp[5] = 0;
 
-          // ensure to avoid overcharge of the battery when overvoltage
-          // NOTE: strictly superior, to allow for both anti grid surge and anti full battery drain problems 
-          //       countermeasures to be evaded.
-          if(pylontech.vcellmax >= pylontech.max_charge_voltage) {
-            tmp[4] = 100;
-            tmp[5] = 0;
-          }
-
-          if (batt_forced_soc >= 0) {
+          if (knobs.forced_soc > 0) {
             master_log("force batt soc\n");
-            tmp[4] = batt_forced_soc&0xFF;
+            tmp[4] = knobs.forced_soc&0xFF;
             tmp[5] = 0;
           }
           forward = 1;
@@ -840,19 +877,6 @@ void interp(void) {
           pylontech.max_charge = maxch;
           pylontech.max_discharge = maxdis;
 
-#if 0
-          // cover the inverter self consumption which is substracted from the BAT DC charge
-          // this bug is kind of weird if you ask me
-          if (pylontech.max_charge && pylontech.soc != 100) {
-            // NOTE: when charging from solar (grid charge is cheating), then MPPT is ON
-            uint32_t self_consumption_current_dA = (SOLAX_SELF_CONSUMPTION_MPPT_W
-                                                    + SOLAX_SELF_CONSUMPTION_INVERTER_W)*100/*cW*/ 
-                                                   / pylontech.voltage/*dV*/;
-            pylontech.max_charge+=self_consumption_current_dA;
-            tmp[4] = (pylontech.max_charge)&0xFF;
-            tmp[5] = ((pylontech.max_charge)>>8)&0xFF;
-          }
-#endif
           // disallow discharge when battery is too low
           if (pylontech.soc <= 10) {
             master_log("soc < 10\n");
@@ -861,54 +885,33 @@ void interp(void) {
             tmp[7] = 0;
           }
 
-          // max charge reached?
-          //if (pylontech.soc >= pylontech.max_charge_soc) 
-          {
+          solax_compute_maxcharge();
 
-            solax_batt_full_workaround();
-
-            // use last computed value
-            maxch = MAX(solax.batt_full_drain_workaround_current_dA, pylontech.max_charge);
-            tmp[4] = maxch&0xFF;
-            tmp[5] = (maxch>>8)&0xFF;
-            pylontech.effective_charge = maxch;
+          // ensure not to overcharge, even if the pack wants to!, to limit wearing and runaway
+          if (pylontech.vcellmax < knobs.max_pylontech_charge_drive) {
+            maxch = MAX(pylontech.computed_max_charge, pylontech.max_charge);
           }
-
-          // only allow forced charge when voltage is compliant, /!\ avoid fires
-          if (batt_forced_charge >= 0) {
-            // use the max value of forced charge
-            maxch = batt_forced_charge;
-            // take into account the battery max charge value until max charge soc is reached
-            // if (pylontech.soc <= pylontech.max_charge_soc) {
-            //   maxch = MAX(batt_full_drain_workaround_current_dA, MAX(batt_forced_charge, pylontech.max_charge));
-            // }
-            // else {
-            //   master_log("force batt charge\n");
-            // }
-            // only force charge when battery voltage levels are safe
-            // TODO: allow for at least a given interval, to avoid on and off when reaching max charge
-            if (pylontech.vcellmax < pylontech.max_charge_voltage ) {
-              tmp[4] = maxch&0xFF;
-              tmp[5] = (maxch>>8)&0xFF;
-              pylontech.effective_charge = maxch;
-            }
+          else {
+            maxch = pylontech.computed_max_charge;
           }
+          tmp[4] = maxch&0xFF;
+          tmp[5] = (maxch>>8)&0xFF;
+          pylontech.effective_charge = maxch;
 
           // absolute max rating to avoid chemistry degradation
-          if (pylontech.vcellmax >= pylontech.max_charge_voltage) {
+          if (pylontech.vcellmax >= knobs.max_charge_voltage) {
             master_log("batt voltage dangerous (3.6V), stop forced charge to avoid wearing\n");
             tmp[4] = 0;
             tmp[5] = 0;
             pylontech.effective_charge = 0;
             // we're overlimit, reset the compensation charge level
-            solax.batt_full_drain_workaround_current_dA = 1;
+            pylontech.computed_max_charge = 1;
             // TODO, switch to automatic offgrid, and force offgrid! => solax has a bug continuing 
             // to charge when full and still connected on grid even if charge current is set to 0
             // ignore auto switch here. this is a measure for battery safety!
-            eps_mode_switch(1);
-            eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
+            offgrid_switch(1);
             // force auto switch mode. to avoid forcing
-            eps_mode_switch_auto = 1;
+            auto_grid_connection = 1;
           }
           forward = 1;
           break;
@@ -927,6 +930,7 @@ void interp(void) {
           break;
 
         case 0x1875:
+          // note: if packs number is invalid, then the BMS_KIND is faulty => inverter goes into fault mode
           pylontech.packs = U2LE(tmp,2); 
           pylontech.contactor_on = tmp[4];
           pylontech.charge_request = tmp[5];
@@ -982,6 +986,26 @@ void interp(void) {
                    U2LE(tmp, 4),
                    S2LE(tmp, 6)/10,S2LE(tmp, 6)%10);
           break;
+
+#ifdef HAVE_EXT_CHARGER
+        // regular communication from the charger
+        case 0x18FF50E5:
+          charger.out_voltage = U2BE(tmp, 0); // in dV
+          charger.out_current = U2BE(tmp, 2); // in dA
+          charger.status = tmp[4];
+
+          // bms >>>     | 0x18ff50e5 e 00040000000f0036
+
+          snprintf((char*)tmp+16, sizeof(tmp)-16, "            | OBC Vbat=%d.%dV\tIbat=%d.%dA\tstatus=%s%s%s%s%s\n", 
+                   charger.out_voltage/10,charger.out_voltage%10,
+                   charger.out_current/10,charger.out_current%10,
+                   charger.status&1?"HWERR,":"",
+                   charger.status&2?"OVTEMP,":"",
+                   charger.status&4?"ACERR,":"",
+                   charger.status&8?"SWERR,":"",
+                   charger.status&16?"TIMEOUT,":"");
+          break;
+#endif // HAVE_EXT_CHARGER
       }
       if (forward) {
         pylontech_cache_set(cid, tmp);
@@ -1257,20 +1281,6 @@ void interp(void) {
         break;
     }
 
-    if (timeout_pv1_switch_on && EXPIRED(timeout_pv1_switch_on)) {
-      pv1_switch(1);
-      master_log("pv1 switch on\n");
-      timeout_pv1_switch_on = 0;
-      timeout_pv1_switch_off = uwTick + SOLAX_PV_SWITCHON_TIMEOUT;
-    }
-
-    if (timeout_pv2_switch_on && EXPIRED(timeout_pv2_switch_on)) {
-      pv2_switch(1); 
-      master_log("pv2 switch on\n");
-      timeout_pv2_switch_on = 0;
-      timeout_pv2_switch_off = uwTick + SOLAX_PV_SWITCHON_TIMEOUT;
-    }
-
     // handle solax PocketWifi port to get the solax status
     tparse_finger(&tp_solax_pw, sizeof(uart_pw_buffer) - DMA_Stream_PW->NDTR);
     switch(solax_pw_state) {
@@ -1312,6 +1322,10 @@ void interp(void) {
           master_log("\n");
           // check it's the expected response
           if (tmp[0] == 0xAA && tmp[1] == 0x55 && tmp[2] == 0x5F && tmp[3] == 0x81 && tmp[4] == 0x90 ) {
+
+            // invalid until tested valid
+            solax.valid_data = 0;
+
             // extract fields
             solax.grid_wattage = S2LE(tmp, 9);
             solax.pv1_voltage = U2LE(tmp, 13);
@@ -1348,18 +1362,13 @@ void interp(void) {
             master_log((char*)tmp);
 
             // if (!solax_checksum_verify(tmp+2,tmp[2]-2)) {
-            //   batt_drain_fix_cause = 100;
-            //   tparse_discard(&tp_solax_pw);
-            //   solax_pw_state = SOLAX_PW_INVALID_NEXT;
-            //   solax_pw_timeout = uwTick + SOLAX_PW_INVALID_RETRY_TIMEOUT;
-            //   break;
+            //   goto invalid,
             // }
 
             //int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
             //int32_t power_balance_w = solax.pv1_wattage + solax.pv2_wattage - (solax.grid_wattage + pylontech_wattage );
             // check for invalid data (glitch sometimes returned by the inverter)
             if (solax.pv1_voltage > SOLAX_MAX_PV_VOLTAGE_V*10 || solax.pv2_voltage > SOLAX_MAX_PV_VOLTAGE_V*10) {
-              batt_drain_fix_cause = 71;
               master_log("cause 71\n");
             invalid:
               tparse_reset(&tp_solax_pw);
@@ -1368,24 +1377,21 @@ void interp(void) {
               solax_pw_queue_pop();
               break;
             }
+
             /* this is triggered too easily when fluctuating power
             if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 > 150*solax.pv1_wattage/100) {
-              batt_drain_fix_cause = 72;
               master_log("cause 72\n");
               goto invalid;
             }
             if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 < 50*solax.pv1_wattage/100) {
-              batt_drain_fix_cause = 73;
               master_log("cause 73\n");
               goto invalid; 
             }
             if (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 > 150*solax.pv2_wattage/100) {
-              batt_drain_fix_cause = 74;
               master_log("cause 74\n");
               goto invalid; 
             }
             if (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 < 50*solax.pv2_wattage/100) {
-              batt_drain_fix_cause = 75;
               master_log("cause 75\n");
               goto invalid; 
             }
@@ -1393,227 +1399,25 @@ void interp(void) {
             /*
             // check power balance is correct (with a +- variance)
             if (power_balance_w < 0 && power_balance_w < - SOLAX_SELF_CONSUMPTION_MPPT_W - SOLAX_SELF_CONSUMPTION_INVERTER_W) {
-              batt_drain_fix_cause = 76;
               master_log("cause 76\n");
               goto invalid; 
             }
             if (power_balance_w > 0 && power_balance_w > SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W) {
-              batt_drain_fix_cause = 77;
               master_log("cause 77\n");
               goto invalid; 
             }
             */
             // detect invalid packet (no power flows :s)
             if (solax.grid_wattage == 0 && solax.pv1_voltage == 0 && solax.pv2_voltage == 0 && solax.bat_wattage == 0 && solax.eps_voltage == 0 && solax.output_va == 0 && solax.grid_meter_ct == 0) {
-              batt_drain_fix_cause = 78;
               master_log("cause 78\n");
               goto invalid;
             }
 
             // only reset condition when a packet can be interpreted
-            batt_drain_fix_cause = 0;
-
-            // not NIGHT
-            if (solax.pv1_voltage + solax.pv2_voltage > SOLAX_DAY_THRESHOLD_V*10 ) {
-
-              // cutoff for the given duration
-              if (
-                (!timeout_pv1_switch_off || EXPIRED(timeout_pv1_switch_off))
-                && (solax.pv1_voltage < SOLAX_PV_CUTOFF_VOLTAGE_V*10 
-                   || (solax.pv1_wattage && solax.pv1_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W))) {
-                master_log("pv1 switch off\n");
-                pv1_switch(0);
-                timeout_pv1_switch_on = uwTick + SOLAX_PV_CUTOFF_TIMEOUT;
-                timeout_pv1_switch_off = 0;
-              }
-
-              // cutoff for the given duration
-              if (
-                (!timeout_pv2_switch_off || EXPIRED(timeout_pv2_switch_off))
-                && ( solax.pv2_voltage < SOLAX_PV_CUTOFF_VOLTAGE_V*10 
-                    || ( solax.pv2_wattage && solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W))) {
-                master_log("pv2 switch off\n");
-                pv2_switch(0);
-                timeout_pv2_switch_on = uwTick + SOLAX_PV_CUTOFF_TIMEOUT;
-                timeout_pv2_switch_off = 0;
-              }
-
-#ifdef HAVE_SOLAX_SWITCH_MODE
-#ifdef HAVE_LOWLIGHT_OPT
-              // if total PV voltage is below a limit, just AVOID wasting battery energy, 
-              // and disable battery charging to force the solax stopping the MPPT draining 
-              // energy from the battery to operate.
-              // ok but when not connected to grid, could not start! // if (solax.pv1_wattage + solax.pv2_wattage < 100) 
-              // OFFGRID or NIGHT could still have that condition true 
-              if (timeout_pv1_switch_on == 0 
-                  && solax.pv1_voltage + solax.pv2_voltage < SOLAX_PV_POWER_OPT_THRESHOLD_V*10 
-                  && solax.pv1_wattage + solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W)  // requires some insight on the total PV array connection
-              {
-                batt_drain_fix_cause = 1;
-                master_log("cause 1\n");
-                if (solax_pw_queue_free() >= 2 
-                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
-                  && solax_pw_mode_change_ready == 0
-                  && self_use_auto) {
-                  solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
-                  solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
-                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
-                }
-              }
-              else if (
-                timeout_pv1_switch_on == 0
-                // battery is emptying in the grid, and panels aren't coping with that
-                // observed than under a certain pv power, when the grid is connected, then the battery is used to power the mppt
-                // grid tied
-                && solax.grid_wattage /* == SELFUSE*/
-                // not enough power from solar to cover solax self consumption (observed threshold)
-                && solax.pv1_wattage + solax.pv2_wattage 
-                   < SOLAX_PV_POWER_OPT_THRESHOLD_W
-                ) {
-                batt_drain_fix_cause = 4;
-                master_log("cause 4\n");
-                if (solax_pw_queue_free() >= 2 
-                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
-                  && solax_pw_mode_change_ready == 0
-                  && self_use_auto) {
-                  solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
-                  solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
-                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
-                }
-              }
-              else 
-#endif // HAVE_LOWLIGHT_OPT
-              // when battery is full, then for self use
-              if (pylontech.soc >= 98) {
-                batt_drain_fix_cause = 3;
-                master_log("cause 3\n");
-                if (solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
-                   && solax_pw_queue_free()
-                   && solax_pw_mode_change_ready == 0
-                   && self_use_auto) {
-                  solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
-                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
-                }
-              }
-              // when the battery goes lower than the requested charge level, switch to charge only (no self use)
-              #if SOLAX_SELFUSE_STOP_SOC >= SOLAX_SELFUSE_START_SOC
-              #error ensure some hysterisis for self use start/stop SoC (and must be start > stop)
-              #endif // SOLAX_SELFUSE_STOP_SOC >= SOLAX_SELFUSE_START_SOC
-              else if (pylontech.soc <= SOLAX_SELFUSE_STOP_SOC) {
-                batt_drain_fix_cause = 8;
-                master_log("cause 8\n");
-                if (solax_pw_queue_free() >= 2 
-                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
-                  && solax_pw_mode_change_ready == 0
-                  && self_use_auto) {
-                  solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
-                  solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
-                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
-                }
-              }
-              // when battery reached the requested charge level, enter self use
-              else if (pylontech.soc >= SOLAX_SELFUSE_START_SOC) {
-                // power the grid
-                batt_drain_fix_cause = 6;
-                master_log("cause 6\n");
-                if (solax_pw_queue_free()
-                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
-                  && solax_pw_mode_change_ready == 0
-                  && self_use_auto) {
-                  solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
-                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
-                }
-              }
-#endif // HAVE_SOLAX_SWITCH_MODE
-            }
-            // NIGHT
-            else {
-                if (timeout_pv1_switch_on == 0) {
-                batt_drain_fix_cause = 7;
-                master_log("cause 7\n");
-                if (solax_pw_queue_free() 
-                  && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
-                  && solax_pw_mode_change_ready == 0
-                  && self_use_auto) {
-                  solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-                  solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
-                  solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
-                }
-              }
-            }
+            solax.valid_data = 1;
+          
+            solax_process_data();
           }
-#ifdef WORKAROUND_SOLAX_INJECTION_SURGE
-          master_log("Solax: status=0x");
-          master_log_hex(&solax.status, 1);
-          master_log(" count=0x");
-          master_log_hex(&solax.status_count, 1);
-          master_log("\n");
-          // only do this after the inverter status is stable and ready for connection
-          if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
-            // when max charge value is degraded, then severs the grid connection
-            if (pylontech.soc > solax.grid_disconnect_soc
-              || pylontech.max_charge < pylontech.max_discharge
-              || pylontech.soc >= pylontech.max_charge_soc
-              ) {
-              if (eps_mode_switch_auto 
-                // only perform disconnection when we're in sync with the grid and in self use mode, else
-                // no disconnection
-                // at boot, when in EPS, must stay in EPS!, therefore activate the relay to stay in EPS
-                && (solax.status == INVERTER_STATUS_NORMAL || solax.status == INVERTER_STATUS_EPS)
-                    && (!self_use_auto || solax_forced_work_mode == SOLAX_FORCED_WORK_MODE_SELF_USE)
-                ) {
-                master_log("Antisurge: disconnect GRID, force EPS\n");
-                eps_mode_switch(1);
-                solax.status_count = 0; // avoid glitching too frequently
-                eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
-                // disable SoC override to allow for correct reading and get out of the PV -> HOUSE, and use PV+BATT -> HOUSE
-                batt_forced_soc = -1;
-              }
-            }
-            // when SoC is lower than a value, then 
-            else if (pylontech.soc <= solax.grid_connect_soc) {
-              if (eps_mode_switch_auto) {
-                master_log("Antisurge: connect GRID (2)\n");
-                // restablish the GRID connection, 
-                eps_mode_switch(0);
-                solax.status_count = 0; // avoid glitching too frequently
-                eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
-                // force battery soc to ensure no discharge until grid disconnect soc is reached (this forces PV -> HOUSE)
-                batt_forced_soc = MAX(0,solax.grid_connect_soc-1);
-              }
-            }
-            else if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
-              switch(solax.status) {
-              // failing states, must reenable grid!!
-              case INVERTER_STATUS_IDLE:
-              case INVERTER_STATUS_ERROR:
-              case INVERTER_STATUS_FAULT:
-              case INVERTER_STATUS_STANDBY:
-              case INVERTER_STATUS_UPDATE:
-                if (eps_mode_switch_auto) {
-                  master_log("Antisurge: connect GRID (3)\n");
-                  eps_mode_switch(0);
-                  solax.status_count = 0; // avoid glitching too frequently
-                  eps_mode_switch_timeout = uwTick + SOLAX_EPS_MODE_SWITCH_TIMEOUT_MS;
-                  // force battery soc to ensure no discharge until grid disconnect soc is reached (this forces PV -> HOUSE)
-                  batt_forced_soc = MAX(0,solax.grid_connect_soc-1);
-                }
-                break;
-              }
-            }
-            else{
-              master_log("Antisurge: do nothing (2)\n");
-            }
-          }
-          else {
-            // wait state to stabilize
-          }
-#endif // WORKAROUND_SOLAX_INJECTION_SURGE
 
           // whatever the reply, discard the data after this point
           solax_pw_state = SOLAX_PW_WAIT_NEXT; // switch state before possibly scheduling a command to send
@@ -1622,15 +1426,14 @@ void interp(void) {
         }
         // timing out first entry if any
         else if (solax_pw_queue_free() != SOLAX_PW_QUEUE_SIZE && EXPIRED(solax_pw_timeout)) {
-          master_log("UART TIMEOUT");
+          master_log("UART TIMEOUT\n");
           //master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
           solax_pw_state = SOLAX_PW_WAIT_NEXT;
           solax_pw_timeout = uwTick + SOLAX_PW_NEXT_TIMEOUT;
           tparse_reset(&tp_solax_pw);
           solax_pw_queue_pop();
-          // discard causes due to timeout of the request
-          batt_drain_fix_cause = 0;
 
+          // rest the baudrate of the link just in case (especially during inverter reboot)
           Configure_UARTPW(9600);
           uart_select_intf(UARTPW);
           uart_send_mem(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate));  
@@ -1648,80 +1451,6 @@ void interp(void) {
         }
         break;
     }
-
-    if (EXPIRED(solax_pw_mode_change_ready)) {
-      solax_pw_mode_change_ready = 0;
-    }
-
-#ifdef USART5_HUMAN_READABLE_SUMMARY_LOG
-    // display (if no erroneous data)
-    if (EXPIRED(timeout_next_display) && batt_drain_fix_cause < 70) {
-      // prepare next sending
-      timeout_next_display = uwTick + DISPLAY_TIMEOUT;
-      {
-        int32_t bat_wattage_corr = solax.bat_wattage
-          +(solax.bat_wattage?(solax.bat_wattage>0?-SOLAX_SELF_CONSUMPTION_INVERTER_W-SOLAX_SELF_CONSUMPTION_MPPT_W:+SOLAX_SELF_CONSUMPTION_INVERTER_W+SOLAX_SELF_CONSUMPTION_MPPT_W):0);
-        // wipe screen
-        if (solax.grid_meter_ct >= 0) {
-          snprintf(tmp, sizeof(tmp), VERSION " EXP %dW|%s:%d %d\n", solax.grid_meter_ct, solax_forced_work_mode_str[solax_forced_work_mode], solax.status, batt_drain_fix_cause);
-        }
-        else {
-          snprintf(tmp, sizeof(tmp), VERSION " IMP %dW|%s:%d %d\n", -solax.grid_meter_ct, solax_forced_work_mode_str[solax_forced_work_mode], solax.status, batt_drain_fix_cause);
-        }
-        uart_select_intf(UART5);
-        uart_send_mem(tmp, strlen(tmp));
-        master_log(tmp);
-        if (solax.grid_wattage >= 0) {
-          snprintf(tmp, sizeof(tmp), "HOUSE< %dW\n", solax.grid_wattage);
-        }
-        else {
-          snprintf(tmp, sizeof(tmp), "HOUSE> %dW\n", -solax.grid_wattage);
-        }
-        uart_select_intf(UART5);
-        uart_send_mem(tmp, strlen(tmp));
-        master_log(tmp);
-        // BEGIN BATT
-        int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
-        if (pylontech_wattage >= 0) {
-          snprintf(tmp, sizeof(tmp), "BAT< %dW", pylontech_wattage);
-        }
-        else {
-          snprintf(tmp, sizeof(tmp), "BAT> %dW", -pylontech_wattage);
-        }
-        uart_select_intf(UART5);
-        uart_send_mem(tmp, strlen(tmp));
-        master_log(tmp);
-        #if 0
-        // display current flowing through the battery
-        int16_t cur = pylontech.current;
-        if (cur < 0) {
-          uart_send_mem("-", 1);
-          cur = -cur;
-        }
-        snprintf(tmp, sizeof(tmp), " %d.%dA", cur/10, cur%10)
-        uart_select_intf(UART5);
-        uart_send_mem(tmp, strlen(tmp));
-        master_log(tmp);
-        #endif
-        if (batt_forced_soc== -1) {
-          snprintf(tmp, sizeof(tmp), " %u%% %dA\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10);
-        }
-        else {
-          snprintf(tmp, sizeof(tmp), " %u%% %dA F%u%%\n", pylontech.soc, (batt_forced_charge==-1?pylontech.max_charge:batt_forced_charge)/10, batt_forced_soc);
-        }
-        uart_select_intf(UART5);
-        uart_send_mem(tmp, strlen(tmp));
-        master_log(tmp);
-        // END BAT
-
-        snprintf(tmp, sizeof(tmp), "PV %uV %dW%s%s%s\n", solax.pv1_voltage/10, solax.pv1_wattage, solax.pv1_voltage + solax.pv2_voltage <= SOLAX_DAY_THRESHOLD_V * 10 ? " N":" D", batt_drain_fix_cause==1?" LO":"", solax.pv1_switch_on?"":" x");
-        uart_select_intf(UART5);
-        uart_send_mem(tmp, strlen(tmp));
-        master_log(tmp);
-      }
-    }
-#endif // USART5_HUMAN_READABLE_SUMMARY_LOG
-
   } // end infinite loop
 
 }
@@ -1749,30 +1478,44 @@ void I2C_Slave_Reception_Callback(void) {
     case 0: // get info
       // read stats
       // don't process when an error has been detected, only ignore optimization rules (< 0x70)
-      if (batt_drain_fix_cause < 70 && pylontech.soc != 0 && pylontech.soc != 255) 
+      if (solax.valid_data && pylontech.soc != 0 && pylontech.soc != 255) 
       {
         i2c_xfer_r_length = 0; // wipe the previous buffer content
         // data encoding version
         i2c_xfer_r_length++; // total length, reserve space
-        i2c_xfer_buffer[i2c_xfer_r_length++] = 4; 
+
+        // schema version for incompatibility checks on the host side
+        i2c_xfer_buffer[i2c_xfer_r_length++] = 5; 
 
         // solax state
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.status; 
-        // solax work mode
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax_forced_work_mode;
-
         // grid export wattage
         i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.grid_meter_ct>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_meter_ct&0xFF;
         // internal grid wattage
         i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.grid_wattage>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_wattage&0xFF;
+        // eps power
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_power>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_power&0xFF;
+        // eps current
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_current>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_current&0xFF;
+        // eps voltage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_voltage&0xFF;
         // pv1 wattage
         i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv1_wattage>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_wattage&0xFF;
         // pv2 wattage
         i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv2_wattage>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_wattage&0xFF;
+        // pv1 voltage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv1_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_voltage&0xFF;
+        // pv2 voltage
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv2_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_voltage&0xFF;
         // bat wattage
         i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.bat_wattage>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.bat_wattage&0xFF;
@@ -1791,20 +1534,6 @@ void I2C_Slave_Reception_Callback(void) {
         // effective max charge (taking into account forced charge and workaround for battery full)
         i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.effective_charge>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.effective_charge&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_charge&0xFF;
-        // last rule executed
-        i2c_xfer_buffer[i2c_xfer_r_length++] = batt_drain_fix_cause;
-        // solax work_mode
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.work_mode;
-        // pv1 voltage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv1_voltage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_voltage&0xFF;
-        // pv2 voltage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv2_voltage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_voltage&0xFF;
-        // eps current
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_current>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_current&0xFF;
         // timestamp
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.year>>8;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.year&0xFF;
@@ -1812,15 +1541,7 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.day;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.hour;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.minute;
-        // state of PV switch for low voltage cutoff (transient state)
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_switch_on;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_switch_on;
-        // eps power
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_power>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_power&0xFF;
-        // eps voltage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_voltage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_voltage&0xFF;
+
         // time since restart
         U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, uwTick);
         i2c_xfer_r_length+=4;
@@ -1828,19 +1549,26 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.output_va>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.output_va&0xFF;
         // output auto switches
-        i2c_xfer_buffer[i2c_xfer_r_length++] = self_use_auto;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = eps_mode_switch_auto;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = eps_forced_state;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_connect_soc;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_disconnect_soc;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge_soc;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = auto_self_use_from_bat;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = auto_grid_connection;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.apparent_soc;
         U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, pylontech.precise_mAh);
         i2c_xfer_r_length+=4;
         U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, pylontech.precise_mWh);
         i2c_xfer_r_length+=4;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.soc_mWh;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.max_charge_voltage;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = batt_forced_soc;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = knobs.max_charge_voltage;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = knobs.forced_soc;
+        // in deca Watt, to allow for 0-1.2kW span precision is not at the watt :)
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (knobs.forced_wattage/10)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = auto_bat_charge;
+#ifdef HAVE_EXT_CHARGER
+        i2c_xfer_buffer[i2c_xfer_r_length++] = charger.allowed_charge_wattage>>8;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = charger.allowed_charge_wattage&0xFF;
+#else // HAVE_EXT_CHARGER
+        i2c_xfer_buffer[i2c_xfer_r_length++] = 0;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = 0;
+#endif // HAVE_EXT_CHARGER
         
         // BMS units are listed backward (for the farther Link to the closest link)
         int i = pylontech.bmu_idx;
@@ -1891,48 +1619,63 @@ void I2C_Slave_Reception_Callback(void) {
         solax_pw_queue_push(solax_pw_cfg_gmppt_pv2_high, sizeof(solax_pw_cfg_gmppt_pv2_high), 7);
       }
       break;
+
     case 0xA:
       master_log("I2C: force offgrid\n");
       // disallow gridtie
-      eps_mode_switch_auto = 0;
-      eps_mode_switch(1);
+      auto_grid_connection = 0;
+      offgrid_switch(1);
       break;
     case 0xB:
       master_log("I2C: auto grid connection\n");
       // allow gridtie
-      eps_mode_switch_auto = 1;
+      auto_grid_connection = 1;
       break;
     case 0xC:
       master_log("I2C: force gridtie\n");
       // force gridtie
-      eps_mode_switch_auto = 0;
-      eps_mode_switch(0);
-      break;
-    case 0xD:
-      master_log("I2C: force manual stop discharge\n");
-      // force stop discharge
-      self_use_auto = 0;
-      if (solax_pw_queue_free() >= 2) {
-        solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
-        solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
-        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
-      }
-      break;
-    case 0xE:
-      master_log("I2C: force self use\n");
-      // allow discharge
-      self_use_auto = 0;
-      if (solax_pw_queue_free()) {
-        solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
-        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
-      }
-      break;
-    case 0xF:
-      master_log("I2C: auto self use\n");
-      // automatic stop/allow discharge based on percentage
-      self_use_auto = 1;
+      auto_grid_connection = 0;
+      offgrid_switch(0);
       break;
 
+    case 0xD:
+      master_log("I2C: stop self use from batt\n");
+      auto_self_use_from_bat = 0;
+      pylontech.apparent_soc = MAX(0,solax.stop_discharge_soc-1);
+      break;
+    case 0xE:
+      master_log("I2C: force self use from batt\n");
+      auto_self_use_from_bat = 0;
+      pylontech.apparent_soc = 75; /*random okish soc to ensure charging is possible*/
+      break;
+    case 0xF:
+      master_log("I2C: auto self use from batt\n");
+      auto_self_use_from_bat = 1;
+      break;
+
+#ifdef HAVE_EXT_CHARGER
+    case 0x20:
+      master_log("I2C: auto bat charge\n");
+      auto_bat_charge = 1;
+      break;
+
+    case 0x21:
+      master_log("I2C: stop bat charge\n");
+      auto_bat_charge = 0;
+      charger.charge_enabled = 0;
+      charger.max_charge_voltage = 0;
+      charger.max_charge_current = 0;
+      break;
+
+    case 0x22:
+      master_log("I2C: force bat charge\n");
+      auto_bat_charge = 0;
+      charger.charge_enabled = 1;
+      break;
+#endif // HAVE_EXT_CHARGER
+
+
+/*
       // auto charge current management
     case 0x13:
       batt_forced_charge = -1;
@@ -1941,7 +1684,7 @@ void I2C_Slave_Reception_Callback(void) {
     case 0x15:
       master_log("I2C: force manual charge from grid\n");
       // force stop discharge
-      self_use_auto = 0;
+      //self_use_auto = 0;
       if (solax_pw_queue_free() >= 2) {
         solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
         solax_pw_queue_push(solax_pw_cfg_manual_charge, sizeof(solax_pw_cfg_manual_charge), 7);
@@ -1951,18 +1694,21 @@ void I2C_Slave_Reception_Callback(void) {
     case 0x16:
       master_log("I2C: force backup mode\n");
       // allow battery discharge but maintain a high level
-      self_use_auto = 0;
+      //self_use_auto = 0;
       if (solax_pw_queue_free()) {
         solax_pw_queue_push(solax_pw_cmd_mode_backup, sizeof(solax_pw_cmd_mode_backup), 7);
         solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_BACKUP;
       }
       break;
+*/
+
     }
   }
   else {
     // double bytes instructions
     if (i2c_xfer_w_length == 2) {
       switch(i2c_xfer_buffer[0]) {
+      /*
       case 0x10:
         solax.grid_connect_soc = i2c_xfer_buffer[1];
         break;
@@ -1976,13 +1722,23 @@ void I2C_Slave_Reception_Callback(void) {
       case 0x14:
         batt_forced_charge = i2c_xfer_buffer[1]; // in dA
         break;
+        */
       case 0x17:
-        pylontech.max_charge_voltage = i2c_xfer_buffer[1]; // id dV
+        knobs.max_charge_voltage = i2c_xfer_buffer[1]; // id dV
         break;
       case 0x18:
         // if out of [0:100] then disabled the forced soc
-        batt_forced_soc = i2c_xfer_buffer[1]>100?-1U:i2c_xfer_buffer[1]; // reported SoC
+        knobs.forced_soc = i2c_xfer_buffer[1]>100?0:i2c_xfer_buffer[1]; // reported SoC
         break;
+      case 0x1A:
+        knobs.forced_wattage = i2c_xfer_buffer[1]*10; // in daW (deca watt)
+        break;
+#ifdef HAVE_EXT_CHARGER
+      case 0x23:
+        charger.allowed_charge_wattage = i2c_xfer_buffer[1]*100; // in hecto watt
+        break;
+#endif // HAVE_EXT_CHARGER
+
       }
     }
   }
@@ -2270,50 +2026,53 @@ void Configure_I2C_Slave(void)
 #endif // BOARD_DEV
 }
 
-void solax_batt_full_workaround(void) {
-  // apply workaround for battery full first, instead of PV first
-  // make the inverter respect the priorities: PV > BAT > GRID > House
+void solax_compute_maxcharge(void) {
+  int32_t max_wattage = pylontech.computed_max_wattage;
+  // forced wattage takes over any safety condition, only the MAX voltage will be respected
+  if (knobs.forced_wattage > 0) {
+    max_wattage = knobs.forced_wattage;
+  }
 
   // when no batt forced charge, then apply auto adjust
   // get the best current approx in mA
-  int32_t batt_wattage = pylontech.wattage;
-  int32_t batt_compensated_curr_dA = (SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE
+  int32_t batt_compensated_curr_dA = (MAX(SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE, max_wattage)
                                       + (pylontech.voltage /*dV*/ * 10 /*dA*/)/100 
                                       + PYLONTECH_BALANCING_OPTIMAL_WATTAGE
                                      ) * 100
                                      / pylontech.voltage;
+  int32_t batt_wattage = pylontech.wattage;
   if (pylontech.precise_wattage != 0 ) {
     batt_wattage = pylontech.precise_wattage;
   }
   int32_t wattage_average = 0;
-  for (int i = 0; i < SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT-1; i++) {
-    solax.batt_full_drain_workaround_values[i] = solax.batt_full_drain_workaround_values[i+1];
-    wattage_average += solax.batt_full_drain_workaround_values[i];
+  for (int i = 0; i < COMPUTED_WATTAGE_AVG_COUNT-1; i++) {
+    pylontech.computed_wattage_values[i] = pylontech.computed_wattage_values[i+1];
+    wattage_average += pylontech.computed_wattage_values[i];
   }
-  solax.batt_full_drain_workaround_values[SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT-1] = batt_wattage;
+  pylontech.computed_wattage_values[COMPUTED_WATTAGE_AVG_COUNT-1] = batt_wattage;
   wattage_average += batt_wattage;
-  wattage_average /= SOLAX_BATT_FULL_DRAIN_WORKAROUND_AVG_COUNT;
+  wattage_average /= COMPUTED_WATTAGE_AVG_COUNT;
 
-  if (EXPIRED(solax.batt_full_drain_workaround_last_change_ms)) {
-    solax.batt_full_drain_workaround_last_change_ms = uwTick + SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS;
+  if (EXPIRED(pylontech.computed_last_change_ms)) {
+    pylontech.computed_last_change_ms = uwTick + SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS;
 
     // when target is 150W and current is 40W and voltage is 400V, correction dA is 2.75 (0.275*400 = 110W)
     // when target is 150W and current is -400W and voltage is 400V, correction dA is 13.75 (1.375*400 = 550W)
     // when target is 150W and current is 400W and voltage is 400V, correction dA is -6.25 (-0.625*400 = -250W)
     // max is max_wattage, target is 2/3 of the value to ensure less over/under flows
-    int32_t correction_dA = (2*solax.batt_full_drain_workaround_max_wattage/3 - wattage_average ) * 100 / pylontech.voltage;
+    int32_t correction_dA = (2*max_wattage/3 - wattage_average ) * 100 / pylontech.voltage;
 
     // /!\ dont' do it but only when panel have juice.
     // how/when to reset?
     // when not fully charged, then impose a given current to enable load balancing
-    if ((wattage_average < solax.batt_full_drain_workaround_max_wattage/3) ) {
-      solax.batt_full_drain_workaround_current_dA
-        = MIN(solax.batt_full_drain_workaround_current_dA + correction_dA, batt_compensated_curr_dA);
+    if ((wattage_average < max_wattage/3) ) {
+      pylontech.computed_max_charge
+        = MIN(pylontech.computed_max_charge + correction_dA, batt_compensated_curr_dA);
     }
-    else if (wattage_average > solax.batt_full_drain_workaround_max_wattage) {
+    else if (wattage_average > max_wattage) {
       // if it charges when requested max charge is 0, then well, yeah, have fun boyz
-      solax.batt_full_drain_workaround_current_dA 
-        = MAX(1, solax.batt_full_drain_workaround_current_dA + correction_dA);
+      pylontech.computed_max_charge 
+        = MAX(1, pylontech.computed_max_charge + correction_dA);
     }
     else { // wattage_average == 0
       master_log("no change in charge current\n");
@@ -2332,32 +2091,356 @@ void solax_batt_full_workaround(void) {
           vcell_highest = pylontech.bmu[bmu_idx].vhigh;
         }
       }
+      // keep higher and lower voltage values
+      pylontech.vcell_highest = vcell_highest;
+      pylontech.vcell_lowest = vcell_lowest;
       snprintf((char*)tmp+128, sizeof(tmp)-128, "cell state minV: %dV, maxV: %dV\n", vcell_lowest, vcell_highest);
       master_log((char*)tmp+128);
       // depending on full or need for balancing, adjust the max allowed wattage
-      if (pylontech.soc < pylontech.max_charge_soc
+      if (
         // above huge value, stop charging, to avoid too hot battery and faulty state
-        || (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
+        (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
                                                           // bretelles (65k overflow too)
-            && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 3700)) {
+            && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 4000)) {
         master_log("cell voltage accepts workaround max_wattage\n");
         // pylontech can perform balancing with a given wattage 
-        solax.batt_full_drain_workaround_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
+        pylontech.computed_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
       }
       // avoid some 65K overflow sometimes
                                                           // bretelles (65k overflow too)
-      else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 3700) {
+                                                                                     // if forced charge, then max bat charge voltage only applies
+      else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 4000) {
         master_log("cell too high, stop workaround max_wattage\n");
         // no more charge req, take action upon next cycle
-        solax.batt_full_drain_workaround_max_wattage = 0;
+        pylontech.computed_max_wattage = 0;
         // security, solax does not chagre @ 0.1A, it evaporates in the incorrect internal power flow
-        solax.batt_full_drain_workaround_current_dA = 1;
+        pylontech.computed_max_charge = 1;
       }
     }
     // when it's between bounds, it's just fine
   }
-  snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced value %dmA\n", batt_wattage, wattage_average, solax.batt_full_drain_workaround_max_wattage, solax.batt_full_drain_workaround_current_dA*100);
+  snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced value %dmA\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, pylontech.computed_max_charge*100);
   master_log((char*)tmp+128);
+}
+
+void solax_process_data(void) {
+
+  int32_t batt_wattage = pylontech.wattage;
+  if (pylontech.precise_wattage != 0 ) {
+    batt_wattage = pylontech.precise_wattage;
+  }
+
+  if (!solax.valid_data) {
+    return;
+  }
+#if 0
+  // not NIGHT
+  if (solax.pv1_voltage + solax.pv2_voltage > SOLAX_DAY_THRESHOLD_V*10 ) {
+
+    // cutoff for the given duration
+    if (
+      (!timeout_pv1_switch_off || EXPIRED(timeout_pv1_switch_off))
+      && (solax.pv1_voltage < SOLAX_PV_CUTOFF_VOLTAGE_V*10 
+         || (solax.pv1_wattage && solax.pv1_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W))) {
+      master_log("pv1 switch off\n");
+      pv1_switch(0);
+      timeout_pv1_switch_on = uwTick + SOLAX_PV_CUTOFF_TIMEOUT;
+      timeout_pv1_switch_off = 0;
+    }
+
+    // cutoff for the given duration
+    if (
+      (!timeout_pv2_switch_off || EXPIRED(timeout_pv2_switch_off))
+      && ( solax.pv2_voltage < SOLAX_PV_CUTOFF_VOLTAGE_V*10 
+          || ( solax.pv2_wattage && solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W))) {
+      master_log("pv2 switch off\n");
+      pv2_switch(0);
+      timeout_pv2_switch_on = uwTick + SOLAX_PV_CUTOFF_TIMEOUT;
+      timeout_pv2_switch_off = 0;
+    }
+
+#ifdef HAVE_SOLAX_SWITCH_MODE
+#ifdef HAVE_LOWLIGHT_OPT
+    // if total PV voltage is below a limit, just AVOID wasting battery energy, 
+    // and disable battery charging to force the solax stopping the MPPT draining 
+    // energy from the battery to operate.
+    // ok but when not connected to grid, could not start! // if (solax.pv1_wattage + solax.pv2_wattage < 100) 
+    // OFFGRID or NIGHT could still have that condition true 
+    if (timeout_pv1_switch_on == 0 
+        && solax.pv1_voltage + solax.pv2_voltage < SOLAX_PV_POWER_OPT_THRESHOLD_V*10 
+        && solax.pv1_wattage + solax.pv2_wattage < SOLAX_PV_POWER_OPT_THRESHOLD_W)  // requires some insight on the total PV array connection
+    {
+      batt_drain_fix_cause = 1;
+      master_log("cause 1\n");
+      if (solax_pw_queue_free() >= 2 
+        && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
+        && solax_pw_mode_change_ready == 0
+        && self_use_auto) {
+        solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
+        solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
+        solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+      }
+    }
+    else if (
+      timeout_pv1_switch_on == 0
+      // battery is emptying in the grid, and panels aren't coping with that
+      // observed than under a certain pv power, when the grid is connected, then the battery is used to power the mppt
+      // grid tied
+      && solax.grid_wattage /* == SELFUSE*/
+      // not enough power from solar to cover solax self consumption (observed threshold)
+      && solax.pv1_wattage + solax.pv2_wattage 
+         < SOLAX_PV_POWER_OPT_THRESHOLD_W
+      ) {
+      batt_drain_fix_cause = 4;
+      master_log("cause 4\n");
+      if (solax_pw_queue_free() >= 2 
+        && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
+        && solax_pw_mode_change_ready == 0
+        && self_use_auto) {
+        solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
+        solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
+        solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+      }
+    }
+    else 
+#endif // HAVE_LOWLIGHT_OPT
+    // when battery is full, then for self use
+    if (pylontech.soc >= 98) {u
+      batt_drain_fix_cause = 3;
+      master_log("cause 3\n");
+      if (solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
+         && solax_pw_queue_free()
+         && solax_pw_mode_change_ready == 0
+         && self_use_auto) {
+        solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
+        solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+      }
+    }
+    // when the battery goes lower than the requested charge level, switch to charge only (no self use)
+    #if SOLAX_SELFUSE_STOP_SOC >= SOLAX_SELFUSE_START_SOC
+    #error ensure some hysterisis for self use start/stop SoC (and must be start > stop)
+    #endif // SOLAX_SELFUSE_STOP_SOC >= SOLAX_SELFUSE_START_SOC
+    else if (pylontech.soc <= SOLAX_SELFUSE_STOP_SOC) {
+      batt_drain_fix_cause = 8;
+      master_log("cause 8\n");
+      if (solax_pw_queue_free() >= 2 
+        && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_MANUAL_STOP
+        && solax_pw_mode_change_ready == 0
+        && self_use_auto) {
+        solax_pw_queue_push(solax_pw_cmd_mode_manual, sizeof(solax_pw_cmd_mode_manual), 7);
+        solax_pw_queue_push(solax_pw_cfg_manual_stop, sizeof(solax_pw_cfg_manual_stop), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_MANUAL_STOP;
+        solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+      }
+    }
+    // when battery reached the requested charge level, enter self use
+    else if (pylontech.soc >= SOLAX_SELFUSE_START_SOC) {
+      // power the grid
+      batt_drain_fix_cause = 6;
+      master_log("cause 6\n");
+      if (solax_pw_queue_free()
+        && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
+        && solax_pw_mode_change_ready == 0
+        && self_use_auto) {
+        solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
+        solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+      }
+    }
+#endif // HAVE_SOLAX_SWITCH_MODE
+  }
+  // NIGHT
+  else {
+      if (timeout_pv1_switch_on == 0) {
+      batt_drain_fix_cause = 7;
+      master_log("cause 7\n");
+      if (solax_pw_queue_free() 
+        && solax_forced_work_mode != SOLAX_FORCED_WORK_MODE_SELF_USE
+        && solax_pw_mode_change_ready == 0
+        && self_use_auto) {
+        solax_pw_queue_push(solax_pw_cmd_mode_self_use, sizeof(solax_pw_cmd_mode_self_use), 7);
+        solax_forced_work_mode = SOLAX_FORCED_WORK_MODE_SELF_USE;
+        solax_pw_mode_change_ready = uwTick + SOLAX_PW_MODE_CHANGE_MIN_INTERVAL;
+      }
+    }
+  }
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////*/
+///                                                                                                 */
+///        ▄▄▄▄   ▄▄▄▄▄▄     ▄▄▄▄▄▄   ▄▄▄▄▄                  ▄▄▄▄     ▄▄▄▄    ▄▄▄   ▄▄  ▄▄▄   ▄▄    */
+///      ██▀▀▀▀█  ██▀▀▀▀██   ▀▀██▀▀   ██▀▀▀██              ██▀▀▀▀█   ██▀▀██   ███   ██  ███   ██    */
+///     ██        ██    ██     ██     ██    ██            ██▀       ██    ██  ██▀█  ██  ██▀█  ██    */
+///     ██  ▄▄▄▄  ███████      ██     ██    ██            ██        ██    ██  ██ ██ ██  ██ ██ ██    */
+///     ██  ▀▀██  ██  ▀██▄     ██     ██    ██            ██▄       ██    ██  ██  █▄██  ██  █▄██    */
+///      ██▄▄▄██  ██    ██   ▄▄██▄▄   ██▄▄▄██              ██▄▄▄▄█   ██▄▄██   ██   ███  ██   ███    */
+///        ▀▀▀▀   ▀▀    ▀▀▀  ▀▀▀▀▀▀   ▀▀▀▀▀                  ▀▀▀▀     ▀▀▀▀    ▀▀   ▀▀▀  ▀▀   ▀▀▀    */
+///                                                                                                 */
+///                                                                                                 */
+////////////////////////////////////////////////////////////////////////////////////////////////////*/
+  master_log("Solax: status=0x");
+  master_log_hex(&solax.status, 1);
+  master_log(" count=0x");
+  master_log_hex(&solax.status_count, 1);
+  master_log("\n");
+  // only do this after the inverter status is stable and ready for connection
+  if (solax.status_count >= GRID_SWITCH_STATE_COUNT ) {
+    // when max charge value is degraded, then severs the grid connection
+
+    if (auto_grid_connection) {
+      if (pylontech.soc > solax.grid_disconnect_soc
+        // when battery does not accept the full power for charging, it means it's either dead, or full. 
+        // therefore sever the grid connection to avoid injection
+        || pylontech.max_charge < pylontech.max_discharge
+        ) {
+        if (
+          // only perform disconnection when we're in sync with the grid and in self use mode, else
+          // no disconnection
+          // at boot, when in EPS, must stay in EPS!, therefore activate the relay to stay in EPS
+          (solax.status == INVERTER_STATUS_NORMAL || solax.status == INVERTER_STATUS_EPS)
+              && (solax_forced_work_mode == SOLAX_FORCED_WORK_MODE_SELF_USE)
+          ) {
+          master_log("Antisurge: disconnect GRID, force EPS\n");
+          offgrid_switch(1);
+          solax.status_count = 0; // avoid glitching too frequently
+        }
+      }
+      // when SoC is lower than a value, then 
+      else if (pylontech.soc <= solax.grid_connect_soc) {
+        master_log("Antisurge: connect GRID (2)\n");
+        // restablish the GRID connection, 
+        offgrid_switch(0);
+        solax.status_count = 0; // avoid glitching too frequently
+      }
+      else if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
+        switch(solax.status) {
+        // failing states, must reenable grid!!
+        case INVERTER_STATUS_IDLE:
+        case INVERTER_STATUS_ERROR:
+        case INVERTER_STATUS_FAULT:
+        case INVERTER_STATUS_STANDBY:
+        case INVERTER_STATUS_UPDATE:
+          master_log("Antisurge: connect GRID (3)\n");
+          offgrid_switch(0);
+          solax.status_count = 0; // avoid glitching too frequently
+          break;
+        }
+      }
+    }
+  }
+  else {
+    // wait state to stabilize
+  }
+
+////////////////////////////////////////////////////////////////////////////////*/
+///                                                                             */
+///       ▄▄▄▄    ▄▄▄▄▄▄▄▄  ▄▄        ▄▄▄▄▄▄▄▄  ▄▄    ▄▄    ▄▄▄▄    ▄▄▄▄▄▄▄▄    */
+///     ▄█▀▀▀▀█   ██▀▀▀▀▀▀  ██        ██▀▀▀▀▀▀  ██    ██  ▄█▀▀▀▀█   ██▀▀▀▀▀▀    */
+///     ██▄       ██        ██        ██        ██    ██  ██▄       ██          */
+///      ▀████▄   ███████   ██        ███████   ██    ██   ▀████▄   ███████     */
+///          ▀██  ██        ██        ██        ██    ██       ▀██  ██          */
+///     █▄▄▄▄▄█▀  ██▄▄▄▄▄▄  ██▄▄▄▄▄▄  ██        ▀██▄▄██▀  █▄▄▄▄▄█▀  ██▄▄▄▄▄▄    */
+///      ▀▀▀▀▀    ▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀  ▀▀          ▀▀▀▀     ▀▀▀▀▀    ▀▀▀▀▀▀▀▀    */
+///                                                                             */
+///                                                                             */
+////////////////////////////////////////////////////////////////////////////////*/
+  if (auto_self_use_from_bat) {
+    // any condition disallow self use
+    
+    // soc is below disable self use, only enable selfuse when pv provide more than consumption + gap
+    if (pylontech.soc <= solax.disable_self_use_soc) {
+      //pylontech.apparent_soc = pylontech.soc;
+      /*
+      // when battery is not charging, ensure it is not discharging (maintain soc)
+      if (batt_wattage < 50 && (solax.pv1_wattage+solax.pv2_wattage) > 50) {
+        // disable batt self use
+        pylontech.apparent_soc = MAX(0,solax.stop_discharge_soc-1);
+      }
+      */
+      // solar panels DO NOT provide sufficiently to cover the house usage, disable BATT powering
+      if (batt_wattage < 50 
+        && solax.pv1_wattage + solax.pv2_wattage > 50
+        && solax.pv1_wattage + solax.pv2_wattage 
+           < solax.grid_wattage + solax.eps_power 
+             + SOLAX_SELF_CONSUMPTION_INVERTER_W 
+             + SOLAX_SELF_CONSUMPTION_MPPT_W) {
+        pylontech.apparent_soc = MAX(0,solax.stop_discharge_soc-1);
+      }
+      // solar panelz cover the house usage + self consumption, allow self use (for spikes)
+      if (solax.pv1_wattage + solax.pv2_wattage 
+          > SOLAX_SELF_CONSUMPTION_INVERTER_W 
+            + SOLAX_SELF_CONSUMPTION_MPPT_W 
+            + SOLAX_ENABLE_SELF_USE_PV_POWER) {
+        pylontech.apparent_soc = pylontech.soc;
+      }
+    }
+    // will allow selfuse once the soc is > solax's stop soc (min soc to start selfuse)
+    // => the solax's stop soc SHOULD be = enable_self_use_soc
+    // BOTH condition shall be validated to start allow self use if grid connected (else, it's always self use!)
+    else if (
+      (pylontech.soc >= solax.enable_self_use_soc)
+      && (solax.pv1_wattage + solax.pv2_wattage >= SOLAX_ENABLE_SELF_USE_PV_POWER)
+      ) {
+      pylontech.apparent_soc = pylontech.soc;
+    }
+  }
+
+
+#ifdef HAVE_EXT_CHARGER
+  /////////////////////////////////////////////////////////////////////////////////////////////////////*/
+  ///                                                                                                  */
+  ///     ▄▄▄▄▄▄       ▄▄     ▄▄▄▄▄▄▄▄               ▄▄▄▄   ▄▄    ▄▄  ▄▄▄▄▄▄       ▄▄▄▄   ▄▄▄▄▄▄       */
+  ///     ██▀▀▀▀██    ████    ▀▀▀██▀▀▀             ██▀▀▀▀█  ██    ██  ██▀▀▀▀██   ██▀▀▀▀█  ██▀▀▀▀██     */
+  ///     ██    ██    ████       ██               ██▀       ██    ██  ██    ██  ██        ██    ██     */
+  ///     ███████    ██  ██      ██               ██        ████████  ███████   ██  ▄▄▄▄  ███████      */
+  ///     ██    ██   ██████      ██               ██▄       ██    ██  ██  ▀██▄  ██  ▀▀██  ██  ▀██▄     */
+  ///     ██▄▄▄▄██  ▄██  ██▄     ██                ██▄▄▄▄█  ██    ██  ██    ██   ██▄▄▄██  ██    ██     */
+  ///     ▀▀▀▀▀▀▀   ▀▀    ▀▀     ▀▀                  ▀▀▀▀   ▀▀    ▀▀  ▀▀    ▀▀▀    ▀▀▀▀   ▀▀    ▀▀▀    */
+  ///                                                                                                  */
+  ///                                                                                                  */
+  /////////////////////////////////////////////////////////////////////////////////////////////////////*/
+  if (auto_bat_charge) {
+    // we've charged enough, stop compensation from grid
+    if (pylontech.soc < solax.enable_self_use_soc) {
+      charger.charge_enabled = 0;
+    }
+    // when to enable auto charge to compensate 
+    if (pylontech.soc <= solax.disable_self_use_soc) {
+      charger.charge_enabled = 1;
+    }
+
+    // modulate charge current to compensate EPS load
+    if (charger.charge_enabled) {
+      uint32_t charger_wattage = charger.out_voltage * charger.out_current / 100; // dV*dA => W
+      // if more than 50 watts charging, then 
+      if (batt_wattage > 50) {
+        charger_wattage -= 10;
+      }
+      else if (batt_wattage < 0) {
+        charger_wattage = MIN(-batt_wattage + 10, charger.allowed_charge_wattage);
+      }
+      // update v/a from targeted wattage
+      charger.max_charge_voltage = charger.out_voltage + 50; // in dV
+      charger.max_charge_current = charger_wattage * 10 * 10 / charger.out_voltage; // in dA
+    }
+  }
+  // apply max allowed charge current
+  if (!auto_bat_charge) {
+    charger.max_charge_voltage = charger.out_voltage + 50; // in dV
+    charger.max_charge_current = charger.allowed_charge_wattage * 10 * 10 / charger.out_voltage; // in dA
+  }
+#endif //HAVE_EXT_CHARGER
+
+
+#if 0
+  // when battery has a charge request, then process it (dunno if solax executes it)
+  if (pylontech.charge_request) {
+
+  }
+#endif 
 }
 
 #endif // MODE_SOLAX_BMS

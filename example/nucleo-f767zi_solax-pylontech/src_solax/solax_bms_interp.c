@@ -2387,6 +2387,12 @@ void solax_process_data(void) {
       pylontech.apparent_soc = pylontech.soc;
     }
   }
+  else {
+    // avoid overdischarge
+    if (pylontech.soc < solax.disable_self_use_soc) {
+      pylontech.apparent_soc = pylontech.soc;
+    }
+  }
 
 
 #ifdef HAVE_EXT_CHARGER

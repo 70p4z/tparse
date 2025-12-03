@@ -1634,7 +1634,7 @@ void I2C_Slave_Reception_Callback(void) {
     case 0xC:
       master_log("I2C: force gridtie\n");
       // force gridtie
-      auto_grid_connection = 0;
+      auto_grid_connection = 2;
       offgrid_switch(0);
       break;
 
@@ -1645,7 +1645,7 @@ void I2C_Slave_Reception_Callback(void) {
       break;
     case 0xE:
       master_log("I2C: force self use from batt\n");
-      auto_self_use_from_bat = 0;
+      auto_self_use_from_bat = 2;
       pylontech.apparent_soc = 75; /*random okish soc to ensure charging is possible*/
       break;
     case 0xF:
@@ -2290,7 +2290,7 @@ void solax_process_data(void) {
   if (solax.status_count >= GRID_SWITCH_STATE_COUNT ) {
     // when max charge value is degraded, then severs the grid connection
 
-    if (auto_grid_connection) {
+    if (auto_grid_connection == 1) {
       if (pylontech.soc > solax.grid_disconnect_soc
         // when battery does not accept the full power for charging, it means it's either dead, or full. 
         // therefore sever the grid connection to avoid injection
@@ -2347,7 +2347,7 @@ void solax_process_data(void) {
 ///                                                                             */
 ///                                                                             */
 ////////////////////////////////////////////////////////////////////////////////*/
-  if (auto_self_use_from_bat) {
+  if (auto_self_use_from_bat == 1) {
     // any condition disallow self use
     
     // soc is below disable self use, only enable selfuse when pv provide more than consumption + gap

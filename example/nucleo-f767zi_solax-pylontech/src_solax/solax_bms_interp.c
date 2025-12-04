@@ -822,7 +822,7 @@ void interp(void) {
 
           // always apply a SoC that allosw the inverter to charge. to ensure battery full workaround is effective
           // ensure charging when forcing charge (invert will not deny charge at that value)
-          tmp[4] = pylontech.apparent_soc; // MIN(pylontech.soc, 75);
+          tmp[4] = MIN(pylontech.soc, pylontech.apparent_soc?pylontech.apparent_soc:75);
           tmp[5] = 0;
 
           if (knobs.forced_soc > 0) {

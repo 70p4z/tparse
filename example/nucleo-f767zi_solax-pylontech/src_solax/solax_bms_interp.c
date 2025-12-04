@@ -2315,7 +2315,7 @@ void solax_process_data(void) {
         offgrid_switch(0);
         solax.status_count = 0; // avoid glitching too frequently
       }
-      else if (solax.status_count >= GRID_SWITCH_STATE_COUNT) {
+      else {
         switch(solax.status) {
         // failing states, must reenable grid!!
         case INVERTER_STATUS_IDLE:

@@ -422,6 +422,8 @@ struct {
   uint8_t disable_self_use_soc;
   uint8_t stop_discharge_soc;
   uint8_t valid_data;
+
+  uint8_t self_use_discharge_enabled;
 } solax;
 
 #define PYLONTECH_MAX_BMUS 20
@@ -562,6 +564,7 @@ void interp(void) {
   knobs.max_charge_voltage = BMS_MAX_CELL_VOLTAGE_FOR_CURRENT_CHG_DV;
   knobs.max_pylontech_charge_drive = BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV;
   solax.stop_discharge_soc = STOP_DISCHARGE_SOC;
+  solax.self_use_discharge_enabled = 1; // allow self use by default at reboot
 #ifdef HAVE_EXT_CHARGER
   charger.allowed_charge_wattage = 2000;
 #endif //HAVE_EXT_CHARGER
@@ -2349,9 +2352,17 @@ void solax_process_data(void) {
 ////////////////////////////////////////////////////////////////////////////////*/
   if (auto_self_use_from_bat == 1) {
     // any condition disallow self use
+
+    // handle hysterisis for enable/disable of self use
+    if (pylontech.soc <= solax.stop_discharge_soc) {
+      solax.self_use_discharge_enabled = 0;
+    }
+    else if (pylontech.soc >= solax.enable_self_use_soc) {
+      solax.self_use_discharge_enabled = 1;
+    }
     
     // soc is below disable self use, only enable selfuse when pv provide more than consumption + gap
-    if (pylontech.soc <= solax.disable_self_use_soc) {
+    if (pylontech.soc <= solax.disable_self_use_soc && !solax.self_use_discharge_enabled) {
       // solar panels DO NOT provide sufficiently to cover the house usage, disable BATT powering
       if (batt_wattage < 200
         //&& solax.pv1_wattage + solax.pv2_wattage > SOLAX_SELF_CONSUMPTION_INVERTER_W + SOLAX_SELF_CONSUMPTION_MPPT_W
@@ -2374,8 +2385,8 @@ void solax_process_data(void) {
     // => the solax's stop soc SHOULD be = enable_self_use_soc
     // BOTH condition shall be validated to start allow self use if grid connected (else, it's always self use!)
     else if (
-      (pylontech.soc >= solax.enable_self_use_soc)
-      && (solax.pv1_wattage + solax.pv2_wattage >= SOLAX_ENABLE_SELF_USE_PV_POWER)
+      pylontech.soc >= solax.enable_self_use_soc || solax.self_use_discharge_enabled
+      //&& (solax.pv1_wattage + solax.pv2_wattage >= SOLAX_ENABLE_SELF_USE_PV_POWER)
       ) {
       pylontech.apparent_soc = pylontech.soc;
     }

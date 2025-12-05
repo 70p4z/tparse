@@ -19,7 +19,7 @@ TODO
 // ensure 5 seconds steady state before making up a decision
 #define WORKAROUND_SOLAX_INJECTION_SURGE // avoid too much charged battery to force inverter injecting surplus with clouds' surges
 #define GRID_SWITCH_STATE_COUNT 3
-#define GRID_DISCONNECT_SOC 50 // disconnect grid when over or equal
+#define GRID_DISCONNECT_SOC 75 // disconnect grid when over or equal
 // auto charger stops over that soc
 #define ENABLE_SELF_USE_SOC 40
 // when on grid, below this SoC, we stop self use mode to avoid going too low

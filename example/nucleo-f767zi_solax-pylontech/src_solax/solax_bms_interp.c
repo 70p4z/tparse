@@ -12,6 +12,7 @@ TODO
 
 #ifdef MODE_SOLAX_BMS
 
+//#define HAVE_FORCE_CHARGE_PCT_SOC
 #define HAVE_WATCHDOG
 #define HAVE_EXT_CHARGER
 #define USBVCP USART3
@@ -2361,6 +2362,7 @@ void solax_process_data(void) {
       solax.self_use_discharge_enabled = 1;
     }
     
+#ifdef HAVE_FORCE_CHARGE_PCT_SOC
     // soc is below disable self use, only enable selfuse when pv provide more than consumption + gap
     if (pylontech.soc <= solax.disable_self_use_soc && !solax.self_use_discharge_enabled) {
       // solar panels DO NOT provide sufficiently to cover the house usage, disable BATT powering
@@ -2387,7 +2389,9 @@ void solax_process_data(void) {
     else if (
       pylontech.soc >= solax.enable_self_use_soc || solax.self_use_discharge_enabled
       //&& (solax.pv1_wattage + solax.pv2_wattage >= SOLAX_ENABLE_SELF_USE_PV_POWER)
-      ) {
+      ) 
+#endif // HAVE_FORCE_CHARGE_PCT_SOC
+    {
       pylontech.apparent_soc = pylontech.soc;
     }
   }

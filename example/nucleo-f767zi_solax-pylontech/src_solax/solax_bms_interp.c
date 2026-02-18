@@ -573,9 +573,9 @@ void transcharge_disable_all(void) {
 void transcharge_auto_run(void) {
   if (transcharge.auto_enable && EXPIRED(transcharge.auto_next_run)) {
     int32_t vcellmin_mv = -1;
-    uint32_t vcellmin_mv_idx=0;
+    uint32_t vcellmin_mv_idx=pylontech.bmu_idx;
     int32_t vcellmax_mv = 0;
-    uint32_t vcellmax_mv_idx=0;
+    uint32_t vcellmax_mv_idx=pylontech.bmu_idx;
     if (pylontech.bmu_idx > 0) {
       int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
       // don't start charge balancing when wattage is too high, this will not be working well
@@ -590,7 +590,9 @@ void transcharge_auto_run(void) {
       while (pylon_idx-- > 0) {
         // only perform balancing based on lowest voltage cell of each pack
         uint32_t v = pylontech.bmu[pylon_idx].vlow;
-        if (vcellmin_mv > v) {
+        if (vcellmin_mv > v 
+          // don't select this pack when its top cell is already too high, wait for internal balancing
+          && pylontech.bmu[pylon_idx].vhigh < PYLONTECH_BALANCING_MAX_MV) {
           vcellmin_mv = v;
           vcellmin_mv_idx = transcharge_idx;
         }
@@ -605,7 +607,9 @@ void transcharge_auto_run(void) {
       if (transcharge.auto_next_run == 0) { transcharge.auto_next_run++; } 
 
       // if there's at least one pack requiring balancing, then charge it
-      if (vcellmin_mv + TRANSCHARGE_BALANCING_START_MV < vcellmax_mv) {
+      if (vcellmin_mv + TRANSCHARGE_BALANCING_START_MV < vcellmax_mv
+        // a pack has been selected. else disable possibly started balancing
+        && vcellmin_mv_idx != pylontech.bmu_idx ) {
         // is this pack already being balanced?
         if ((transcharge.enabled & (1<<vcellmin_mv_idx)) == 0) {
           master_log("BALANCE: charge:");

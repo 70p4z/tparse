@@ -9,6 +9,8 @@ import paho.mqtt.client as mqtt
 import threading
 import enum
 
+MQTT_HOST = "192.168.0.4"
+
 #TODO grab parameter to reach home assistant from the command line parameters (and the sensor stem)
 #TODO allow to override i2c address from command line
 
@@ -258,7 +260,6 @@ def mqtt_start():
       try:
         print("set: " + msg.payload.decode('utf-8'))
         intval = int(msg.payload.decode('utf-8'))
-        # special treatment for disable forced wattage value
         intval = intval//10
         msg=b'\x1A' + struct.pack(">B", intval)
         i2c_write(msg)
@@ -266,7 +267,7 @@ def mqtt_start():
         traceback.print_exc()
     mqtt_client.message_callback_add('homeassistant/number/solax_battery_forced_wattage/set', on_message_solax_forced_soc)
     mqtt_client.subscribe('homeassistant/number/solax_battery_forced_wattage/set')
-    mqtt_client.publish('homeassistant/number/solax_battery_forced_wattage/config', payload=json.dumps({"device_class": "power", "name": "Solax Battery Min Wattage", "state_topic": "homeassistant/number/solax_battery_forced_wattage/state", "unit_of_measurement": "W", "command_topic": "homeassistant/number/solax_battery_forced_wattage/set", "min": "0", "max": "2550", "step": "10"}), retain=True)
+    mqtt_client.publish('homeassistant/number/solax_battery_forced_wattage/config', payload=json.dumps({"device_class": "power", "name": "Solax Forced Charge Wattage", "state_topic": "homeassistant/number/solax_battery_forced_wattage/state", "unit_of_measurement": "W", "command_topic": "homeassistant/number/solax_battery_forced_wattage/set", "min": "0", "max": "2550", "step": "10"}), retain=True)
 
     def on_message_solax_auto_bat_chrgr_mode(client, userdata, msg):
       try:
@@ -293,6 +294,21 @@ def mqtt_start():
     mqtt_client.subscribe('homeassistant/number/solax_bat_chrgr_wattage/set')
     mqtt_client.publish('homeassistant/number/solax_bat_chrgr_wattage/config', payload=json.dumps({"device_class": "power", "name": "Solax Charger Allowed Wattage", "state_topic": "homeassistant/number/solax_bat_chrgr_wattage/state", "unit_of_measurement": "W", "command_topic": "homeassistant/number/solax_bat_chrgr_wattage/set", "min": "0", "max": "3300", "step": "100"}), retain=True)
 
+
+    def on_message_solax_auto_transcharge(client, userdata, msg):
+      try:
+        if msg.payload.decode('utf-8') == "ON":
+          msg=b'\x31'
+        else:
+          msg=b'\x30'
+        i2c_write(msg)
+      except:
+        traceback.print_exc()
+    mqtt_client.message_callback_add('homeassistant/switch/solax_bat_transcharge_auto/set', on_message_solax_auto_transcharge)
+    mqtt_client.subscribe('homeassistant/switch/solax_bat_transcharge_auto/set')
+    mqtt_client.publish('homeassistant/switch/solax_bat_transcharge_auto/config', payload=json.dumps({"name": "Pylontech Auto Balancing", "state_topic": "homeassistant/switch/solax_bat_transcharge_auto/state", "command_topic": "homeassistant/switch/solax_bat_transcharge_auto/set"}), retain=True)
+
+
   def on_connect(client, userdata, flags, rc):
     #print(f"on_connect: rc={rc}")
     if rc==0:
@@ -302,7 +318,7 @@ def mqtt_start():
   mqtt_client.on_connect=on_connect
   while True:
     try:
-      mqtt_client.connect('192.168.0.4', 1883)
+      mqtt_client.connect(MQTT_HOST, 1883)
       mqtt.bms_packs_topic = {}
       mqtt_client.loop_start()
       break
@@ -311,6 +327,25 @@ def mqtt_start():
     time.sleep(1)
 
 mqtt_start()
+
+def on_message_solax_manual_transcharge(client, userdata, msg):
+  try:
+    # extract battery id from topic
+    # 'homeassistant/switch/solax_bat_transcharge_enable_'+hex_str_pack_id+'/set'
+    topic = msg.topic
+    if not topic.startswith('homeassistant/switch/solax_bat_transcharge_enable_') or not topic.endswith('/set'):
+      return
+    topic = topic.replace("homeassistant/switch/solax_bat_transcharge_enable_","")
+    topic = topic.replace("/set","")
+    batt_id = int(topic, 16)
+    # enable/disable
+    if msg.payload.decode('utf-8') == "ON":
+      msg=b'\x32' + struct.pack(">B", batt_id)
+    else:
+      msg=b'\x33' + struct.pack(">B", batt_id)
+    i2c_write(msg)
+  except:
+    traceback.print_exc()
 
 # read values from the solax
 while True:
@@ -322,7 +357,7 @@ while True:
     print(binascii.hexlify(data))
 
 
-    SCHEMA_VERSION = 5
+    SCHEMA_VERSION = 6
 
 
     #check length and data schema version
@@ -341,6 +376,9 @@ while True:
       b'7903070400000000008e004d00a700b064000000fa000707030002c102c1000007e80b1c11100000000a08fb003a0895000c000101141e640000c28e00004a7f639864640dc40dcf9164640dd10dfc6664640df50e0c3464620d720e0f2464640db00de42264610d740d954764640dcb0e0e1364630d320dcd'
       (121, 3, 7, 4, 0, 0, 142, 77, 167, 176, 100, 0, 250, 7, 7, 3, 0, 705, 705, 0, 2024, 11, 28, 17, 16, 0, 0, 10, 2299, 3803285, 12, 0, 1, 1, 20, 30, 100, 49806, 19071, 99)
 
+    v6
+      b'780607000000000009000208fb007000c109c10c4a00c300e51600ff00fa00ff07ea021210080006e30c003101011600002b6f00000f00142400000107d001089816140cb40ccd9116140cbb0ccc3416140cce0cd16616140cb00cbf2416140cd90cdc1316140cd50cdf2216140cd70cdb4716140cdb0cdd'
+      (120, 6, 7, 0, 0, 9, 2, 2299, 112, 193, 2497, 3146, 195, 229, 22, 255, 250, 255, 2026, 2, 18, 16, 8, 451340, 49, 1, 1, 22, 11119, 3840, 20, 36, 0, 0, 1, 2000, 1, 8)
     """
 
     class Field(enum.Enum):
@@ -393,6 +431,8 @@ while True:
       IDX_FORCED_WATTAGE = "B",
       IDX_BATCHRGR_AUTO = "B",
       IDX_BATCHRGR_ALLOWED_WATTAGE = "H",
+      IDX_TRANSCHARGE_AUTO = "B",
+      IDX_TRANSCHARGE_ENABLED = "B",
       
     binformat= ">"+"".join(list(map(lambda field: field.format, Field.__members__.values())))
 
@@ -434,6 +474,10 @@ while True:
       mqtt_client.publish("homeassistant/number/solax_battery_forced_wattage/state", payload=str(fields[Field.IDX_FORCED_WATTAGE.value]), retain=True)
       mqtt_client.publish("homeassistant/number/solax_bat_chrgr_auto/state", payload=str(fields[Field.IDX_BATCHRGR_AUTO.value]), retain=True)
       mqtt_client.publish("homeassistant/number/solax_bat_chrgr_wattage/state", payload=str(fields[Field.IDX_BATCHRGR_ALLOWED_WATTAGE.value]), retain=True)
+      mqtt_client.publish("homeassistant/switch/solax_bat_transcharge_auto/state", payload=mqtt_boolstr(fields[Field.IDX_TRANSCHARGE_AUTO.value]!=0), retain=True)
+
+
+      # todo publish empty values for all packs
 
       # update batt packs values afterwards
       packs_info=data[struct.calcsize(binformat):]
@@ -441,22 +485,38 @@ while True:
       while (len(packs_info) >= 7):
         pack_fields = struct.unpack_from(">BBBhh", packs_info)
         packs_info = packs_info[7:]
-        str_pack_id=hex(0x100+pack_idx)[-2:]+"_"+hex(0x100+pack_fields[0])[-2:]
+        pack_index_hex = "0x"+hex(0x100+pack_idx)[-2:]
+        pack_id_hex = "0x"+hex(0x100+pack_fields[0])[-2:]
+        str_pack_id=pack_index_hex
         if (pack_fields[1] == 255 or pack_fields[2] == 255 
           or pack_fields[1] == 0xAA or pack_fields[2] == 0xAA
           or pack_fields[3] == -1 or pack_fields[4] == -1):
           raise BaseException("Invalid batpack SoC")
 
+        # check if pack is being transcharged
+        transcharging = (fields[Field.IDX_TRANSCHARGE_ENABLED.value] & (1<<pack_idx)) != 0
+
         infos=""
         infos += str(pack_fields[1]) + '/'
         infos += str(pack_fields[2]) + '% '
         infos += str(pack_fields[3]) + '/' +str(pack_fields[4]) + 'mV'
+        infos += " " +pack_id_hex
+        if transcharging:
+          infos += " B"
+        print(infos)
 
         if not str_pack_id in mqtt.bms_packs_topic:
-          mqtt_client.publish('homeassistant/sensor/solax_battery_infos_'+str_pack_id+'/config', payload=json.dumps({"name": "Battery Infos " + str_pack_id, "state_topic": "homeassistant/sensor/solax_battery_infos_"+str_pack_id+"/state"}), retain=True)
+          # avoid too much publishes
           mqtt.bms_packs_topic[str_pack_id] = str_pack_id
+          # information
+          mqtt_client.publish('homeassistant/sensor/solax_battery_infos_'+str_pack_id+'/config', payload=json.dumps({"name": "BatPack" + str_pack_id, "state_topic": "homeassistant/sensor/solax_battery_infos_"+str_pack_id+"/state"}), retain=True)
+          # manual balancing
+          mqtt_client.publish('homeassistant/switch/solax_bat_transcharge_enable_'+str_pack_id+'/config', payload=json.dumps({"name": "Pylontech Balance " + str_pack_id, "state_topic": 'homeassistant/switch/solax_bat_transcharge_enable_'+str_pack_id+'/state',"command_topic": 'homeassistant/switch/solax_bat_transcharge_enable_'+str_pack_id+'/set'}), retain=True)
+          mqtt_client.message_callback_add('homeassistant/switch/solax_bat_transcharge_enable_'+str_pack_id+'/set', on_message_solax_manual_transcharge)
+          mqtt_client.subscribe('homeassistant/switch/solax_bat_transcharge_enable_'+str_pack_id+'/set')
 
         mqtt_client.publish('homeassistant/sensor/solax_battery_infos_'+str_pack_id+'/state', payload=str(infos), retain=True)
+        mqtt_client.publish('homeassistant/switch/solax_bat_transcharge_enable_'+str_pack_id+'/state', payload=mqtt_boolstr(transcharging), retain=True)
         pack_idx += 1
     except:
       print(traceback.print_exc())

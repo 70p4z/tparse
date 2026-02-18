@@ -509,6 +509,127 @@ void offgrid_switch(uint32_t eps_mode_requested) {
 #endif // BOARD_DEV
 }
 
+/**
+ * Take care as bmu index pakc are reversed in the pylontech storage versus this gpios mapping.
+ * Thanks pylontech for the reverse listing from farther of the link.
+ */
+struct {
+  uint8_t gpio_port;
+  uint8_t gpio_pin;
+} const transcharge_gpios[] = {
+  /* SW1 */ {/*GPIOB*/ 1, 13},
+  /* SW2 */ {/*GPIOB*/ 1, 12},
+  /* SW3 */ {/*GPIOA*/ 0, 15},
+  /* SW4 */ {/*GPIOA*/ 0, 5},
+  /* SW5 */ {/*GPIOA*/ 0, 6},
+  /* SW6 */ {/*GPIOB*/ 1, 5},
+  /* SW7 */ {/*GPIOA*/ 0, 4},
+  /* SW8 */ {/*GPIOB*/ 1, 1},
+  /* SW9 */ {/*GPIOC*/ 2, 2},
+  /* SW10 */ {/*GPIOA*/ 0, 2},
+  /* SW11 */ {/*GPIOA*/ 0, 7},
+  /* SW12 */ {/*GPIOF*/ 6, 13},
+  /* SW13 */ {/*GPIOE*/ 5, 9},
+  /* SW14 */ {/*GPIOE*/ 5, 11},
+  /* SW15 */ {/*GPIOE*/ 5, 13},
+  /* SW16 */ {/*GPIOG*/ 6, 14},
+};
+
+#define TRANSCHARGE_MANUAL_TIMEOUT_MS (1800*1000) // half an hour max manual charge
+#define TRANSCHARGE_AUTO_TIMEOUT_MS (900*1000) // 15 minutes timeout for auto
+#define TRANSCHARGE_BALANCING_START_MV 10
+#define TRANSCHARGE_BALANCING_START_MAX_WATTAGE 400
+#define TRANSCHARGE_INTERVAL_MS (30*1000) // not too often to avoid starting/stopping charge too often
+struct {
+  uint32_t auto_enable;
+  uint32_t enabled;
+  uint32_t timeout;
+  uint32_t auto_next_run;
+} transcharge;
+
+void transcharge_enable(uint32_t index, uint32_t enabled) {
+  // invalid channel
+  if (index >= sizeof(transcharge_gpios) / sizeof(transcharge_gpios[0])) {
+    return;
+  }
+  if (enabled) {
+    transcharge.enabled |= (1<<index);
+  }
+  else {
+    transcharge.enabled &= ~(1<<index);
+  }
+  gpio_set(transcharge_gpios[index].gpio_port, transcharge_gpios[index].gpio_pin, enabled);
+}
+
+void transcharge_disable_all(void) {
+  for (int i = 0 ; i < sizeof(transcharge_gpios) / sizeof(transcharge_gpios[0]); i++) {
+    transcharge_enable(i, 0);
+  }
+  transcharge.timeout = 0;
+}
+
+// naive balancing by charge algorithm
+// must be run only when pylontech data are valid
+void transcharge_auto_run(void) {
+  if (transcharge.auto_enable && EXPIRED(transcharge.auto_next_run)) {
+    int32_t vcellmin_mv = -1;
+    uint32_t vcellmin_mv_idx=0;
+    int32_t vcellmax_mv = 0;
+    uint32_t vcellmax_mv_idx=0;
+    if (pylontech.bmu_idx > 0) {
+      int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
+      // don't start charge balancing when wattage is too high, this will not be working well
+      if (pylontech_wattage > TRANSCHARGE_BALANCING_START_MAX_WATTAGE) {
+        master_log("BALANCE: skipped, too much charge wattage already\n");
+        transcharge_disable_all();
+        return;
+      }
+      // retrieve min and max voltage along the cell voltage readings
+      uint32_t pylon_idx = pylontech.bmu_idx;
+      uint32_t transcharge_idx = 0; // convert index into transcharge index
+      while (pylon_idx-- > 0) {
+        // only perform balancing based on lowest voltage cell of each pack
+        uint32_t v = pylontech.bmu[pylon_idx].vlow;
+        if (vcellmin_mv > v) {
+          vcellmin_mv = v;
+          vcellmin_mv_idx = transcharge_idx;
+        }
+        if (vcellmax_mv < v) {
+          vcellmax_mv = v;
+          vcellmax_mv_idx = transcharge_idx;
+        }
+        transcharge_idx++;
+      }
+
+      transcharge.auto_next_run = uwTick + TRANSCHARGE_INTERVAL_MS;
+      if (transcharge.auto_next_run == 0) { transcharge.auto_next_run++; } 
+
+      // if there's at least one pack requiring balancing, then charge it
+      if (vcellmin_mv + TRANSCHARGE_BALANCING_START_MV < vcellmax_mv) {
+        // is this pack already being balanced?
+        if ((transcharge.enabled & (1<<vcellmin_mv_idx)) == 0) {
+          master_log("BALANCE: charge:");
+          master_log_hex(&vcellmin_mv_idx, 1);
+          master_log("\n");
+          // disable all other pack balancing (only one at a time)
+          transcharge_disable_all();
+          // balance the pack with the lowest cell voltage only
+          transcharge_enable(vcellmin_mv_idx, 1);
+          transcharge.timeout = uwTick + TRANSCHARGE_AUTO_TIMEOUT_MS;
+        }
+        else {
+          master_log("BALANCE: no change\n");
+        }
+      }
+      // no more pack requiring balancing, disable all
+      else {
+        master_log("BALANCE: disable all charge\n");
+        transcharge_disable_all();
+      }
+    }
+  }
+}
+
 void interp(void) {
   uint32_t forward;
   enum bms_uart_state_e bms_uart_state = BMS_UART_STATE_IDLE;
@@ -569,6 +690,11 @@ void interp(void) {
 #ifdef HAVE_EXT_CHARGER
   charger.allowed_charge_wattage = 2000;
 #endif //HAVE_EXT_CHARGER
+  transcharge.auto_enable = 1;
+  transcharge.auto_next_run = -1; // ensure immediate run
+  transcharge.enabled = 0;
+  transcharge.timeout = 0;
+  transcharge_disable_all();
 
   // use BARE HSI (16MHz)
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
@@ -803,6 +929,16 @@ void interp(void) {
       }
     }
 
+    // take into account transcharge timeout
+    if (transcharge.timeout && EXPIRED(transcharge.timeout)) {
+      transcharge_disable_all();
+    }
+
+    // perform transcharge auto algorithm only when all data from BMS are valid
+    if (bms_uart_state == BMS_UART_STATE_IDLE && transcharge.auto_enable) {
+      transcharge_auto_run();
+    }
+
     if (can_fifo_avail(CAN3)) {
       len = can_fifo_rx(CAN3, &cid, &cid_bitlen, tmp, sizeof(tmp));
       master_log_can("bms >>>     | ", cid, cid_bitlen, tmp, len);
@@ -908,6 +1044,7 @@ void interp(void) {
             tmp[4] = 0;
             tmp[5] = 0;
             pylontech.effective_charge = 0;
+
             // we're overlimit, reset the compensation charge level
             pylontech.computed_max_charge = 1;
             // TODO, switch to automatic offgrid, and force offgrid! => solax has a bug continuing 
@@ -916,6 +1053,8 @@ void interp(void) {
             offgrid_switch(1);
             // force auto switch mode. to avoid forcing
             auto_grid_connection = 1;
+            // battery voltage too high, stop transcharge balancing
+            transcharge_disable_all();
           }
           forward = 1;
           break;
@@ -1060,6 +1199,7 @@ void interp(void) {
           // send request to the bms
           uart_select_intf(USART6);
           uart_send_mem("pwr\n",4);
+          pylontech.bmu_idx = 0;
           bms_uart_state = BMS_UART_STATE_WAIT_PWR;
           bms_uart_next = uwTick + BMS_UART_NEXT_INTERVAL;
         }
@@ -1201,6 +1341,7 @@ void interp(void) {
             PCBA:     : H200***************198          
             ...
             */
+            // farthest pack returned first
             if (read >= 13 && strstr((const char *)tmp, "\rPCBA:     : ") == (const char *)tmp) {
               tparse_token(&tp_bms, (char*)tmp, sizeof(tmp)); // PCBA:
               tparse_token(&tp_bms, (char*)tmp, sizeof(tmp)); // :
@@ -1281,6 +1422,7 @@ void interp(void) {
           bms_uart_next = 0; // immediate next command
           bms_uart_state = BMS_UART_STATE_IDLE; // send PWR again
           pylontech.precise_wattage = 0; // avoid relaying outdated data
+          pylontech.bmu_idx = 0;
         }
         break;
     }
@@ -1489,7 +1631,7 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_r_length++; // total length, reserve space
 
         // schema version for incompatibility checks on the host side
-        i2c_xfer_buffer[i2c_xfer_r_length++] = 5; 
+        i2c_xfer_buffer[i2c_xfer_r_length++] = 6; 
 
         // solax state
         i2c_xfer_buffer[i2c_xfer_r_length++] = solax.status; 
@@ -1573,6 +1715,8 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = 0;
         i2c_xfer_buffer[i2c_xfer_r_length++] = 0;
 #endif // HAVE_EXT_CHARGER
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (transcharge.auto_enable?1:0);
+        i2c_xfer_buffer[i2c_xfer_r_length++] = transcharge.enabled;
         
         // BMS units are listed backward (for the farther Link to the closest link)
         int i = pylontech.bmu_idx;
@@ -1657,6 +1801,8 @@ void I2C_Slave_Reception_Callback(void) {
       auto_self_use_from_bat = 1;
       break;
 
+      // change mode SELFUSE/STOP/FORCECHARGE
+
 #ifdef HAVE_EXT_CHARGER
     case 0x20:
       master_log("I2C: auto bat charge\n");
@@ -1678,6 +1824,15 @@ void I2C_Slave_Reception_Callback(void) {
       break;
 #endif // HAVE_EXT_CHARGER
 
+    case 0x30:
+      transcharge.auto_enable = 0;
+      transcharge_disable_all();
+      break;
+
+    case 0x31:
+      transcharge.auto_enable = 1;
+      transcharge.auto_next_run = uwTick;
+      break;
 
 /*
       // auto charge current management
@@ -1743,6 +1898,18 @@ void I2C_Slave_Reception_Callback(void) {
         break;
 #endif // HAVE_EXT_CHARGER
 
+      case 0x32: // transcharge manual enable
+        // disable pack transcharge balancing
+        transcharge.auto_enable = 0;
+        transcharge_enable(i2c_xfer_buffer[1], 1);
+        transcharge.timeout = uwTick + TRANSCHARGE_MANUAL_TIMEOUT_MS;
+        if (transcharge.timeout == 0) { transcharge.timeout++; }
+        break; 
+      case 0x33: // transchagre manual disable
+        // disable pack transcharge balancing
+        transcharge.auto_enable = 0;
+        transcharge_enable(i2c_xfer_buffer[1], 0);
+        break;
       }
     }
   }

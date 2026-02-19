@@ -65,3 +65,6 @@ $(BUILD_DIR)/%.o: %.s Makefile | prepare
 
 log:
 	socat /dev/ttyACM0,raw,echo=0,nonblock,min=0,b921600 STDIO
+
+load_nucleo:
+	sudo mount /dev/sda /mnt/ ; sudo cp build_solax/output.bin /mnt/; sudo umount /mnt

@@ -538,6 +538,7 @@ struct {
 #define TRANSCHARGE_MANUAL_TIMEOUT_MS (1800*1000) // half an hour max manual charge
 #define TRANSCHARGE_AUTO_TIMEOUT_MS (900*1000) // 15 minutes timeout for auto
 #define TRANSCHARGE_BALANCING_START_MV 10
+#define TRANSCHARGE_BALANCING_MIN_GAP_MV 5 // when to charge another pack
 #define TRANSCHARGE_BALANCING_START_MAX_WATTAGE 400
 #define TRANSCHARGE_INTERVAL_MS (30*1000) // not too often to avoid starting/stopping charge too often
 struct {
@@ -545,6 +546,7 @@ struct {
   uint32_t enabled;
   uint32_t timeout;
   uint32_t auto_next_run;
+  uint32_t auto_last_idx;
 } transcharge;
 
 void transcharge_enable(uint32_t index, uint32_t enabled) {
@@ -566,6 +568,7 @@ void transcharge_disable_all(void) {
     transcharge_enable(i, 0);
   }
   transcharge.timeout = 0;
+  transcharge.auto_last_idx = -1;
 }
 
 // naive balancing by charge algorithm
@@ -606,20 +609,38 @@ void transcharge_auto_run(void) {
       transcharge.auto_next_run = uwTick + TRANSCHARGE_INTERVAL_MS;
       if (transcharge.auto_next_run == 0) { transcharge.auto_next_run++; } 
 
+
+      // Safety, disable all charge balancing due to over charge
+      if (transcharge.auto_last_idx < pylontech.bmu_idx
+        && pylontech.bmu[transcharge.auto_last_idx].vhigh >= PYLONTECH_BALANCING_MAX_MV) {
+        master_log("BALANCE: stop overcharge");
+        transcharge_disable_all();
+      }
+
       // if there's at least one pack requiring balancing, then charge it
       if (vcellmin_mv + TRANSCHARGE_BALANCING_START_MV < vcellmax_mv
         // a pack has been selected. else disable possibly started balancing
         && vcellmin_mv_idx != pylontech.bmu_idx ) {
+
+        // Continue charging the same pack until its vcellmin is XmV above the current cellmin
+        if (transcharge.auto_last_idx < pylontech.bmu_idx
+          && vcellmin_mv_idx != transcharge.auto_last_idx
+          && vcellmin_mv + TRANSCHARGE_BALANCING_MIN_GAP_MV < pylontech.bmu[transcharge.auto_last_idx].vlow ) {
+          transcharge.timeout = uwTick + TRANSCHARGE_AUTO_TIMEOUT_MS;
+          master_log("BALANCE: not charged enough, continue charging the same pack\n");
+        }
+
         // is this pack already being balanced?
-        if ((transcharge.enabled & (1<<vcellmin_mv_idx)) == 0) {
-          master_log("BALANCE: charge:");
-          master_log_hex(&vcellmin_mv_idx, 1);
-          master_log("\n");
+        else if ((transcharge.enabled & (1<<vcellmin_mv_idx)) == 0) {
           // disable all other pack balancing (only one at a time)
           transcharge_disable_all();
           // balance the pack with the lowest cell voltage only
           transcharge_enable(vcellmin_mv_idx, 1);
+          transcharge.auto_last_idx = vcellmin_mv_idx;
           transcharge.timeout = uwTick + TRANSCHARGE_AUTO_TIMEOUT_MS;
+          master_log("BALANCE: charge pack 0x");
+          master_log_hex(&vcellmin_mv_idx, 1);
+          master_log("\n");
         }
         else {
           master_log("BALANCE: no change\n");
@@ -627,7 +648,7 @@ void transcharge_auto_run(void) {
       }
       // no more pack requiring balancing, disable all
       else {
-        master_log("BALANCE: disable all charge\n");
+        master_log("BALANCE: disable all pack charging\n");
         transcharge_disable_all();
       }
     }

@@ -643,6 +643,7 @@ void transcharge_auto_run(void) {
           master_log("\n");
         }
         else {
+          transcharge.timeout = uwTick + TRANSCHARGE_AUTO_TIMEOUT_MS;
           master_log("BALANCE: no change\n");
         }
       }
@@ -956,6 +957,7 @@ void interp(void) {
 
     // take into account transcharge timeout
     if (transcharge.timeout && EXPIRED(transcharge.timeout)) {
+      master_log("BALANCE: timeout\n");
       transcharge_disable_all();
     }
 

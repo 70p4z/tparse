@@ -1055,17 +1055,11 @@ void interp(void) {
           solax_compute_maxcharge();
 
           // ensure not to overcharge, even if the pack wants to!, to limit wearing and runaway
-          if (pylontech.vcellmax < knobs.max_pylontech_charge_drive) {
+          if (pylontech.vcellmax < knobs.max_pylontech_charge_drive && knobs.forced_wattage == 0) {
             maxch = MAX(pylontech.computed_max_charge, pylontech.max_charge);
           }
           else {
             maxch = pylontech.computed_max_charge;
-          }
-          // force max charge if value is set
-          if (knobs.forced_wattage > 0) {
-            // compute I in dA from dW and dV
-            master_log("apply forced wattage\n");
-            maxch = MIN(pylontech.computed_max_charge, knobs.forced_wattage*10*10/pylontech.voltage);
           }
           tmp[4] = maxch&0xFF;
           tmp[5] = (maxch>>8)&0xFF;
@@ -2230,20 +2224,7 @@ void Configure_I2C_Slave(void)
 #endif // BOARD_DEV
 }
 
-void solax_compute_maxcharge(void) {
-  int32_t max_wattage = pylontech.computed_max_wattage;
-  // forced wattage takes over any safety condition, only the MAX voltage will be respected
-  if (knobs.forced_wattage > 0) {
-    max_wattage = knobs.forced_wattage;
-  }
-
-  // when no batt forced charge, then apply auto adjust
-  // get the best current approx in mA
-  int32_t batt_compensated_curr_dA = (MAX(SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE, max_wattage)
-                                      + (pylontech.voltage /*dV*/ * 10 /*dA*/)/100 
-                                      + PYLONTECH_BALANCING_OPTIMAL_WATTAGE
-                                     ) * 100
-                                     / pylontech.voltage;
+void solax_compute_maxcharge(void) {                                  
   int32_t batt_wattage = pylontech.wattage;
   if (pylontech.precise_wattage != 0 ) {
     batt_wattage = pylontech.precise_wattage;
@@ -2260,6 +2241,20 @@ void solax_compute_maxcharge(void) {
   if (EXPIRED(pylontech.computed_last_change_ms)) {
     pylontech.computed_last_change_ms = uwTick + SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS;
 
+    int32_t max_wattage = pylontech.computed_max_wattage;
+    // forced wattage takes over any safety condition, only the MAX voltage will be respected
+    if (knobs.forced_wattage > 0) {
+      max_wattage = knobs.forced_wattage;
+    }
+
+    // when no batt forced charge, then apply auto adjust
+    // get the best current approx in mA
+    int32_t batt_compensated_curr_dA = (MAX(SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE, max_wattage)
+                                        + (pylontech.voltage /*dV*/ * 10 /*dA*/)/100 
+                                        + PYLONTECH_BALANCING_OPTIMAL_WATTAGE
+                                       ) * 100
+                                       / pylontech.voltage;
+     
     // when target is 150W and current is 40W and voltage is 400V, correction dA is 2.75 (0.275*400 = 110W)
     // when target is 150W and current is -400W and voltage is 400V, correction dA is 13.75 (1.375*400 = 550W)
     // when target is 150W and current is 400W and voltage is 400V, correction dA is -6.25 (-0.625*400 = -250W)
@@ -2323,7 +2318,7 @@ void solax_compute_maxcharge(void) {
     }
     // when it's between bounds, it's just fine
   }
-  snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced: %dW, forced value %dmA\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knos.forced_wattage, pylontech.computed_max_charge*100);
+  snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced: %ldW, forced value %dmA\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knobs.forced_wattage, pylontech.computed_max_charge*100);
   master_log((char*)tmp+128);
 }
 

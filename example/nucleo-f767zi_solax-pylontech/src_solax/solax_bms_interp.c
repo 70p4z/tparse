@@ -363,7 +363,7 @@ const char * const solax_forced_work_mode_str [] = {
 
 struct {
   int32_t forced_soc;
-  int32_t forced_wattage;
+  int32_t forced_wattage; // unit: W
   uint8_t max_charge_voltage;
   uint8_t max_pylontech_charge_drive;
 } knobs;
@@ -1060,6 +1060,12 @@ void interp(void) {
           }
           else {
             maxch = pylontech.computed_max_charge;
+          }
+          // force max charge if value is set
+          if (knobs.forced_wattage > 0) {
+            // compute I in dA from dW and dV
+            master_log("apply forced wattage\n");
+            maxch = MIN(pylontech.computed_max_charge, knobs.forced_wattage*10*10/pylontech.voltage);
           }
           tmp[4] = maxch&0xFF;
           tmp[5] = (maxch>>8)&0xFF;
@@ -2317,7 +2323,7 @@ void solax_compute_maxcharge(void) {
     }
     // when it's between bounds, it's just fine
   }
-  snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced value %dmA\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, pylontech.computed_max_charge*100);
+  snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced: %dW, forced value %dmA\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knos.forced_wattage, pylontech.computed_max_charge*100);
   master_log((char*)tmp+128);
 }
 

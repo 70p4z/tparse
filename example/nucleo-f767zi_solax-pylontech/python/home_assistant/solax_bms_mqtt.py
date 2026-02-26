@@ -261,11 +261,11 @@ def mqtt_start():
         print("set: " + msg.payload.decode('utf-8'))
         intval = int(msg.payload.decode('utf-8'))
         intval = intval//10
-        msg=b'\x1A' + struct.pack(">B", intval)
+        msg=b'\x1A' + struct.pack(">B", int(intval))
         i2c_write(msg)
       except:
         traceback.print_exc()
-    mqtt_client.message_callback_add('homeassistant/number/solax_battery_forced_wattage/set', on_message_solax_forced_soc)
+    mqtt_client.message_callback_add('homeassistant/number/solax_battery_forced_wattage/set', on_message_solax_forced_wattage)
     mqtt_client.subscribe('homeassistant/number/solax_battery_forced_wattage/set')
     mqtt_client.publish('homeassistant/number/solax_battery_forced_wattage/config', payload=json.dumps({"device_class": "power", "name": "Solax Forced Charge Wattage", "state_topic": "homeassistant/number/solax_battery_forced_wattage/state", "unit_of_measurement": "W", "command_topic": "homeassistant/number/solax_battery_forced_wattage/set", "min": "0", "max": "2550", "step": "10"}), retain=True)
 
@@ -471,7 +471,7 @@ while True:
       mqtt_client.publish('homeassistant/sensor/solax_battery_capacity_mwh/state', payload=str(fields[Field.IDX_CAPACITY_MWH.value]), retain=True)
       mqtt_client.publish("homeassistant/number/solax_battery_max_charge_voltage/state", payload=str(fields[Field.IDX_MAX_CHG_VOLTAGE.value]/10), retain=True)
       mqtt_client.publish("homeassistant/number/solax_battery_forced_soc/state", payload=str(fields[Field.IDX_FORCED_SOC.value]), retain=True)
-      mqtt_client.publish("homeassistant/number/solax_battery_forced_wattage/state", payload=str(fields[Field.IDX_FORCED_WATTAGE.value]), retain=True)
+      mqtt_client.publish("homeassistant/number/solax_battery_forced_wattage/state", payload=str(fields[Field.IDX_FORCED_WATTAGE.value]*10), retain=True)
       mqtt_client.publish("homeassistant/number/solax_bat_chrgr_auto/state", payload=str(fields[Field.IDX_BATCHRGR_AUTO.value]), retain=True)
       mqtt_client.publish("homeassistant/number/solax_bat_chrgr_wattage/state", payload=str(fields[Field.IDX_BATCHRGR_ALLOWED_WATTAGE.value]), retain=True)
       mqtt_client.publish("homeassistant/switch/solax_bat_transcharge_auto/state", payload=mqtt_boolstr(fields[Field.IDX_TRANSCHARGE_AUTO.value]!=0), retain=True)

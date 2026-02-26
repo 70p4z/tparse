@@ -11259,7 +11259,7 @@ LOAD /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtn.o
                 0x08000000                g_pfnVectors
                 0x080001f8                        . = ALIGN (0x4)
 
-.text           0x080001f8     0x5904
+.text           0x080001f8     0x5954
                 0x080001f8                        . = ALIGN (0x4)
  *(.text)
  .text          0x080001f8       0x98 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
@@ -11386,329 +11386,329 @@ LOAD /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtn.o
                 0x0800221c        0xc build_solax/solax_bms_interp.o
                 0x0800221c                I2C_Slave_Match_Callback
  .text.I2C_Slave_Reception_Callback
-                0x08002228      0x5c8 build_solax/solax_bms_interp.o
+                0x08002228      0x5e4 build_solax/solax_bms_interp.o
                 0x08002228                I2C_Slave_Reception_Callback
  .text.I2C_Slave_Ready_To_Transmit_Callback
-                0x080027f0       0x34 build_solax/solax_bms_interp.o
-                0x080027f0                I2C_Slave_Ready_To_Transmit_Callback
+                0x0800280c       0x34 build_solax/solax_bms_interp.o
+                0x0800280c                I2C_Slave_Ready_To_Transmit_Callback
  .text.I2C_Error_Callback
-                0x08002824       0x1c build_solax/solax_bms_interp.o
-                0x08002824                I2C_Error_Callback
+                0x08002840       0x1c build_solax/solax_bms_interp.o
+                0x08002840                I2C_Error_Callback
  .text.I2CS_EV_IRQHandler
-                0x08002840       0x98 build_solax/solax_bms_interp.o
-                0x08002840                I2CS_EV_IRQHandler
+                0x0800285c       0x98 build_solax/solax_bms_interp.o
+                0x0800285c                I2CS_EV_IRQHandler
  .text.I2CS_ER_IRQHandler
-                0x080028d8       0x4c build_solax/solax_bms_interp.o
-                0x080028d8                I2CS_ER_IRQHandler
+                0x080028f4       0x4c build_solax/solax_bms_interp.o
+                0x080028f4                I2CS_ER_IRQHandler
  .text.Configure_I2C_Slave
-                0x08002924      0x124 build_solax/solax_bms_interp.o
-                0x08002924                Configure_I2C_Slave
+                0x08002940      0x124 build_solax/solax_bms_interp.o
+                0x08002940                Configure_I2C_Slave
  .text.solax_compute_maxcharge
-                0x08002a48      0x20c build_solax/solax_bms_interp.o
-                0x08002a48                solax_compute_maxcharge
+                0x08002a64      0x20c build_solax/solax_bms_interp.o
+                0x08002a64                solax_compute_maxcharge
  .text.solax_process_data
-                0x08002c54      0x1dc build_solax/solax_bms_interp.o
-                0x08002c54                solax_process_data
- .text.interp   0x08002e30     0x155c build_solax/solax_bms_interp.o
-                0x08002e30                interp
+                0x08002c70      0x1dc build_solax/solax_bms_interp.o
+                0x08002c70                solax_process_data
+ .text.interp   0x08002e4c     0x1590 build_solax/solax_bms_interp.o
+                0x08002e4c                interp
  .text.Reset_Handler
-                0x0800438c       0x50 build_solax/startup_stm32f767xx.o
-                0x0800438c                Reset_Handler
- .text.can_rx   0x080043dc       0xe6 build_solax/intf_can.o
+                0x080043dc       0x50 build_solax/startup_stm32f767xx.o
+                0x080043dc                Reset_Handler
+ .text.can_rx   0x0800442c       0xe6 build_solax/intf_can.o
  .text.LL_GPIO_SetPinMode
-                0x080044c2       0x6a build_solax/intf_can.o
+                0x08004512       0x6a build_solax/intf_can.o
  .text.LL_GPIO_SetAFPin_8_15
-                0x0800452c       0x6a build_solax/intf_can.o
+                0x0800457c       0x6a build_solax/intf_can.o
  .text.LL_GPIO_SetPinSpeed
-                0x08004596       0x6a build_solax/intf_can.o
+                0x080045e6       0x6a build_solax/intf_can.o
  .text.LL_GPIO_SetPinPull
-                0x08004600       0x6a build_solax/intf_can.o
+                0x08004650       0x6a build_solax/intf_can.o
  .text.LL_GPIO_SetAFPin_0_7
-                0x0800466a       0x6a build_solax/intf_can.o
+                0x080046ba       0x6a build_solax/intf_can.o
  .text.can_get_idx
-                0x080046d4       0x14 build_solax/intf_can.o
-                0x080046d4                can_get_idx
- .text.can_tx   0x080046e8      0x114 build_solax/intf_can.o
-                0x080046e8                can_tx
+                0x08004724       0x14 build_solax/intf_can.o
+                0x08004724                can_get_idx
+ .text.can_tx   0x08004738      0x114 build_solax/intf_can.o
+                0x08004738                can_tx
  .text.CAN_IRQHandler_init
-                0x080047fc       0x18 build_solax/intf_can.o
-                0x080047fc                CAN_IRQHandler_init
+                0x0800484c       0x18 build_solax/intf_can.o
+                0x0800484c                CAN_IRQHandler_init
  .text.Configure_CAN_generic
-                0x08004814      0x120 build_solax/intf_can.o
+                0x08004864      0x120 build_solax/intf_can.o
  .text.CANx_RXy_IRQHandler
-                0x08004934       0x88 build_solax/intf_can.o
-                0x08004934                CANx_RXy_IRQHandler
+                0x08004984       0x88 build_solax/intf_can.o
+                0x08004984                CANx_RXy_IRQHandler
  .text.CAN1_RX0_IRQHandler
-                0x080049bc       0x10 build_solax/intf_can.o
-                0x080049bc                CAN1_RX0_IRQHandler
+                0x08004a0c       0x10 build_solax/intf_can.o
+                0x08004a0c                CAN1_RX0_IRQHandler
  .text.CAN1_RX1_IRQHandler
-                0x080049cc       0x10 build_solax/intf_can.o
-                0x080049cc                CAN1_RX1_IRQHandler
+                0x08004a1c       0x10 build_solax/intf_can.o
+                0x08004a1c                CAN1_RX1_IRQHandler
  .text.CAN3_RX0_IRQHandler
-                0x080049dc       0x10 build_solax/intf_can.o
-                0x080049dc                CAN3_RX0_IRQHandler
+                0x08004a2c       0x10 build_solax/intf_can.o
+                0x08004a2c                CAN3_RX0_IRQHandler
  .text.CAN3_RX1_IRQHandler
-                0x080049ec       0x10 build_solax/intf_can.o
-                0x080049ec                CAN3_RX1_IRQHandler
+                0x08004a3c       0x10 build_solax/intf_can.o
+                0x08004a3c                CAN3_RX1_IRQHandler
  .text.can_fifo_avail
-                0x080049fc       0x30 build_solax/intf_can.o
-                0x080049fc                can_fifo_avail
+                0x08004a4c       0x30 build_solax/intf_can.o
+                0x08004a4c                can_fifo_avail
  .text.can_fifo_rx
-                0x08004a2c       0xac build_solax/intf_can.o
-                0x08004a2c                can_fifo_rx
+                0x08004a7c       0xac build_solax/intf_can.o
+                0x08004a7c                can_fifo_rx
  .text.Configure_CAN1
-                0x08004ad8       0xb8 build_solax/intf_can.o
-                0x08004ad8                Configure_CAN1
+                0x08004b28       0xb8 build_solax/intf_can.o
+                0x08004b28                Configure_CAN1
  .text.Configure_CAN3
-                0x08004b90       0xa8 build_solax/intf_can.o
-                0x08004b90                Configure_CAN3
+                0x08004be0       0xa8 build_solax/intf_can.o
+                0x08004be0                Configure_CAN3
  .text.NMI_Handler
-                0x08004c38       0x10 build_solax/stm32f7xx_it.o
-                0x08004c38                NMI_Handler
+                0x08004c88       0x10 build_solax/stm32f7xx_it.o
+                0x08004c88                NMI_Handler
  .text.SysTick_Handler
-                0x08004c48       0x10 build_solax/stm32f7xx_it.o
-                0x08004c48                SysTick_Handler
+                0x08004c98       0x10 build_solax/stm32f7xx_it.o
+                0x08004c98                SysTick_Handler
  .text.LL_GPIO_SetPinMode
-                0x08004c58       0x6a build_solax/intf_usart.o
+                0x08004ca8       0x6a build_solax/intf_usart.o
  .text.LL_GPIO_SetAFPin_8_15
-                0x08004cc2       0x6a build_solax/intf_usart.o
+                0x08004d12       0x6a build_solax/intf_usart.o
  .text.LL_GPIO_SetPinSpeed
-                0x08004d2c       0x6a build_solax/intf_usart.o
+                0x08004d7c       0x6a build_solax/intf_usart.o
  .text.LL_GPIO_SetPinPull
-                0x08004d96       0x6a build_solax/intf_usart.o
+                0x08004de6       0x6a build_solax/intf_usart.o
  .text.LL_GPIO_SetAFPin_0_7
-                0x08004e00       0x6a build_solax/intf_usart.o
- *fill*         0x08004e6a        0x2 
+                0x08004e50       0x6a build_solax/intf_usart.o
+ *fill*         0x08004eba        0x2 
  .text.uart_select_intf
-                0x08004e6c        0xc build_solax/intf_usart.o
-                0x08004e6c                uart_select_intf
+                0x08004ebc        0xc build_solax/intf_usart.o
+                0x08004ebc                uart_select_intf
  .text.uart_send_mem
-                0x08004e78       0x74 build_solax/intf_usart.o
-                0x08004e78                uart_send_mem
+                0x08004ec8       0x74 build_solax/intf_usart.o
+                0x08004ec8                uart_send_mem
  .text.uart_send
-                0x08004eec       0x12 build_solax/intf_usart.o
-                0x08004eec                uart_send
- .text.n2h      0x08004efe       0x10 build_solax/intf_usart.o
-                0x08004efe                n2h
+                0x08004f3c       0x12 build_solax/intf_usart.o
+                0x08004f3c                uart_send
+ .text.n2h      0x08004f4e       0x10 build_solax/intf_usart.o
+                0x08004f4e                n2h
  .text.uart_send_hex
-                0x08004f0e       0x40 build_solax/intf_usart.o
-                0x08004f0e                uart_send_hex
- *fill*         0x08004f4e        0x2 
+                0x08004f5e       0x40 build_solax/intf_usart.o
+                0x08004f5e                uart_send_hex
+ *fill*         0x08004f9e        0x2 
  .text.Configure_USBVCP
-                0x08004f50      0x1a8 build_solax/intf_usart.o
-                0x08004f50                Configure_USBVCP
+                0x08004fa0      0x1a8 build_solax/intf_usart.o
+                0x08004fa0                Configure_USBVCP
  .text.Configure_UARTPW
-                0x080050f8      0x1a0 build_solax/intf_usart.o
-                0x080050f8                Configure_UARTPW
+                0x08005148      0x1a0 build_solax/intf_usart.o
+                0x08005148                Configure_UARTPW
  .text.Configure_UARTBMS
-                0x08005298      0x1a8 build_solax/intf_usart.o
-                0x08005298                Configure_UARTBMS
+                0x080052e8      0x1a8 build_solax/intf_usart.o
+                0x080052e8                Configure_UARTBMS
  .text.LL_GPIO_SetPinMode
-                0x08005440       0x6a build_solax/intf_gpio.o
+                0x08005490       0x6a build_solax/intf_gpio.o
  .text.LL_GPIO_SetPinSpeed
-                0x080054aa       0x6a build_solax/intf_gpio.o
+                0x080054fa       0x6a build_solax/intf_gpio.o
  .text.LL_GPIO_SetPinPull
-                0x08005514       0x6a build_solax/intf_gpio.o
- *fill*         0x0800557e        0x2 
+                0x08005564       0x6a build_solax/intf_gpio.o
+ *fill*         0x080055ce        0x2 
  .text.gpio_set
-                0x08005580       0x44 build_solax/intf_gpio.o
-                0x08005580                gpio_set
+                0x080055d0       0x44 build_solax/intf_gpio.o
+                0x080055d0                gpio_set
  .text.tparse_al_time
-                0x080055c4        0xc build_solax/main.o
-                0x080055c4                tparse_al_time
- .text.main     0x080055d0        0x8 build_solax/main.o
-                0x080055d0                main
+                0x08005614        0xc build_solax/main.o
+                0x08005614                tparse_al_time
+ .text.main     0x08005620        0x8 build_solax/main.o
+                0x08005620                main
  .text.SystemInit
-                0x080055d8        0x2 build_solax/system_stm32f7xx.o
-                0x080055d8                SystemInit
- *fill*         0x080055da        0x2 
+                0x08005628        0x2 build_solax/system_stm32f7xx.o
+                0x08005628                SystemInit
+ *fill*         0x0800562a        0x2 
  .text.LL_mDelay
-                0x080055dc       0x28 build_solax/stm32f7xx_ll_utils.o
-                0x080055dc                LL_mDelay
+                0x0800562c       0x28 build_solax/stm32f7xx_ll_utils.o
+                0x0800562c                LL_mDelay
  .text.LL_SetSystemCoreClock
-                0x08005604        0xc build_solax/stm32f7xx_ll_utils.o
-                0x08005604                LL_SetSystemCoreClock
+                0x08005654        0xc build_solax/stm32f7xx_ll_utils.o
+                0x08005654                LL_SetSystemCoreClock
  .text.tparse_init
-                0x08005610       0x24 build_solax/tparse.o
-                0x08005610                tparse_init
+                0x08005660       0x24 build_solax/tparse.o
+                0x08005660                tparse_init
  .text.tparse_finger
-                0x08005634       0x1e build_solax/tparse.o
-                0x08005634                tparse_finger
+                0x08005684       0x1e build_solax/tparse.o
+                0x08005684                tparse_finger
  .text.tparse_reset
-                0x08005652       0x1a build_solax/tparse.o
-                0x08005652                tparse_reset
+                0x080056a2       0x1a build_solax/tparse.o
+                0x080056a2                tparse_reset
  .text.tparse_discard
-                0x0800566c        0x6 build_solax/tparse.o
-                0x0800566c                tparse_discard
+                0x080056bc        0x6 build_solax/tparse.o
+                0x080056bc                tparse_discard
  .text.tparse_discard_line
-                0x08005672       0x5c build_solax/tparse.o
-                0x08005672                tparse_discard_line
+                0x080056c2       0x5c build_solax/tparse.o
+                0x080056c2                tparse_discard_line
  .text.tparse_token_internal
-                0x080056ce      0x130 build_solax/tparse.o
-                0x080056ce                tparse_token_internal
+                0x0800571e      0x130 build_solax/tparse.o
+                0x0800571e                tparse_token_internal
  .text.tparse_token_p
-                0x080057fe       0x14 build_solax/tparse.o
-                0x080057fe                tparse_token_p
+                0x0800584e       0x14 build_solax/tparse.o
+                0x0800584e                tparse_token_p
  .text.tparse_avail
-                0x08005812       0x14 build_solax/tparse.o
-                0x08005812                tparse_avail
+                0x08005862       0x14 build_solax/tparse.o
+                0x08005862                tparse_avail
  .text.tparse_read
-                0x08005826       0x5e build_solax/tparse.o
-                0x08005826                tparse_read
+                0x08005876       0x5e build_solax/tparse.o
+                0x08005876                tparse_read
  .text.tparse_has_line
-                0x08005884       0x2c build_solax/tparse.o
-                0x08005884                tparse_has_line
+                0x080058d4       0x2c build_solax/tparse.o
+                0x080058d4                tparse_has_line
  .text.tparse_peek_line
-                0x080058b0       0x50 build_solax/tparse.o
-                0x080058b0                tparse_peek_line
+                0x08005900       0x50 build_solax/tparse.o
+                0x08005900                tparse_peek_line
  .text.tparse_token_size
-                0x08005900       0x3a build_solax/tparse.o
-                0x08005900                tparse_token_size
+                0x08005950       0x3a build_solax/tparse.o
+                0x08005950                tparse_token_size
  .text.tparse_token_parts
-                0x0800593a       0x6e build_solax/tparse.o
-                0x0800593a                tparse_token_parts
+                0x0800598a       0x6e build_solax/tparse.o
+                0x0800598a                tparse_token_parts
  .text.tparse_token
-                0x080059a8       0x5c build_solax/tparse.o
-                0x080059a8                tparse_token
+                0x080059f8       0x5c build_solax/tparse.o
+                0x080059f8                tparse_token
  .text.tparse_token_u32_base
-                0x08005a04       0xcc build_solax/tparse.o
-                0x08005a04                tparse_token_u32_base
+                0x08005a54       0xcc build_solax/tparse.o
+                0x08005a54                tparse_token_u32_base
  .text.tparse_token_u32
-                0x08005ad0        0xa build_solax/tparse.o
-                0x08005ad0                tparse_token_u32
+                0x08005b20        0xa build_solax/tparse.o
+                0x08005b20                tparse_token_u32
  .text.tparse_token_i32
-                0x08005ada        0xa build_solax/tparse.o
-                0x08005ada                tparse_token_i32
+                0x08005b2a        0xa build_solax/tparse.o
+                0x08005b2a                tparse_token_i32
  *(.glue_7)
- .glue_7        0x08005ae4        0x0 linker stubs
+ .glue_7        0x08005b34        0x0 linker stubs
  *(.glue_7t)
- .glue_7t       0x08005ae4        0x0 linker stubs
+ .glue_7t       0x08005b34        0x0 linker stubs
  *(.eh_frame)
- .eh_frame      0x08005ae4        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
+ .eh_frame      0x08005b34        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
  *(.init)
- .init          0x08005ae4        0x4 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crti.o
-                0x08005ae4                _init
- .init          0x08005ae8        0x8 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtn.o
+ .init          0x08005b34        0x4 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crti.o
+                0x08005b34                _init
+ .init          0x08005b38        0x8 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtn.o
  *(.fini)
- .fini          0x08005af0        0x4 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crti.o
-                0x08005af0                _fini
- .fini          0x08005af4        0x8 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtn.o
-                0x08005afc                        . = ALIGN (0x4)
-                0x08005afc                        _etext = .
+ .fini          0x08005b40        0x4 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crti.o
+                0x08005b40                _fini
+ .fini          0x08005b44        0x8 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtn.o
+                0x08005b4c                        . = ALIGN (0x4)
+                0x08005b4c                        _etext = .
 
-.vfp11_veneer   0x08005afc        0x0
- .vfp11_veneer  0x08005afc        0x0 linker stubs
+.vfp11_veneer   0x08005b4c        0x0
+ .vfp11_veneer  0x08005b4c        0x0 linker stubs
 
-.v4_bx          0x08005afc        0x0
- .v4_bx         0x08005afc        0x0 linker stubs
+.v4_bx          0x08005b4c        0x0
+ .v4_bx         0x08005b4c        0x0 linker stubs
 
-.iplt           0x08005afc        0x0
- .iplt          0x08005afc        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
+.iplt           0x08005b4c        0x0
+ .iplt          0x08005b4c        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
 
-.rodata         0x08005afc      0xb6c
-                0x08005afc                        . = ALIGN (0x4)
+.rodata         0x08005b4c      0xba4
+                0x08005b4c                        . = ALIGN (0x4)
  *(.rodata)
- .rodata        0x08005afc        0x9 build_solax/solax_bms_interp.o
- *fill*         0x08005b05        0x3 
- .rodata        0x08005b08       0x84 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
+ .rodata        0x08005b4c        0x9 build_solax/solax_bms_interp.o
+ *fill*         0x08005b55        0x3 
+ .rodata        0x08005b58       0x84 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
  *(.rodata*)
  .rodata.master_log_can.str1.4
-                0x08005b8c      0x909 build_solax/solax_bms_interp.o
+                0x08005bdc      0x941 build_solax/solax_bms_interp.o
                                  0x12 (size before relaxing)
  .rodata.can_solax_tx_log.str1.4
-                0x08006495        0xf build_solax/solax_bms_interp.o
+                0x0800651d        0xf build_solax/solax_bms_interp.o
  .rodata.can_bms_tx_log.str1.4
-                0x08006495        0xf build_solax/solax_bms_interp.o
+                0x0800651d        0xf build_solax/solax_bms_interp.o
  .rodata.transcharge_auto_run.str1.4
-                0x08006495       0xe0 build_solax/solax_bms_interp.o
+                0x0800651d       0xe0 build_solax/solax_bms_interp.o
  .rodata.I2C_Slave_Reception_Callback.str1.4
-                0x08006495      0x143 build_solax/solax_bms_interp.o
- *fill*         0x08006495        0x3 
+                0x0800651d      0x164 build_solax/solax_bms_interp.o
+ *fill*         0x0800651d        0x3 
  .rodata.I2C_Slave_Reception_Callback
-                0x08006498      0x13c build_solax/solax_bms_interp.o
+                0x08006520      0x13c build_solax/solax_bms_interp.o
  .rodata.solax_compute_maxcharge.str1.4
-                0x080065d4       0xe1 build_solax/solax_bms_interp.o
+                0x0800665c       0xe1 build_solax/solax_bms_interp.o
  .rodata.solax_process_data.str1.4
-                0x080065d4       0x85 build_solax/solax_bms_interp.o
+                0x0800665c       0x85 build_solax/solax_bms_interp.o
  .rodata.interp.str1.4
-                0x080065d4      0x502 build_solax/solax_bms_interp.o
+                0x0800665c      0x51a build_solax/solax_bms_interp.o
  .rodata.interp
-                0x080065d4       0x1c build_solax/solax_bms_interp.o
+                0x0800665c       0x1c build_solax/solax_bms_interp.o
  .rodata.transcharge_gpios
-                0x080065f0       0x20 build_solax/solax_bms_interp.o
-                0x080065f0                transcharge_gpios
+                0x08006678       0x20 build_solax/solax_bms_interp.o
+                0x08006678                transcharge_gpios
  .rodata.solax_pw_cfg_gmppt_pv2_high
-                0x08006610        0x9 build_solax/solax_bms_interp.o
-                0x08006610                solax_pw_cfg_gmppt_pv2_high
- *fill*         0x08006619        0x3 
+                0x08006698        0x9 build_solax/solax_bms_interp.o
+                0x08006698                solax_pw_cfg_gmppt_pv2_high
+ *fill*         0x080066a1        0x3 
  .rodata.solax_pw_cfg_gmppt_pv2_off
-                0x0800661c        0x9 build_solax/solax_bms_interp.o
-                0x0800661c                solax_pw_cfg_gmppt_pv2_off
- *fill*         0x08006625        0x3 
+                0x080066a4        0x9 build_solax/solax_bms_interp.o
+                0x080066a4                solax_pw_cfg_gmppt_pv2_off
+ *fill*         0x080066ad        0x3 
  .rodata.solax_pw_cfg_gmppt_pv1_high
-                0x08006628        0x9 build_solax/solax_bms_interp.o
-                0x08006628                solax_pw_cfg_gmppt_pv1_high
- *fill*         0x08006631        0x3 
+                0x080066b0        0x9 build_solax/solax_bms_interp.o
+                0x080066b0                solax_pw_cfg_gmppt_pv1_high
+ *fill*         0x080066b9        0x3 
  .rodata.solax_pw_cfg_gmppt_pv1_off
-                0x08006634        0x9 build_solax/solax_bms_interp.o
-                0x08006634                solax_pw_cfg_gmppt_pv1_off
- *fill*         0x0800663d        0x3 
+                0x080066bc        0x9 build_solax/solax_bms_interp.o
+                0x080066bc                solax_pw_cfg_gmppt_pv1_off
+ *fill*         0x080066c5        0x3 
  .rodata.solax_pw_cfg_PIN
-                0x08006640        0x9 build_solax/solax_bms_interp.o
-                0x08006640                solax_pw_cfg_PIN
- *fill*         0x08006649        0x3 
+                0x080066c8        0x9 build_solax/solax_bms_interp.o
+                0x080066c8                solax_pw_cfg_PIN
+ *fill*         0x080066d1        0x3 
  .rodata.solax_pw_cmd_mode_self_use
-                0x0800664c        0x9 build_solax/solax_bms_interp.o
-                0x0800664c                solax_pw_cmd_mode_self_use
- *fill*         0x08006655        0x3 
+                0x080066d4        0x9 build_solax/solax_bms_interp.o
+                0x080066d4                solax_pw_cmd_mode_self_use
+ *fill*         0x080066dd        0x3 
  .rodata.solax_pw_cmd_get_stat_0x25F
-                0x08006658        0x7 build_solax/solax_bms_interp.o
-                0x08006658                solax_pw_cmd_get_stat_0x25F
- *fill*         0x0800665f        0x1 
+                0x080066e0        0x7 build_solax/solax_bms_interp.o
+                0x080066e0                solax_pw_cmd_get_stat_0x25F
+ *fill*         0x080066e7        0x1 
  .rodata.solax_pw_cmd_change_bitrate
-                0x08006660        0x7 build_solax/solax_bms_interp.o
-                0x08006660                solax_pw_cmd_change_bitrate
+                0x080066e8        0x7 build_solax/solax_bms_interp.o
+                0x080066e8                solax_pw_cmd_change_bitrate
  .rodata.NMI_Handler.str1.4
-                0x08006667        0xd build_solax/stm32f7xx_it.o
+                0x080066ef        0xd build_solax/stm32f7xx_it.o
  .rodata.str1.4
-                0x08006667       0x13 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-svfprintf.o)
+                0x080066ef       0x13 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-svfprintf.o)
  .rodata.str1.4
-                0x08006667       0x25 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
-                0x0800668c                        . = ALIGN (0x4)
- *fill*         0x08006667        0x1 
+                0x080066ef       0x25 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
+                0x08006714                        . = ALIGN (0x4)
+ *fill*         0x080066ef        0x1 
 
-.rel.dyn        0x08006668        0x0
- .rel.iplt      0x08006668        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
+.rel.dyn        0x080066f0        0x0
+ .rel.iplt      0x080066f0        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
 
 .ARM.extab
  *(.ARM.extab* .gnu.linkonce.armextab.*)
 
-.ARM            0x08006668        0x0
-                0x08006668                        __exidx_start = .
+.ARM            0x080066f0        0x0
+                0x080066f0                        __exidx_start = .
  *(.ARM.exidx*)
-                0x08006668                        __exidx_end = .
+                0x080066f0                        __exidx_end = .
 
-.preinit_array  0x08006668        0x0
-                0x08006668                        PROVIDE (__preinit_array_start = .)
+.preinit_array  0x080066f0        0x0
+                0x080066f0                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array*)
-                0x08006668                        PROVIDE (__preinit_array_end = .)
+                0x080066f0                        PROVIDE (__preinit_array_end = .)
 
-.init_array     0x08006668        0x4
-                0x08006668                        PROVIDE (__init_array_start = .)
+.init_array     0x080066f0        0x4
+                0x080066f0                        PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
- .init_array    0x08006668        0x4 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
-                0x0800666c                        PROVIDE (__init_array_end = .)
+ .init_array    0x080066f0        0x4 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
+                0x080066f4                        PROVIDE (__init_array_end = .)
 
-.fini_array     0x0800666c        0x4
-                0x0800666c                        PROVIDE (__fini_array_start = .)
+.fini_array     0x080066f4        0x4
+                0x080066f4                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
- .fini_array    0x0800666c        0x4 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
-                0x08006670                        PROVIDE (__fini_array_end = .)
-                0x08006670                        _sidata = LOADADDR (.data)
+ .fini_array    0x080066f4        0x4 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
+                0x080066f8                        PROVIDE (__fini_array_end = .)
+                0x080066f8                        _sidata = LOADADDR (.data)
 
-.data           0x20000000       0x54 load address 0x08006670
+.data           0x20000000       0x54 load address 0x080066f8
                 0x20000000                        . = ALIGN (0x4)
                 0x20000000                        _sdata = .
  *(.data)
@@ -11723,17 +11723,17 @@ LOAD /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtn.o
                 0x20000054                        _edata = .
 
 .tm_clone_table
-                0x20000054        0x0 load address 0x080066c4
+                0x20000054        0x0 load address 0x0800674c
  .tm_clone_table
                 0x20000054        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
  .tm_clone_table
                 0x20000054        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtend.o
 
-.igot.plt       0x20000054        0x0 load address 0x080066c4
+.igot.plt       0x20000054        0x0 load address 0x0800674c
  .igot.plt      0x20000054        0x0 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtbegin.o
                 0x20000054                        . = ALIGN (0x4)
 
-.bss            0x20000054     0x5718 load address 0x080066c4
+.bss            0x20000054     0x5718 load address 0x0800674c
                 0x20000054                        _sbss = .
                 0x20000054                        __bss_start__ = _sbss
  *(.bss)
@@ -11816,7 +11816,7 @@ LOAD /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtn.o
                 0x2000576c                        __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x2000576c      0x604 load address 0x080066c4
+                0x2000576c      0x604 load address 0x0800674c
                 0x20005770                        . = ALIGN (0x8)
  *fill*         0x2000576c        0x4 
                 [!provide]                        PROVIDE (end = .)
@@ -11960,44 +11960,44 @@ LOAD /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a
  .comment       0x0000004c       0x27 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reent.o)
  .comment       0x0000004c       0x27 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/crtend.o
 
-.debug_info     0x00000000    0x1587e
- .debug_info    0x00000000     0x5a10 build_solax/solax_bms_interp.o
- .debug_info    0x00005a10       0x31 build_solax/startup_stm32f767xx.o
- .debug_info    0x00005a41     0x1a85 build_solax/intf_can.o
- .debug_info    0x000074c6      0x147 build_solax/stm32f7xx_it.o
- .debug_info    0x0000760d     0x2532 build_solax/intf_usart.o
- .debug_info    0x00009b3f      0x723 build_solax/intf_gpio.o
- .debug_info    0x0000a262      0x178 build_solax/main.o
- .debug_info    0x0000a3da      0x366 build_solax/system_stm32f7xx.o
- .debug_info    0x0000a740      0xcbb build_solax/stm32f7xx_ll_utils.o
- .debug_info    0x0000b3fb      0xafa build_solax/stm32f7xx_hal.o
- .debug_info    0x0000bef5      0xeed build_solax/tparse.o
- .debug_info    0x0000cde2       0xeb /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strlen-stub.o)
- .debug_info    0x0000cecd      0x148 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memmove.o)
- .debug_info    0x0000d015      0x10b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-init.o)
- .debug_info    0x0000d120      0x86c /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strstr.o)
- .debug_info    0x0000d98c      0x135 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memset.o)
- .debug_info    0x0000dac1      0x12b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcmp.o)
- .debug_info    0x0000dbec       0xe1 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strnlen.o)
- .debug_info    0x0000dccd      0x905 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-snprintf.o)
- .debug_info    0x0000e5d2      0x130 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strchr.o)
- .debug_info    0x0000e702     0x10af /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-svfprintf.o)
- .debug_info    0x0000f7b1      0x14a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memchr-stub.o)
- .debug_info    0x0000f8fb      0xe8d /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-findfp.o)
- .debug_info    0x00010788      0x9bb /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mallocr.o)
- .debug_info    0x00011143      0x86a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-freer.o)
- .debug_info    0x000119ad      0x70b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-impure.o)
- .debug_info    0x000120b8      0x8ec /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reallocr.o)
- .debug_info    0x000129a4      0xde9 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
- .debug_info    0x0001378d      0x71c /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mlock.o)
- .debug_info    0x00013ea9      0x152 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcpy-stub.o)
- .debug_info    0x00013ffb      0x778 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-sbrkr.o)
- .debug_info    0x00014773      0x78a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-msizer.o)
- .debug_info    0x00014efd      0x898 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reent.o)
- .debug_info    0x00015795       0x3e /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_udivsi3.o)
- .debug_info    0x000157d3       0x3e /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_divsi3.o)
- .debug_info    0x00015811       0x3c /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
- .debug_info    0x0001584d       0x31 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_clzsi2.o)
+.debug_info     0x00000000    0x158e9
+ .debug_info    0x00000000     0x5a7b build_solax/solax_bms_interp.o
+ .debug_info    0x00005a7b       0x31 build_solax/startup_stm32f767xx.o
+ .debug_info    0x00005aac     0x1a85 build_solax/intf_can.o
+ .debug_info    0x00007531      0x147 build_solax/stm32f7xx_it.o
+ .debug_info    0x00007678     0x2532 build_solax/intf_usart.o
+ .debug_info    0x00009baa      0x723 build_solax/intf_gpio.o
+ .debug_info    0x0000a2cd      0x178 build_solax/main.o
+ .debug_info    0x0000a445      0x366 build_solax/system_stm32f7xx.o
+ .debug_info    0x0000a7ab      0xcbb build_solax/stm32f7xx_ll_utils.o
+ .debug_info    0x0000b466      0xafa build_solax/stm32f7xx_hal.o
+ .debug_info    0x0000bf60      0xeed build_solax/tparse.o
+ .debug_info    0x0000ce4d       0xeb /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strlen-stub.o)
+ .debug_info    0x0000cf38      0x148 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memmove.o)
+ .debug_info    0x0000d080      0x10b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-init.o)
+ .debug_info    0x0000d18b      0x86c /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strstr.o)
+ .debug_info    0x0000d9f7      0x135 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memset.o)
+ .debug_info    0x0000db2c      0x12b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcmp.o)
+ .debug_info    0x0000dc57       0xe1 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strnlen.o)
+ .debug_info    0x0000dd38      0x905 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-snprintf.o)
+ .debug_info    0x0000e63d      0x130 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strchr.o)
+ .debug_info    0x0000e76d     0x10af /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-svfprintf.o)
+ .debug_info    0x0000f81c      0x14a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memchr-stub.o)
+ .debug_info    0x0000f966      0xe8d /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-findfp.o)
+ .debug_info    0x000107f3      0x9bb /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mallocr.o)
+ .debug_info    0x000111ae      0x86a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-freer.o)
+ .debug_info    0x00011a18      0x70b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-impure.o)
+ .debug_info    0x00012123      0x8ec /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reallocr.o)
+ .debug_info    0x00012a0f      0xde9 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
+ .debug_info    0x000137f8      0x71c /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mlock.o)
+ .debug_info    0x00013f14      0x152 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcpy-stub.o)
+ .debug_info    0x00014066      0x778 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-sbrkr.o)
+ .debug_info    0x000147de      0x78a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-msizer.o)
+ .debug_info    0x00014f68      0x898 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reent.o)
+ .debug_info    0x00015800       0x3e /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_udivsi3.o)
+ .debug_info    0x0001583e       0x3e /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_divsi3.o)
+ .debug_info    0x0001587c       0x3c /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
+ .debug_info    0x000158b8       0x31 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_clzsi2.o)
 
 .debug_abbrev   0x00000000     0x3ea1
  .debug_abbrev  0x00000000      0x60c build_solax/solax_bms_interp.o
@@ -12039,63 +12039,63 @@ LOAD /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a
  .debug_abbrev  0x00003e79       0x28 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_clzsi2.o)
 
 .debug_loclists
-                0x00000000     0x792c
+                0x00000000     0x7928
  .debug_loclists
-                0x00000000     0x1536 build_solax/solax_bms_interp.o
+                0x00000000     0x1532 build_solax/solax_bms_interp.o
  .debug_loclists
-                0x00001536      0xb07 build_solax/intf_can.o
+                0x00001532      0xb07 build_solax/intf_can.o
  .debug_loclists
-                0x0000203d     0x1109 build_solax/intf_usart.o
+                0x00002039     0x1109 build_solax/intf_usart.o
  .debug_loclists
-                0x00003146      0x4e3 build_solax/intf_gpio.o
+                0x00003142      0x4e3 build_solax/intf_gpio.o
  .debug_loclists
-                0x00003629      0x109 build_solax/system_stm32f7xx.o
+                0x00003625      0x109 build_solax/system_stm32f7xx.o
  .debug_loclists
-                0x00003732      0x4f5 build_solax/stm32f7xx_ll_utils.o
+                0x0000372e      0x4f5 build_solax/stm32f7xx_ll_utils.o
  .debug_loclists
-                0x00003c27       0xe1 build_solax/stm32f7xx_hal.o
+                0x00003c23       0xe1 build_solax/stm32f7xx_hal.o
  .debug_loclists
-                0x00003d08      0xbd3 build_solax/tparse.o
+                0x00003d04      0xbd3 build_solax/tparse.o
  .debug_loclists
-                0x000048db       0x57 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strlen-stub.o)
+                0x000048d7       0x57 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strlen-stub.o)
  .debug_loclists
-                0x00004932      0x3ac /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memmove.o)
+                0x0000492e      0x3ac /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memmove.o)
  .debug_loclists
-                0x00004cde       0x5a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-init.o)
+                0x00004cda       0x5a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-init.o)
  .debug_loclists
-                0x00004d38      0xdb8 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strstr.o)
+                0x00004d34      0xdb8 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strstr.o)
  .debug_loclists
-                0x00005af0      0x1c6 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memset.o)
+                0x00005aec      0x1c6 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memset.o)
  .debug_loclists
-                0x00005cb6      0x128 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcmp.o)
+                0x00005cb2      0x128 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcmp.o)
  .debug_loclists
-                0x00005dde       0xfc /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strnlen.o)
+                0x00005dda       0xfc /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strnlen.o)
  .debug_loclists
-                0x00005eda      0x1e8 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-snprintf.o)
+                0x00005ed6      0x1e8 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-snprintf.o)
  .debug_loclists
-                0x000060c2      0x11f /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strchr.o)
+                0x000060be      0x11f /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strchr.o)
  .debug_loclists
-                0x000061e1      0x629 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-svfprintf.o)
+                0x000061dd      0x629 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-svfprintf.o)
  .debug_loclists
-                0x0000680a      0x15d /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memchr-stub.o)
+                0x00006806      0x15d /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memchr-stub.o)
  .debug_loclists
-                0x00006967      0x1dd /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-findfp.o)
+                0x00006963      0x1dd /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-findfp.o)
  .debug_loclists
-                0x00006b44      0x2a9 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mallocr.o)
+                0x00006b40      0x2a9 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mallocr.o)
  .debug_loclists
-                0x00006ded      0x11a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-freer.o)
+                0x00006de9      0x11a /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-freer.o)
  .debug_loclists
-                0x00006f07      0x19f /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reallocr.o)
+                0x00006f03      0x19f /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reallocr.o)
  .debug_loclists
-                0x000070a6      0x47e /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
+                0x000070a2      0x47e /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
  .debug_loclists
-                0x00007524      0x2c7 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcpy-stub.o)
+                0x00007520      0x2c7 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcpy-stub.o)
  .debug_loclists
-                0x000077eb       0x52 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-sbrkr.o)
+                0x000077e7       0x52 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-sbrkr.o)
  .debug_loclists
-                0x0000783d       0x81 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-msizer.o)
+                0x00007839       0x81 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-msizer.o)
  .debug_loclists
-                0x000078be       0x6e /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reent.o)
+                0x000078ba       0x6e /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reent.o)
 
 .debug_aranges  0x00000000      0x8c8
  .debug_aranges
@@ -12301,44 +12301,44 @@ LOAD /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a
  .debug_macro   0x000299d6      0x146 build_solax/tparse.o
  .debug_macro   0x00029b1c       0x16 build_solax/tparse.o
 
-.debug_line     0x00000000     0xd0e3
- .debug_line    0x00000000     0x2d21 build_solax/solax_bms_interp.o
- .debug_line    0x00002d21       0x6a build_solax/startup_stm32f767xx.o
- .debug_line    0x00002d8b     0x1129 build_solax/intf_can.o
- .debug_line    0x00003eb4      0x605 build_solax/stm32f7xx_it.o
- .debug_line    0x000044b9     0x139a build_solax/intf_usart.o
- .debug_line    0x00005853      0x9f0 build_solax/intf_gpio.o
- .debug_line    0x00006243      0x629 build_solax/main.o
- .debug_line    0x0000686c      0x46a build_solax/system_stm32f7xx.o
- .debug_line    0x00006cd6      0xa21 build_solax/stm32f7xx_ll_utils.o
- .debug_line    0x000076f7      0x7c1 build_solax/stm32f7xx_hal.o
- .debug_line    0x00007eb8      0xe78 build_solax/tparse.o
- .debug_line    0x00008d30      0x1ae /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strlen-stub.o)
- .debug_line    0x00008ede      0x1f9 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memmove.o)
- .debug_line    0x000090d7      0x105 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-init.o)
- .debug_line    0x000091dc      0x9f0 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strstr.o)
- .debug_line    0x00009bcc      0x1c1 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memset.o)
- .debug_line    0x00009d8d      0x168 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcmp.o)
- .debug_line    0x00009ef5      0x119 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strnlen.o)
- .debug_line    0x0000a00e      0x339 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-snprintf.o)
- .debug_line    0x0000a347      0x20c /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strchr.o)
- .debug_line    0x0000a553      0x865 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-svfprintf.o)
- .debug_line    0x0000adb8      0x1e2 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memchr-stub.o)
- .debug_line    0x0000af9a      0x592 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-findfp.o)
- .debug_line    0x0000b52c      0x462 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mallocr.o)
- .debug_line    0x0000b98e      0x2e1 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-freer.o)
- .debug_line    0x0000bc6f       0xeb /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-impure.o)
- .debug_line    0x0000bd5a      0x1fc /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reallocr.o)
- .debug_line    0x0000bf56      0x756 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
- .debug_line    0x0000c6ac      0x15b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mlock.o)
- .debug_line    0x0000c807      0x1eb /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcpy-stub.o)
- .debug_line    0x0000c9f2      0x19b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-sbrkr.o)
- .debug_line    0x0000cb8d      0x180 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-msizer.o)
- .debug_line    0x0000cd0d      0x27b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reent.o)
- .debug_line    0x0000cf88       0x56 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_udivsi3.o)
- .debug_line    0x0000cfde       0x5d /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_divsi3.o)
- .debug_line    0x0000d03b       0x4a /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
- .debug_line    0x0000d085       0x5e /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_clzsi2.o)
+.debug_line     0x00000000     0xd102
+ .debug_line    0x00000000     0x2d40 build_solax/solax_bms_interp.o
+ .debug_line    0x00002d40       0x6a build_solax/startup_stm32f767xx.o
+ .debug_line    0x00002daa     0x1129 build_solax/intf_can.o
+ .debug_line    0x00003ed3      0x605 build_solax/stm32f7xx_it.o
+ .debug_line    0x000044d8     0x139a build_solax/intf_usart.o
+ .debug_line    0x00005872      0x9f0 build_solax/intf_gpio.o
+ .debug_line    0x00006262      0x629 build_solax/main.o
+ .debug_line    0x0000688b      0x46a build_solax/system_stm32f7xx.o
+ .debug_line    0x00006cf5      0xa21 build_solax/stm32f7xx_ll_utils.o
+ .debug_line    0x00007716      0x7c1 build_solax/stm32f7xx_hal.o
+ .debug_line    0x00007ed7      0xe78 build_solax/tparse.o
+ .debug_line    0x00008d4f      0x1ae /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strlen-stub.o)
+ .debug_line    0x00008efd      0x1f9 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memmove.o)
+ .debug_line    0x000090f6      0x105 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-init.o)
+ .debug_line    0x000091fb      0x9f0 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strstr.o)
+ .debug_line    0x00009beb      0x1c1 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memset.o)
+ .debug_line    0x00009dac      0x168 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcmp.o)
+ .debug_line    0x00009f14      0x119 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strnlen.o)
+ .debug_line    0x0000a02d      0x339 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-snprintf.o)
+ .debug_line    0x0000a366      0x20c /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-strchr.o)
+ .debug_line    0x0000a572      0x865 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-svfprintf.o)
+ .debug_line    0x0000add7      0x1e2 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memchr-stub.o)
+ .debug_line    0x0000afb9      0x592 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-findfp.o)
+ .debug_line    0x0000b54b      0x462 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mallocr.o)
+ .debug_line    0x0000b9ad      0x2e1 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-freer.o)
+ .debug_line    0x0000bc8e       0xeb /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-impure.o)
+ .debug_line    0x0000bd79      0x1fc /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reallocr.o)
+ .debug_line    0x0000bf75      0x756 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-nano-vfprintf_i.o)
+ .debug_line    0x0000c6cb      0x15b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-mlock.o)
+ .debug_line    0x0000c826      0x1eb /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-memcpy-stub.o)
+ .debug_line    0x0000ca11      0x19b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-sbrkr.o)
+ .debug_line    0x0000cbac      0x180 /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-msizer.o)
+ .debug_line    0x0000cd2c      0x27b /usr/lib/gcc/arm-none-eabi/14.2.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libc_nano.a(libc_a-reent.o)
+ .debug_line    0x0000cfa7       0x56 /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_udivsi3.o)
+ .debug_line    0x0000cffd       0x5d /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_divsi3.o)
+ .debug_line    0x0000d05a       0x4a /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
+ .debug_line    0x0000d0a4       0x5e /usr/lib/gcc/arm-none-eabi/14.2.1/thumb/v6-m/nofp/libgcc.a(_clzsi2.o)
 
 .debug_str      0x00000000   0x105c13
  .debug_str     0x00000000   0x105c13 build_solax/solax_bms_interp.o

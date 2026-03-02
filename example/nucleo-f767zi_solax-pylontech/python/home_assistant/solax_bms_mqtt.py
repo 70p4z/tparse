@@ -309,6 +309,33 @@ def mqtt_start():
     mqtt_client.publish('homeassistant/switch/solax_bat_transcharge_auto/config', payload=json.dumps({"name": "Pylontech Auto Balancing", "state_topic": "homeassistant/switch/solax_bat_transcharge_auto/state", "command_topic": "homeassistant/switch/solax_bat_transcharge_auto/set"}), retain=True)
 
 
+    def on_message_solax_cell_dv_for_limited_charge(client, userdata, msg):
+      try:
+        print("set: " + msg.payload.decode('utf-8'))
+        intval = int(float(msg.payload.decode('utf-8'))*10)
+        msg=b'\x1B' + struct.pack(">B", intval)
+        i2c_write(msg)
+      except:
+        traceback.print_exc()
+    mqtt_client.message_callback_add('homeassistant/number/solax_battery_cell_dv_for_limited_charge/set', on_message_solax_cell_dv_for_limited_charge)
+    mqtt_client.subscribe('homeassistant/number/solax_battery_cell_dv_for_limited_charge/set')
+    mqtt_client.publish('homeassistant/number/solax_battery_cell_dv_for_limited_charge/config', payload=json.dumps({"device_class": "voltage", "name": "Solax Battery Limited Charge Cell Voltage", "state_topic": "homeassistant/number/solax_battery_cell_dv_for_limited_charge/state", "unit_of_measurement": "V", "command_topic": "homeassistant/number/solax_battery_cell_dv_for_limited_charge/set", "min": "3.3", "max": "3.8", "step": "0.1"}), retain=True)
+
+    def on_message_solax_limited_charge_wattage(client, userdata, msg):
+      try:
+        print("set: " + msg.payload.decode('utf-8'))
+        intval = int(msg.payload.decode('utf-8'))
+        intval = intval//10
+        msg=b'\x1C' + struct.pack(">B", int(intval))
+        i2c_write(msg)
+      except:
+        traceback.print_exc()
+    mqtt_client.message_callback_add('homeassistant/number/solax_battery_limited_charge_wattage/set', on_message_solax_limited_charge_wattage)
+    mqtt_client.subscribe('homeassistant/number/solax_battery_limited_charge_wattage/set')
+    mqtt_client.publish('homeassistant/number/solax_battery_limited_charge_wattage/config', payload=json.dumps({"device_class": "power", "name": "Solax Limited Charge Wattage", "state_topic": "homeassistant/number/solax_battery_limited_charge_wattage/state", "unit_of_measurement": "W", "command_topic": "homeassistant/number/solax_battery_limited_charge_wattage/set", "min": "0", "max": "2550", "step": "10"}), retain=True)
+
+
+
   def on_connect(client, userdata, flags, rc):
     #print(f"on_connect: rc={rc}")
     if rc==0:
@@ -376,9 +403,17 @@ while True:
       b'7903070400000000008e004d00a700b064000000fa000707030002c102c1000007e80b1c11100000000a08fb003a0895000c000101141e640000c28e00004a7f639864640dc40dcf9164640dd10dfc6664640df50e0c3464620d720e0f2464640db00de42264610d740d954764640dcb0e0e1364630d320dcd'
       (121, 3, 7, 4, 0, 0, 142, 77, 167, 176, 100, 0, 250, 7, 7, 3, 0, 705, 705, 0, 2024, 11, 28, 17, 16, 0, 0, 10, 2299, 3803285, 12, 0, 1, 1, 20, 30, 100, 49806, 19071, 99)
 
-    v6
-      b'780607000000000009000208fb007000c109c10c4a00c300e51600ff00fa00ff07ea021210080006e30c003101011600002b6f00000f00142400000107d001089816140cb40ccd9116140cbb0ccc3416140cce0cd16616140cb00cbf2416140cd90cdc1316140cd50cdf2216140cd70cdb4716140cdb0cdd'
-      (120, 6, 7, 0, 0, 9, 2, 2299, 112, 193, 2497, 3146, 195, 229, 22, 255, 250, 255, 2026, 2, 18, 16, 8, 451340, 49, 1, 1, 22, 11119, 3840, 20, 36, 0, 0, 1, 2000, 1, 8)
+    v6    
+      b'7a0607000000000063001108fc0000000000000000ff8bff6461006900fa000307ea030213350007b009018a0101610000bcef00004840602400000107d0010022199861610cff0cff9161600cfd0cfe3461600cfd0cff6661600cfd0cfe2461600cfd0cfd1361600cfd0cfd2261600cfd0cfd4761600cfc0cfd'
+      (122, 6, 7, 0, 0, 99, 17, 2300, 0, 0, 0, 0, -117, -156, 97, 105, 250, 3, 2026, 3, 2, 19, 53, 503817, 394, 1, 1, 97, 48367, 18496, 96, 36, 0, 0, 1, 2000, 1, 0, 34, 25)
+      97/97% 3327/3327mV 0x98
+      97/96% 3325/3326mV 0x91
+      97/96% 3325/3327mV 0x34
+      97/96% 3325/3326mV 0x66
+      97/96% 3325/3325mV 0x24
+      97/96% 3325/3325mV 0x13
+      97/96% 3325/3325mV 0x22
+      97/96% 3324/3325mV 0x47
     """
 
     class Field(enum.Enum):
@@ -433,6 +468,8 @@ while True:
       IDX_BATCHRGR_ALLOWED_WATTAGE = "H",
       IDX_TRANSCHARGE_AUTO = "B",
       IDX_TRANSCHARGE_ENABLED = "B",
+      IDX_CELL_DV_FOR_LIMITED_CHARGE = "B",
+      IDX_LIMITED_CHARGE_WATTAGE = "B",
       
     binformat= ">"+"".join(list(map(lambda field: field.format, Field.__members__.values())))
 
@@ -475,7 +512,8 @@ while True:
       mqtt_client.publish("homeassistant/number/solax_bat_chrgr_auto/state", payload=str(fields[Field.IDX_BATCHRGR_AUTO.value]), retain=True)
       mqtt_client.publish("homeassistant/number/solax_bat_chrgr_wattage/state", payload=str(fields[Field.IDX_BATCHRGR_ALLOWED_WATTAGE.value]), retain=True)
       mqtt_client.publish("homeassistant/switch/solax_bat_transcharge_auto/state", payload=mqtt_boolstr(fields[Field.IDX_TRANSCHARGE_AUTO.value]!=0), retain=True)
-
+      mqtt_client.publish("homeassistant/number/solax_battery_cell_dv_for_limited_charge/state", payload=str(fields[Field.IDX_CELL_DV_FOR_LIMITED_CHARGE.value]/10), retain=True)
+      mqtt_client.publish("homeassistant/number/solax_battery_limited_charge_wattage/state", payload=str(fields[Field.IDX_LIMITED_CHARGE_WATTAGE.value]*10), retain=True)
 
       # todo publish empty values for all packs
 

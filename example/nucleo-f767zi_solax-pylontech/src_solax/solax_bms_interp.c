@@ -2533,7 +2533,12 @@ void solax_process_data(void) {
           // only perform disconnection when we're in sync with the grid and in self use mode, else
           // no disconnection
           // at boot, when in EPS, must stay in EPS!, therefore activate the relay to stay in EPS
-          (solax.status == INVERTER_STATUS_NORMAL || solax.status == INVERTER_STATUS_EPS)
+          (solax.status == INVERTER_STATUS_NORMAL 
+            || solax.status == INVERTER_STATUS_EPS
+            || solax.status == INVERTER_STATUS_WAITING
+            || solax.status == INVERTER_STATUS_CHECKING
+            || solax.status == INVERTER_STATUS_EPS_WAIT
+            )
               && (solax_forced_work_mode == SOLAX_FORCED_WORK_MODE_SELF_USE)
           ) {
           master_log("Antisurge: disconnect GRID, force EPS\n");

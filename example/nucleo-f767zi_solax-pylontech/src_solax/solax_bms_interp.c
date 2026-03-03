@@ -1064,9 +1064,14 @@ void interp(void) {
           solax_compute_maxcharge();
 
           // ensure not to overcharge, even if the pack wants to!, to limit wearing and runaway
+          // pylontech charge wattage bypass
           if (pylontech.vcellmax < knobs.max_pylontech_charge_drive 
+            // forced charge wattage not set
             && knobs.forced_wattage == 0
-            && knobs.limited_charge_wattage == 0) {
+            // limited charging not applicable
+            && (knobs.cell_voltage_limited_charge == 0 
+                || knobs.limited_charge_wattage == 0 
+                || pylontech.vcellmax < knobs.cell_voltage_limited_charge)) {
             maxch = MAX(pylontech.computed_max_charge, pylontech.max_charge);
           }
           else {

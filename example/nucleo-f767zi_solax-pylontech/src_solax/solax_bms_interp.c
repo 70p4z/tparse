@@ -66,7 +66,7 @@ TODO
 // allow to compensate charge up to a given value when value is full and ouse load is higher than currently balanced
 #define SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE 1000
 #define COMPUTED_WATTAGE_AVG_COUNT 10
-#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS (COMPUTED_WATTAGE_AVG_COUNT*3/4*1000)
+#define SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS (COMPUTED_WATTAGE_AVG_COUNT*2/4*1000)
 
 //#define SUPPORT_PYLONTECH_RECONNECT // don't support reconnect to avoid loss of power in EPS, and no conflict with the pylotnech caching stuff
 // #define SOLAX_REPLY_0x0100A001_AND_0x1801 # not needed on Solax X1G4
@@ -2266,7 +2266,7 @@ void solax_compute_maxcharge(void) {
   wattage_average /= COMPUTED_WATTAGE_AVG_COUNT;
 
   // continuous averaging action
-  if (EXPIRED(pylontech.computed_last_change_ms) || 1) {
+  if (EXPIRED(pylontech.computed_last_change_ms)) {
     pylontech.computed_last_change_ms = uwTick + SOLAX_BATT_FULL_BATTERY_WORKAROUND_DELAY_MS;
 
     int32_t max_wattage = pylontech.computed_max_wattage;

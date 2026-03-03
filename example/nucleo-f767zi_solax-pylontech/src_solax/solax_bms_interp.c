@@ -2297,7 +2297,7 @@ void solax_compute_maxcharge(void) {
     // when target is 150W and current is -400W and voltage is 400V, correction dA is 13.75 (1.375*400 = 550W)
     // when target is 150W and current is 400W and voltage is 400V, correction dA is -6.25 (-0.625*400 = -250W)
     // max is max_wattage, target is +/- 0.1A of the value to ensure less over/under flows
-    #define CHARGE_RESOLUTION_W (pylontech.voltage/10)
+    #define CHARGE_RESOLUTION_W (pylontech.voltage/10 /* V *0.1A */ / 10)
     int32_t correction_dA = (max_wattage - CHARGE_RESOLUTION_W - wattage_average ) * 100 / pylontech.voltage;
 
     // /!\ dont' do it but only when panel have juice.

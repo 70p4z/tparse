@@ -590,6 +590,8 @@ void transcharge_auto_run(void) {
       // don't start charge balancing when wattage is too high, this will not be working well
       if (pylontech_wattage > TRANSCHARGE_BALANCING_START_MAX_WATTAGE) {
         master_log("BALANCE: skipped, too much charge wattage already\n");
+        transcharge.auto_next_run = uwTick + TRANSCHARGE_INTERVAL_MS;
+        if (transcharge.auto_next_run == 0) { transcharge.auto_next_run++; } 
         transcharge_disable_all();
         return;
       }

@@ -2313,8 +2313,13 @@ void solax_compute_maxcharge(void) {
         = MAX(1, pylontech.computed_max_charge + correction_dA);
     }
     else { // wattage_average == 0
+      // when it's between bounds, it's just fine
       master_log("no change in charge current\n");
     }
+
+    snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW avg: %ldW maxallow: %dW forced: %ldW limited: %ldW comp: %ldmA corr: %ldmA forced value %dmA max_watt: %ldW, ch_res: %dW\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knobs.forced_wattage, knobs.limited_charge_wattage, batt_compensated_curr_dA*100, correction_dA*100, pylontech.computed_max_charge*100, max_wattage, CHARGE_RESOLUTION_W);
+    master_log((char*)tmp+128);
+
     // don't adjust with battery level when a knobs forced wattage is ongoing.
     if (!knobs_controlled_wattage) {
       // compute value for stop condition of load balancing current

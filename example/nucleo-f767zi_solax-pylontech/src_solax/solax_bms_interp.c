@@ -2644,10 +2644,10 @@ void solax_process_data(void) {
       pylontech.soc >= solax.enable_self_use_soc || solax.self_use_discharge_enabled
       //&& (solax.pv1_wattage + solax.pv2_wattage >= SOLAX_ENABLE_SELF_USE_PV_POWER)
       ) 
-#endif // HAVE_FORCE_CHARGE_PCT_SOC
     {
       pylontech.apparent_soc = pylontech.soc;
     }
+#endif // HAVE_FORCE_CHARGE_PCT_SOC
   }
 
 

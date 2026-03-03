@@ -2251,6 +2251,7 @@ void Configure_I2C_Slave(void)
 }
 
 void solax_compute_maxcharge(void) {
+  uint32_t knobs_controlled_wattage = 0;
   int32_t batt_wattage = pylontech.wattage;
   if (pylontech.precise_wattage != 0 ) {
     batt_wattage = pylontech.precise_wattage;
@@ -2275,10 +2276,12 @@ void solax_compute_maxcharge(void) {
       && pylontech.vcellmax >= knobs.cell_voltage_limited_charge
       // do force limited charge current only until battery is full, after the charge_drive algorithm takes over the max_wattage
       && pylontech.soc < 100) {
+      knobs_controlled_wattage = 1;
       max_wattage = knobs.limited_charge_wattage;
     }
     // forced wattage takes over any safety condition, only the MAX voltage will be respected
     if (knobs.forced_wattage > 0) {
+      knobs_controlled_wattage = 1;
       max_wattage = knobs.forced_wattage;
     }
 
@@ -2312,47 +2315,49 @@ void solax_compute_maxcharge(void) {
     else { // wattage_average == 0
       master_log("no change in charge current\n");
     }
-    // compute value for stop condition of load balancing current
-    uint16_t vcell_lowest = 0;
-    uint16_t vcell_highest = 0;
-    if (pylontech.bmu_idx > 0) {
-      vcell_lowest = pylontech.bmu[0].vlow; 
-      vcell_highest = pylontech.bmu[0].vhigh;
-      for (uint8_t bmu_idx=0; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
-        if (pylontech.bmu[bmu_idx].vlow < vcell_lowest) {
-          vcell_lowest = pylontech.bmu[bmu_idx].vlow;
+    // don't adjust with battery level when a knobs forced wattage is ongoing.
+    if (!knobs_controlled_wattage) {
+      // compute value for stop condition of load balancing current
+      uint16_t vcell_lowest = 0;
+      uint16_t vcell_highest = 0;
+      if (pylontech.bmu_idx > 0) {
+        vcell_lowest = pylontech.bmu[0].vlow; 
+        vcell_highest = pylontech.bmu[0].vhigh;
+        for (uint8_t bmu_idx=0; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
+          if (pylontech.bmu[bmu_idx].vlow < vcell_lowest) {
+            vcell_lowest = pylontech.bmu[bmu_idx].vlow;
+          }
+          if (pylontech.bmu[bmu_idx].vhigh > vcell_highest) {
+            vcell_highest = pylontech.bmu[bmu_idx].vhigh;
+          }
         }
-        if (pylontech.bmu[bmu_idx].vhigh > vcell_highest) {
-          vcell_highest = pylontech.bmu[bmu_idx].vhigh;
+        // keep higher and lower voltage values
+        pylontech.vcell_highest = vcell_highest;
+        pylontech.vcell_lowest = vcell_lowest;
+        snprintf((char*)tmp+128, sizeof(tmp)-128, "cell state minV: %dV, maxV: %dV\n", vcell_lowest, vcell_highest);
+        master_log((char*)tmp+128);
+        // depending on full or need for balancing, adjust the max allowed wattage
+        if (
+          // above huge value, stop charging, to avoid too hot battery and faulty state
+          (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
+                                                            // bretelles (65k overflow too)
+              && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 4000)) {
+          master_log("cell voltage accepts workaround max_wattage\n");
+          // pylontech can perform balancing with a given wattage 
+          pylontech.computed_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
         }
-      }
-      // keep higher and lower voltage values
-      pylontech.vcell_highest = vcell_highest;
-      pylontech.vcell_lowest = vcell_lowest;
-      snprintf((char*)tmp+128, sizeof(tmp)-128, "cell state minV: %dV, maxV: %dV\n", vcell_lowest, vcell_highest);
-      master_log((char*)tmp+128);
-      // depending on full or need for balancing, adjust the max allowed wattage
-      if (
-        // above huge value, stop charging, to avoid too hot battery and faulty state
-        (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
-                                                          // bretelles (65k overflow too)
-            && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 4000)) {
-        master_log("cell voltage accepts workaround max_wattage\n");
-        // pylontech can perform balancing with a given wattage 
-        pylontech.computed_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
-      }
-      // avoid some 65K overflow sometimes
-                                                          // bretelles (65k overflow too)
-                                                                                     // if forced charge, then max bat charge voltage only applies
-      else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 4000) {
-        master_log("cell too high, stop workaround max_wattage\n");
-        // no more charge req, take action upon next cycle
-        pylontech.computed_max_wattage = 0;
-        // security, solax does not chagre @ 0.1A, it evaporates in the incorrect internal power flow
-        pylontech.computed_max_charge = 1;
+        // avoid some 65K overflow sometimes
+                                                            // bretelles (65k overflow too)
+                                                                                       // if forced charge, then max bat charge voltage only applies
+        else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 4000) {
+          master_log("cell too high, stop workaround max_wattage\n");
+          // no more charge req, take action upon next cycle
+          pylontech.computed_max_wattage = 0;
+          // security, solax does not chagre @ 0.1A, it evaporates in the incorrect internal power flow
+          pylontech.computed_max_charge = 1;
+        }
       }
     }
-    // when it's between bounds, it's just fine
   }
   snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced: %ldW, forced value %dmA\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knobs.forced_wattage, pylontech.computed_max_charge*100);
   master_log((char*)tmp+128);

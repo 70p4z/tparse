@@ -2329,11 +2329,13 @@ void solax_compute_maxcharge(void) {
     // how/when to reset?
     // when not fully charged, then impose a given current to enable load balancing
     if ((wattage_average < max_wattage-CHARGE_RESOLUTION_W) ) {
+      correction_dA = MAX(1, 10*pylontech.computed_max_charge/100); // 0.1A <-> 10% current charge 
       pylontech.computed_max_charge
         = MIN(pylontech.computed_max_charge + correction_dA, batt_compensated_curr_dA);
     }
     else if (wattage_average > max_wattage) {
       // if it charges when requested max charge is 0, then well, yeah, have fun boyz
+      correction_dA = MIN(-1, -10*pylontech.computed_max_charge/100); // -0.1A <-> - 10% current charge 
       pylontech.computed_max_charge 
         = MAX(1, pylontech.computed_max_charge + correction_dA);
     }

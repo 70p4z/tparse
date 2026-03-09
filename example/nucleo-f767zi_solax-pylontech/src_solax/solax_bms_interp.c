@@ -448,6 +448,7 @@ struct {
   int32_t wattage;
   int32_t precise_wattage;
   int16_t max_charge;
+  int16_t cap_max_charge;
   int16_t max_discharge;
   int16_t effective_charge;
   uint16_t packs;
@@ -660,6 +661,46 @@ void transcharge_auto_run(void) {
         master_log("BALANCE: disable all pack charging\n");
         transcharge_disable_all();
       }
+    }
+  }
+}
+
+#define MV_NO_BOUNDARY 0
+#define CHARGE_NO_BOUNDARY 255
+struct {
+  uint16_t min_mV; // if 0 => no boundary
+  uint16_t max_mV; // if 0 => no boundary
+  uint8_t charge_dA;  // if 255 => no boundary
+} const bms_max_charge_constraint[] = {
+ { .min_mV = 0, .max_mV = 3370, .charge_dA = 255 },
+ { .min_mV = 3400, .max_mV = 3425, .charge_dA = 60 },
+ { .min_mV = 3450, .max_mV = 3475, .charge_dA = 20 },
+ { .min_mV = 3500, .max_mV = 0, .charge_dA = 0 }, // make sure controlled charge takes over
+ //{ .min_mV = 3600, .max_mV = 0, .charge_dA = 0 },
+};
+
+void bms_cap_charge_update(uint16_t max_cell_mV) {
+  int i;
+
+  // initialize the cap max charge if not initiliazed yet
+  if (pylontech.cap_max_charge == 0) {
+    master_log("cap max charge = BMS\n");
+    pylontech.cap_max_charge = pylontech.max_charge;
+  }
+
+  // no default cap max harge value to allow for hysterisis gap to respect the last set value
+  for (i = 0; i<sizeof(bms_max_charge_constraint) / sizeof(bms_max_charge_constraint[0]) ; i++) {
+    if ((bms_max_charge_constraint[i].min_mV == MV_NO_BOUNDARY || bms_max_charge_constraint[i].min_mV <= max_cell_mV)
+        && (bms_max_charge_constraint[i].max_mV == MV_NO_BOUNDARY || bms_max_charge_constraint[i].max_mV >= max_cell_mV)) {
+      if (bms_max_charge_constraint[i].charge_dA == CHARGE_NO_BOUNDARY) {
+        master_log("cap max charge = BMS\n");
+        pylontech.cap_max_charge = pylontech.max_charge;
+      }
+      else {
+        pylontech.cap_max_charge = bms_max_charge_constraint[i].charge_dA + (bms_max_charge_constraint[i].charge_dA>0?SOLAX_BATTERY_CHARGE_OFFSET_DA:0);
+      }
+      // no more match SHOULD occur
+      break;
     }
   }
 }
@@ -1046,9 +1087,6 @@ void interp(void) {
           // ensure respecting maxcharge, taking into account the inner charge cap offset
           if (maxch) {
             maxch += SOLAX_BATTERY_CHARGE_OFFSET_DA;
-            tmp[4] = maxch&0xFF;
-            tmp[5] = (maxch>>8)&0xFF;
-            pylontech.effective_charge = maxch;
           }
 
           pylontech.max_charge = maxch;
@@ -1065,6 +1103,8 @@ void interp(void) {
           // update computed_max_charge depending on factors
           solax_compute_maxcharge();
 
+          bms_cap_charge_update(pylontech.vcell_highest);
+
           // ensure not to overcharge, even if the pack wants to!, to limit wearing and runaway
           // pylontech charge wattage bypass
           if (pylontech.vcellmax < knobs.max_pylontech_charge_drive 
@@ -1073,9 +1113,11 @@ void interp(void) {
             // limited charging not applicable
             && (knobs.cell_voltage_limited_charge == 0 
                 || knobs.limited_charge_wattage == 0 
-                || pylontech.vcell_highest / 100 < knobs.cell_voltage_limited_charge
-                /*|| pylontech.vcellmax < knobs.cell_voltage_limited_charge*/)) {
-            maxch = MAX(pylontech.computed_max_charge, pylontech.max_charge);
+                //|| pylontech.vcell_highest / 100 < knobs.cell_voltage_limited_charge
+                || pylontech.vcellmax < knobs.cell_voltage_limited_charge
+                // until the pylontech/cap is meaningful
+                || pylontech.cap_max_charge > 0)) {
+            maxch = MAX(pylontech.computed_max_charge, pylontech.cap_max_charge);
           }
           else {
             maxch = pylontech.computed_max_charge;
@@ -2272,10 +2314,12 @@ void solax_compute_maxcharge(void) {
     vcell_lowest = pylontech.bmu[0].vlow; 
     vcell_highest = pylontech.bmu[0].vhigh;
     for (uint8_t bmu_idx=0; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
-      if (pylontech.bmu[bmu_idx].vlow < vcell_lowest) {
+      // add absolute limit to filter out invlaid values
+      if (pylontech.bmu[bmu_idx].vlow < vcell_lowest && pylontech.bmu[bmu_idx].vhigh < 6000) {
         vcell_lowest = pylontech.bmu[bmu_idx].vlow;
       }
-      if (pylontech.bmu[bmu_idx].vhigh > vcell_highest) {
+      // add absolute limit to filter out invlaid values
+      if (pylontech.bmu[bmu_idx].vhigh > vcell_highest && pylontech.bmu[bmu_idx].vhigh < 6000) {
         vcell_highest = pylontech.bmu[bmu_idx].vhigh;
       }
     }
@@ -2344,7 +2388,7 @@ void solax_compute_maxcharge(void) {
       master_log("no change in charge current\n");
     }
 
-    snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW avg: %ldW maxallow: %dW forced: %ldW limited: %ldW comp: %ldmA corr: %ldmA forced value %dmA max_watt: %ldW, ch_res: %dW\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knobs.forced_wattage, knobs.limited_charge_wattage, batt_compensated_curr_dA*100, correction_dA*100, pylontech.computed_max_charge*100, max_wattage, CHARGE_RESOLUTION_W);
+    snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW avg: %ldW maxallow: %dW forced: %ldW limited: %ldW comp: %ldmA corr: %ldmA forced value %dmA max_watt: %ldW, capmax:%ddA, ch_res: %dW\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knobs.forced_wattage, knobs.limited_charge_wattage, batt_compensated_curr_dA*100, correction_dA*100, pylontech.computed_max_charge*100, max_wattage, pylontech.cap_max_charge, CHARGE_RESOLUTION_W);
     master_log((char*)tmp+128);
 
     // don't adjust with battery level when a knobs forced wattage is ongoing.
@@ -2557,9 +2601,11 @@ void solax_process_data(void) {
           // at boot, when in EPS, must stay in EPS!, therefore activate the relay to stay in EPS
           (solax.status == INVERTER_STATUS_NORMAL 
             || solax.status == INVERTER_STATUS_EPS
+            /* don't switch while waiting or EPS wait, that triggers power outage locally
             || solax.status == INVERTER_STATUS_WAITING
             || solax.status == INVERTER_STATUS_CHECKING
             || solax.status == INVERTER_STATUS_EPS_WAIT
+            */
             )
               && (solax_forced_work_mode == SOLAX_FORCED_WORK_MODE_SELF_USE)
           ) {

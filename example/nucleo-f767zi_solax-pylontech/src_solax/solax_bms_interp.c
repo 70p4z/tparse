@@ -36,7 +36,8 @@ TODO
 #define BMS_MAX_CELL_VOLTAGE_FOR_CURRENT_CHG_DV 36
 #define BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV 35
 #define BMS_CELL_VOLTAGE_FOR_LIMITED_CHARGE_DV 34
-#define BMS_LIMITED_CHARGE_WATTAGE 250
+// (~0.7A) => the dissipation of internal pack cell balancing (0.6*3.5 = 2 Watts) 
+#define BMS_LIMITED_CHARGE_WATTAGE_PER_PACK (3500*15*7/10/1000) 
 
 // min difference to enable balancing charge
 #define PYLONTECH_BALANCING_STOP_DIFF_MV 5
@@ -467,6 +468,7 @@ struct {
   int16_t computed_max_charge;
   int16_t computed_max_wattage;
   int16_t computed_wattage_values[COMPUTED_WATTAGE_AVG_COUNT];
+  uint8_t auto_charge_current;
 
   uint8_t bmu_idx;
   uint8_t bmu_idx_tmp;
@@ -675,9 +677,12 @@ struct {
  { .min_mV = 0, .max_mV = 3370, .charge_dA = 255 },
  { .min_mV = 3400, .max_mV = 3425, .charge_dA = 60 },
  { .min_mV = 3450, .max_mV = 3475, .charge_dA = 20 },
- { .min_mV = 3500, .max_mV = 0, .charge_dA = 0 }, // make sure controlled charge takes over
+ { .min_mV = 3500, .max_mV = 0, .charge_dA = 1 }, // make sure controlled charge takes over
  //{ .min_mV = 3600, .max_mV = 0, .charge_dA = 0 },
 };
+
+// Hysterisis are NOT respected! when cell passes 3.5 then 0 applies, then when it jumps back to 3.499, then
+// 2.0 applies! => must respect the fact the top value has crossed
 
 void bms_cap_charge_update(uint16_t max_cell_mV) {
   int i;
@@ -761,7 +766,7 @@ void interp(void) {
   knobs.max_charge_voltage = BMS_MAX_CELL_VOLTAGE_FOR_CURRENT_CHG_DV;
   knobs.max_pylontech_charge_drive = BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV;
   knobs.cell_voltage_limited_charge = BMS_CELL_VOLTAGE_FOR_LIMITED_CHARGE_DV;
-  knobs.limited_charge_wattage = BMS_LIMITED_CHARGE_WATTAGE;
+  knobs.limited_charge_wattage = -1;
   solax.stop_discharge_soc = STOP_DISCHARGE_SOC;
   solax.self_use_discharge_enabled = 1; // allow self use by default at reboot
 #ifdef HAVE_EXT_CHARGER
@@ -1163,6 +1168,11 @@ void interp(void) {
         case 0x1875:
           // note: if packs number is invalid, then the BMS_KIND is faulty => inverter goes into fault mode
           pylontech.packs = U2LE(tmp,2); 
+          // initialize the limited charge wattage, depending on connected pack count
+          // TODO, use a current instead, to make it static, and avoid that runtime initialization
+          if (knobs.limited_charge_wattage == -1) {
+            knobs.limited_charge_wattage = BMS_LIMITED_CHARGE_WATTAGE_PER_PACK * pylontech.packs;
+          }
           pylontech.contactor_on = tmp[4];
           pylontech.charge_request = tmp[5];
           pylontech.cycles = U2LE(tmp, 6);
@@ -2354,68 +2364,83 @@ void solax_compute_maxcharge(void) {
       max_wattage = knobs.forced_wattage;
     }
 
-    // when no batt forced charge, then apply auto adjust
-    // get the best current approx in mA
-    int32_t batt_compensated_curr_dA = (MAX(SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE, max_wattage)
-                                        + (pylontech.voltage /*dV*/ * 10 /*dA*/)/100 
-                                        + PYLONTECH_BALANCING_OPTIMAL_WATTAGE
-                                       ) * 100
-                                       / pylontech.voltage;
-     
-    // when target is 150W and current is 40W and voltage is 400V, correction dA is 2.75 (0.275*400 = 110W)
-    // when target is 150W and current is -400W and voltage is 400V, correction dA is 13.75 (1.375*400 = 550W)
-    // when target is 150W and current is 400W and voltage is 400V, correction dA is -6.25 (-0.625*400 = -250W)
-    // max is max_wattage, target is +/- 0.1A of the value to ensure less over/under flows
-    #define CHARGE_RESOLUTION_W (pylontech.voltage/10 /* V *0.1A */ / 10)
-    int32_t correction_dA = (max_wattage - CHARGE_RESOLUTION_W - wattage_average ) * 100 / pylontech.voltage;
+    // don't update charging current when not automated (else the average is always lower, and it implies kick in each time we change charge range) => this smoothes the charge at end of charge
+    if (knobs_controlled_wattage || pylontech.cap_max_charge == 0) {
+      if (!pylontech.auto_charge_current) {
+        // wipe the average value to avoid fault
+        memset(pylontech.computed_wattage_values, 0, sizeof(pylontech.computed_wattage_values));
+        wattage_average = 0;
+      }
 
-    // /!\ dont' do it but only when panel have juice.
-    // how/when to reset?
-    // when not fully charged, then impose a given current to enable load balancing
-    if ((wattage_average < max_wattage-CHARGE_RESOLUTION_W) ) {
-      correction_dA = MAX(1, 10*pylontech.computed_max_charge/100); // 0.1A <-> 10% current charge 
-      pylontech.computed_max_charge
-        = MIN(pylontech.computed_max_charge + correction_dA, batt_compensated_curr_dA);
-    }
-    else if (wattage_average > max_wattage) {
-      // if it charges when requested max charge is 0, then well, yeah, have fun boyz
-      correction_dA = MIN(-1, -10*pylontech.computed_max_charge/100); // -0.1A <-> - 10% current charge 
-      pylontech.computed_max_charge 
-        = MAX(1, pylontech.computed_max_charge + correction_dA);
-    }
-    else { // wattage_average == 0
-      // when it's between bounds, it's just fine
-      master_log("no change in charge current\n");
-    }
+      pylontech.auto_charge_current = 1;
+      // ok to adjust automatically
+      // when no batt forced charge, then apply auto adjust
+      // get the best current approx in mA
+      int32_t batt_compensated_curr_dA = (MAX(SOLAX_BATT_FULL_BATTERY_WORKAROUND_WATTAGE, max_wattage)
+                                          + (pylontech.voltage /*dV*/ * 10 /*dA*/)/100 
+                                          + PYLONTECH_BALANCING_OPTIMAL_WATTAGE
+                                         ) * 100
+                                         / pylontech.voltage;
+       
+      // when target is 150W and current is 40W and voltage is 400V, correction dA is 2.75 (0.275*400 = 110W)
+      // when target is 150W and current is -400W and voltage is 400V, correction dA is 13.75 (1.375*400 = 550W)
+      // when target is 150W and current is 400W and voltage is 400V, correction dA is -6.25 (-0.625*400 = -250W)
+      // max is max_wattage, target is +/- 0.1A of the value to ensure less over/under flows
+      #define CHARGE_RESOLUTION_W (pylontech.voltage/10 /* V *0.1A */ / 10)
+      int32_t correction_dA = (max_wattage - CHARGE_RESOLUTION_W - wattage_average ) * 100 / pylontech.voltage;
 
-    snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW avg: %ldW maxallow: %dW forced: %ldW limited: %ldW comp: %ldmA corr: %ldmA forced value %dmA max_watt: %ldW, capmax:%ddA, ch_res: %dW\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knobs.forced_wattage, knobs.limited_charge_wattage, batt_compensated_curr_dA*100, correction_dA*100, pylontech.computed_max_charge*100, max_wattage, pylontech.cap_max_charge, CHARGE_RESOLUTION_W);
-    master_log((char*)tmp+128);
+      // /!\ dont' do it but only when panel have juice.
+      // how/when to reset?
+      // when not fully charged, then impose a given current to enable load balancing
+      if ((wattage_average < max_wattage-CHARGE_RESOLUTION_W) ) {
+        correction_dA = MAX(1, 10*pylontech.computed_max_charge/100); // 0.1A <-> 10% current charge 
+        pylontech.computed_max_charge
+          = MIN(pylontech.computed_max_charge + correction_dA, batt_compensated_curr_dA);
+      }
+      else if (wattage_average > max_wattage) {
+        // if it charges when requested max charge is 0, then well, yeah, have fun boyz
+        correction_dA = MIN(-1, -10*pylontech.computed_max_charge/100); // -0.1A <-> - 10% current charge 
+        pylontech.computed_max_charge 
+          = MAX(1, pylontech.computed_max_charge + correction_dA);
+      }
+      else { // wattage_average == 0
+        // when it's between bounds, it's just fine
+        master_log("no change in charge current\n");
+      }
 
-    // don't adjust with battery level when a knobs forced wattage is ongoing.
-    if (!knobs_controlled_wattage) {
-      // compute value for stop condition of load balancing current
-      if (pylontech.bmu_idx > 0) {
-        // depending on full or need for balancing, adjust the max allowed wattage
-        if (
-          // above huge value, stop charging, to avoid too hot battery and faulty state
-          (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
-                                                            // bretelles (65k overflow too)
-              && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 4000)) {
-          master_log("cell voltage accepts workaround max_wattage\n");
-          // pylontech can perform balancing with a given wattage 
-          pylontech.computed_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
-        }
-        // avoid some 65K overflow sometimes
-                                                            // bretelles (65k overflow too)
-                                                                                       // if forced charge, then max bat charge voltage only applies
-        else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 4000) {
-          master_log("cell too high, stop workaround max_wattage\n");
-          // no more charge req, take action upon next cycle
-          pylontech.computed_max_wattage = 0;
-          // security, solax does not chagre @ 0.1A, it evaporates in the incorrect internal power flow
-          pylontech.computed_max_charge = 1;
+      snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW avg: %ldW maxallow: %dW forced: %ldW limited: %ldW comp: %ldmA corr: %ldmA forced value %dmA max_watt: %ldW, capmax:%ddA, ch_res: %dW\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knobs.forced_wattage, knobs.limited_charge_wattage, batt_compensated_curr_dA*100, correction_dA*100, pylontech.computed_max_charge*100, max_wattage, pylontech.cap_max_charge, CHARGE_RESOLUTION_W);
+      master_log((char*)tmp+128);
+
+      // don't adjust with battery level when a knobs forced wattage is ongoing.
+      if (!knobs_controlled_wattage) {
+        // compute value for stop condition of load balancing current
+        if (pylontech.bmu_idx > 0) {
+          // depending on full or need for balancing, adjust the max allowed wattage
+          if (
+            // above huge value, stop charging, to avoid too hot battery and faulty state
+            (vcell_lowest + PYLONTECH_BALANCING_STOP_DIFF_MV < vcell_highest 
+                                                              // bretelles (65k overflow too)
+                && vcell_highest < PYLONTECH_BALANCING_MIN_MV && vcell_highest < 4000)) {
+            master_log("cell voltage accepts workaround max_wattage\n");
+            // pylontech can perform balancing with a given wattage 
+            pylontech.computed_max_wattage = PYLONTECH_BALANCING_OPTIMAL_WATTAGE;
+          }
+          // avoid some 65K overflow sometimes
+                                                              // bretelles (65k overflow too)
+                                                                                         // if forced charge, then max bat charge voltage only applies
+          else if (vcell_highest > PYLONTECH_BALANCING_MAX_MV && vcell_highest < 4000) {
+            master_log("cell too high, stop workaround max_wattage\n");
+            // no more charge req, take action upon next cycle
+            pylontech.computed_max_wattage = 0;
+            // security, solax does not chagre @ 0.1A, it evaporates in the incorrect internal power flow
+            pylontech.computed_max_charge = 1;
+            pylontech.auto_charge_current = 0;
+          }
         }
       }
+    }
+    else {
+      pylontech.auto_charge_current = 0;
     }
   }
   snprintf((char*)tmp+128, sizeof(tmp)-128, "batt current: %ldW, avg: %ldW, maxallow: %dW, forced: %ldW, forced value %dmA\n", batt_wattage, wattage_average, pylontech.computed_max_wattage, knobs.forced_wattage, pylontech.computed_max_charge*100);

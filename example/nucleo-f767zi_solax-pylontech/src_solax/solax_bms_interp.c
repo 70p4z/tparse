@@ -37,7 +37,7 @@ TODO
 #define BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV 35
 #define BMS_CELL_VOLTAGE_FOR_LIMITED_CHARGE_DV 34
 // (~0.7A) => the dissipation of internal pack cell balancing (0.6*3.5 = 2 Watts) 
-#define BMS_LIMITED_CHARGE_WATTAGE_PER_PACK (3500*15*7/10/1000) 
+#define BMS_LIMITED_CHARGE_WATTAGE_PER_PACK (3500*15*5/10/1000) 
 
 // min difference to enable balancing charge
 #define PYLONTECH_BALANCING_STOP_DIFF_MV 5
@@ -672,7 +672,7 @@ void transcharge_auto_run(void) {
 struct {
   uint16_t min_mV; // if 0 => no boundary
   uint16_t max_mV; // if 0 => no boundary
-  uint8_t charge_dA;  // if 255 => no boundary
+  uint16_t charge_dA;  // if 255 => no boundary
 } const bms_max_charge_constraint[] = {
  { .min_mV = 0, .max_mV = 3370, .charge_dA = 255 },
  { .min_mV = 3400, .max_mV = 3425, .charge_dA = 60 },
@@ -702,12 +702,18 @@ void bms_cap_charge_update(uint16_t max_cell_mV) {
         pylontech.cap_max_charge = pylontech.max_charge;
       }
       else {
-        pylontech.cap_max_charge = bms_max_charge_constraint[i].charge_dA + (bms_max_charge_constraint[i].charge_dA>0?SOLAX_BATTERY_CHARGE_OFFSET_DA:0);
+        uint16_t offset_dA = bms_max_charge_constraint[i].charge_dA>0?SOLAX_BATTERY_CHARGE_OFFSET_DA:0;
+        uint16_t cap_dA = bms_max_charge_constraint[i].charge_dA;
+        snprintf((char*)tmp+128, sizeof(tmp)-128, "cap max charge = %d + %d (was %d)\n", cap_dA, offset_dA, pylontech.cap_max_charge);
+        master_log((char*)tmp+128);
+        pylontech.cap_max_charge = cap_dA + (cap_dA>1?offset_dA:0);
       }
       // no more match SHOULD occur
       break;
     }
   }
+
+  master_log("cap max charge = unchanged\n");
 }
 
 void interp(void) {
@@ -1112,6 +1118,20 @@ void interp(void) {
 
           // ensure not to overcharge, even if the pack wants to!, to limit wearing and runaway
           // pylontech charge wattage bypass
+          snprintf((char*)tmp+128, sizeof(tmp)-128, "%d < %d\n%d == 0\n%d == 0\n%d == 0\n%d < %d\n%d > 0\n", pylontech.vcellmax, knobs.max_pylontech_charge_drive, knobs.forced_wattage, knobs.cell_voltage_limited_charge, knobs.limited_charge_wattage, pylontech.vcellmax, knobs.cell_voltage_limited_charge, pylontech.cap_max_charge);
+          master_log((char*)tmp+128);
+
+          if (// forced charge wattage set
+              knobs.forced_wattage != 0
+              // limited charging set
+              || (knobs.cell_voltage_limited_charge != 0 
+                  && knobs.limited_charge_wattage != 0
+                  && pylontech.vcellmax >= knobs.cell_voltage_limited_charge) ) {
+            master_log("charge limit: computed max charge ONLY\n");
+            maxch = pylontech.computed_max_charge;
+          }
+          else
+          /*
           if (pylontech.vcellmax < knobs.max_pylontech_charge_drive 
             // forced charge wattage not set
             && knobs.forced_wattage == 0
@@ -1121,11 +1141,11 @@ void interp(void) {
                 //|| pylontech.vcell_highest / 100 < knobs.cell_voltage_limited_charge
                 || pylontech.vcellmax < knobs.cell_voltage_limited_charge
                 // until the pylontech/cap is meaningful
-                || pylontech.cap_max_charge > 0)) {
+                || pylontech.cap_max_charge > 0)) 
+          */
+          {
+            master_log("charge limit: computed max charge OR cap max charge\n");
             maxch = MAX(pylontech.computed_max_charge, pylontech.cap_max_charge);
-          }
-          else {
-            maxch = pylontech.computed_max_charge;
           }
           tmp[4] = maxch&0xFF;
           tmp[5] = (maxch>>8)&0xFF;
@@ -2365,7 +2385,7 @@ void solax_compute_maxcharge(void) {
     }
 
     // don't update charging current when not automated (else the average is always lower, and it implies kick in each time we change charge range) => this smoothes the charge at end of charge
-    if (knobs_controlled_wattage || pylontech.cap_max_charge == 0) {
+    if (knobs_controlled_wattage || pylontech.cap_max_charge == 0 || pylontech.cap_max_charge == 1) {
       if (!pylontech.auto_charge_current) {
         // wipe the average value to avoid fault
         memset(pylontech.computed_wattage_values, 0, sizeof(pylontech.computed_wattage_values));

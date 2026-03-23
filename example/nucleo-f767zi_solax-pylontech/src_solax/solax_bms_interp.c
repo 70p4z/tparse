@@ -2341,15 +2341,16 @@ void solax_compute_maxcharge(void) {
   uint16_t vcell_lowest = 0;
   uint16_t vcell_highest = 0;
   if (pylontech.bmu_idx > 0) {
-    vcell_lowest = pylontech.bmu[0].vlow; 
-    vcell_highest = pylontech.bmu[0].vhigh;
+    // use reasonnable values to avoid invalid read values to kill algorithms
+    vcell_lowest = 4000; 
+    vcell_highest = 2000;
     for (uint8_t bmu_idx=0; bmu_idx < pylontech.bmu_idx; bmu_idx++) {
       // add absolute limit to filter out invlaid values
-      if (pylontech.bmu[bmu_idx].vlow < vcell_lowest && pylontech.bmu[bmu_idx].vhigh < 6000) {
+      if (pylontech.bmu[bmu_idx].vlow < vcell_lowest && pylontech.bmu[bmu_idx].vhigh < 4000) {
         vcell_lowest = pylontech.bmu[bmu_idx].vlow;
       }
       // add absolute limit to filter out invlaid values
-      if (pylontech.bmu[bmu_idx].vhigh > vcell_highest && pylontech.bmu[bmu_idx].vhigh < 6000) {
+      if (pylontech.bmu[bmu_idx].vhigh > vcell_highest && pylontech.bmu[bmu_idx].vhigh < 4000) {
         vcell_highest = pylontech.bmu[bmu_idx].vhigh;
       }
     }

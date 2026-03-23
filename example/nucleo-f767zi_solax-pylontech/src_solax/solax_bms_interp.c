@@ -35,7 +35,7 @@ TODO
 
 #define BMS_MAX_CELL_VOLTAGE_FOR_CURRENT_CHG_DV 36
 #define BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV 35
-#define BMS_CELL_VOLTAGE_FOR_LIMITED_CHARGE_DV 34
+#define BMS_CELL_VOLTAGE_FOR_LIMITED_CHARGE_DV 35
 // (~0.7A) => the dissipation of internal pack cell balancing (0.6*3.5 = 2 Watts) 
 #define BMS_LIMITED_CHARGE_WATTAGE_PER_PACK (3500*15*5/10/1000) 
 
@@ -674,10 +674,10 @@ struct {
   uint16_t max_mV; // if 0 => no boundary
   uint16_t charge_dA;  // if 255 => no boundary
 } const bms_max_charge_constraint[] = {
- { .min_mV = 0, .max_mV = 3370, .charge_dA = 255 },
+ { .min_mV = 0,    .max_mV = 3370, .charge_dA = 255 },
  { .min_mV = 3400, .max_mV = 3425, .charge_dA = 60 },
  { .min_mV = 3450, .max_mV = 3475, .charge_dA = 20 },
- { .min_mV = 3500, .max_mV = 0, .charge_dA = 1 }, // make sure controlled charge takes over
+ { .min_mV = 3500, .max_mV = 0,    .charge_dA = 1 }, // make sure controlled charge takes over
  //{ .min_mV = 3600, .max_mV = 0, .charge_dA = 0 },
 };
 

@@ -675,9 +675,12 @@ struct {
   uint16_t charge_dA;  // if 255 => no boundary
 } const bms_max_charge_constraint[] = {
  { .min_mV = 0,    .max_mV = 3370, .charge_dA = 255 },
+ { .min_mV = 3375, .max_mV = 3395, .charge_dA = 100 },
  { .min_mV = 3400, .max_mV = 3425, .charge_dA = 60 },
- { .min_mV = 3450, .max_mV = 3475, .charge_dA = 20 },
- { .min_mV = 3500, .max_mV = 0,    .charge_dA = 1 }, // make sure controlled charge takes over
+ { .min_mV = 3430, .max_mV = 3475, .charge_dA = 30 },
+ { .min_mV = 3480, .max_mV = 3495, .charge_dA = 20 },
+ { .min_mV = 3500, .max_mV = 3550, .charge_dA = 10 },
+ { .min_mV = 3560, .max_mV = 0,    .charge_dA = 0.1 }, // make sure controlled charge takes over
  //{ .min_mV = 3600, .max_mV = 0, .charge_dA = 0 },
 };
 

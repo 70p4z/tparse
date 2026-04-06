@@ -31,7 +31,7 @@ TARGET := arm-none-eabi-
 DEFINES += DEBUG USE_FULL_LL_DRIVER USE_HAL_DRIVER STM32F767xx
 
 CFLAGS += $(addprefix -D,$(DEFINES)) $(addprefix -I,$(INCLUDE_PATH)) -std=gnu11 -g3
-CFLAGS += -Og -ffunction-sections -fdata-sections -Wall -fomit-frame-pointer -fstack-usage -MMD -MP
+CFLAGS += -Os -ffunction-sections -fdata-sections -Wall -fomit-frame-pointer -fstack-usage -MMD -MP
 CFLAGS += -mcpu=cortex-m0plus -mthumb --specs=nano.specs #-mfpu=fpv4-sp-d16 -mfloat-abi=hard 
 
 LDFLAGS += -TSTM32F767ZITx_FLASH.ld
@@ -68,3 +68,6 @@ log:
 
 load_nucleo:
 	sudo mount /dev/sda /mnt/ ; sudo cp build_solax/output.bin /mnt/; sudo umount /mnt
+
+load_nucleob:
+	sudo mount /dev/sdb /mnt/ ; sudo cp build_solax/output.bin /mnt/; sudo umount /mnt

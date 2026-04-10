@@ -680,7 +680,7 @@ struct {
  { .min_mV = 3430, .max_mV = 3475, .charge_dA = 30 },
  { .min_mV = 3480, .max_mV = 3495, .charge_dA = 20 },
  { .min_mV = 3500, .max_mV = 3550, .charge_dA = 10 },
- { .min_mV = 3560, .max_mV = 0,    .charge_dA = 0.1 }, // make sure controlled charge takes over
+ { .min_mV = 3560, .max_mV = 0,    .charge_dA = 1 }, // make sure controlled charge takes over
  //{ .min_mV = 3600, .max_mV = 0, .charge_dA = 0 },
 };
 
@@ -694,6 +694,12 @@ void bms_cap_charge_update(uint16_t max_cell_mV) {
   if (pylontech.cap_max_charge == 0) {
     master_log("cap max charge = BMS\n");
     pylontech.cap_max_charge = pylontech.max_charge;
+  }
+
+  // avoid fully charged weirdness when requesting power
+  if (pylontech.soc >= 100) {
+    pylontech.cap_max_charge = 1;
+    return;
   }
 
   // no default cap max harge value to allow for hysterisis gap to respect the last set value

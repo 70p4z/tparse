@@ -74,5 +74,5 @@ load_nucleob:
 
 test: 
 	rm -f $(BUILD_DIR)/solax_pid_test
-	gcc -DX86 -o $(BUILD_DIR)/solax_pid_test src_solax/solax_bms_interp_test_pid.c src_solax/bms_charge_pid.c
+	gcc -DX86 -g -o $(BUILD_DIR)/solax_pid_test src_solax/solax_bms_interp_test_pid.c src_solax/bms_charge_pid.c src_solax/bms_charge_management.c src_solax/globals.c
 	$(BUILD_DIR)/solax_pid_test

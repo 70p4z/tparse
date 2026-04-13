@@ -1299,8 +1299,8 @@ void interp(void) {
               bms_uart_state = BMS_UART_STATE_WAIT_UNIT; 
               bms_uart_timeout = uwTick + BMS_UART_TIMEOUT;
               // init unit's min/max voltages
-              pylontech.vcell_highest=0;
-              pylontech.vcell_lowest=-1;
+              pylontech.vcell_highest_tmp=0;
+              pylontech.vcell_lowest_tmp=-1;
             }
             else {
               tparse_token_u32(&tp_bms);
@@ -1334,12 +1334,12 @@ void interp(void) {
 
               if (VCELL_VALID(pylontech.bmu[idx].vlow) && VCELL_VALID(pylontech.bmu[idx].vhigh)) {
                 // add absolute limit to filter out invlaid values
-                if (pylontech.bmu[idx].vlow < pylontech.vcell_lowest) {
-                  pylontech.vcell_lowest = pylontech.bmu[idx].vlow;
+                if (pylontech.bmu[idx].vlow < pylontech.vcell_lowest_tmp) {
+                  pylontech.vcell_lowest_tmp = pylontech.bmu[idx].vlow;
                 }
                 // add absolute limit to filter out invlaid values
-                if (pylontech.bmu[idx].vhigh > pylontech.vcell_highest) {
-                  pylontech.vcell_highest = pylontech.bmu[idx].vhigh;
+                if (pylontech.bmu[idx].vhigh > pylontech.vcell_highest_tmp) {
+                  pylontech.vcell_highest_tmp = pylontech.bmu[idx].vhigh;
                 }
               }
             }
@@ -1349,6 +1349,9 @@ void interp(void) {
               master_log("UARTBMS end\n");
               // validate new count, so that i2c are not desynch
               pylontech.bmu_idx = pylontech.bmu_idx_tmp;
+              // cache new values
+              pylontech.vcell_lowest = pylontech.vcell_lowest_tmp;
+              pylontech.vcell_highest = pylontech.vcell_highest_tmp;
               bms_uart_state = BMS_UART_STATE_IDLE; 
               bms_uart_timeout = 0;
             }

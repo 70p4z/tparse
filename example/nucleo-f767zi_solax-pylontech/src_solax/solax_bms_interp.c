@@ -4,7 +4,7 @@
 #include "stddef.h"
 #include "stdio.h"
 #include "stdbool.h"
-#include "bms_charge_pid.h"
+#include "globals.h"
 
 /*
 TODO
@@ -141,6 +141,8 @@ TODO
 void Configure_I2C_Slave(void);
 void solax_compute_maxcharge(void);
 void solax_process_data(void);
+
+int16_t update_charge(int16_t maxch);
 
 // for snprintf to work as expected
 void _sbrk(void) {
@@ -366,118 +368,6 @@ const char * const solax_forced_work_mode_str [] = {
   "FD",
 };
 
-struct {
-  int32_t forced_soc; // unit %
-  int32_t forced_wattage; // unit: W
-  uint8_t max_charge_voltage; // unit dV
-  uint8_t max_pylontech_charge_drive; // unit dV // when voltage over this value, then we are in 
-                                                 // control of the charge current (redondant with 
-                                                 // limited charge)
-  uint8_t cell_voltage_limited_charge; // unit dV (0 means disabled limited_wattage)
-  int32_t limited_charge_wattage; // unit: W (0 means disabled limited wattage)
-} knobs;
-
-uint32_t auto_self_use_from_bat;
-uint32_t auto_grid_connection;
-uint32_t auto_bat_charge;
-enum {
-  SOLAX_FORCED_WORK_MODE_NONE,
-  SOLAX_FORCED_WORK_MODE_SELF_USE,
-  SOLAX_FORCED_WORK_MODE_BACKUP,
-  SOLAX_FORCED_WORK_MODE_MANUAL_STOP,
-  SOLAX_FORCED_WORK_MODE_MANUAL_CHARGE,
-  SOLAX_FORCED_WORK_MODE_MANUAL_DISCHARGE,
-} solax_forced_work_mode;
-struct {
-  uint16_t pv1_voltage;
-  uint16_t pv2_voltage;
-  uint16_t pv1_current;
-  uint16_t pv2_current;
-  uint16_t pv1_wattage;
-  uint16_t pv2_wattage;
-  int16_t bat_wattage;
-  #define INVERTER_STATUS_WAITING 0
-  #define INVERTER_STATUS_CHECKING 1
-  #define INVERTER_STATUS_NORMAL 2
-  #define INVERTER_STATUS_FAULT 3
-  #define INVERTER_STATUS_ERROR 4
-  #define INVERTER_STATUS_UPDATE 5
-  #define INVERTER_STATUS_EPS_WAIT 6
-  #define INVERTER_STATUS_EPS 7
-  #define INVERTER_STATUS_SELFTEST 8
-  #define INVERTER_STATUS_IDLE 9
-  #define INVERTER_STATUS_STANDBY 10
-  uint8_t status;
-  uint8_t status_count; // account for number of times the same state has shown
-  uint8_t powered_on; // inverter_status != standby
-  uint8_t work_mode;
-  uint16_t bat_SoC;
-  int16_t bat_temp;
-  int16_t grid_wattage;
-  int16_t grid_meter_ct;
-  int16_t output_va;
-  int16_t eps_current;
-  int16_t eps_voltage;
-  int16_t eps_power;
-  uint16_t year;
-  uint8_t month;
-  uint8_t day;
-  uint8_t hour;
-  uint8_t minute;
-  uint8_t seconds;
-
-  uint8_t grid_connect_soc;
-  uint8_t grid_disconnect_soc;
-  uint8_t enable_self_use_soc;
-  uint8_t disable_self_use_soc;
-  uint8_t stop_discharge_soc;
-  uint8_t valid_data;
-
-  uint8_t self_use_discharge_enabled;
-} solax;
-
-#define PYLONTECH_MAX_BMUS 20
-struct {
-  uint16_t voltage;
-  uint32_t precise_voltage; // mV
-  int16_t current;
-  int32_t precise_current;  // mA
-  uint8_t soc;
-  uint8_t apparent_soc;
-  uint8_t soc_mWh;
-  uint32_t precise_mAh;
-  uint32_t precise_mAh_ts; // to compute approx current drive, when 0 is reported
-  uint32_t precise_mWh;
-  int32_t wattage;
-  int32_t precise_wattage;
-  int16_t max_charge;
-  int16_t cap_max_charge;
-  int16_t max_discharge;
-  int16_t effective_charge;
-  uint16_t packs;
-  uint8_t max_charge_soc;
-  uint8_t contactor_on;
-  uint8_t charge_request;
-  uint16_t cycles;
-  uint8_t fix2_31;
-  uint32_t total_capacity_mAh;
-  uint8_t vcellmax;
-  uint8_t vcellmin;
-  uint8_t tcellmax;
-  uint8_t tcellmin;
-
-  uint8_t bmu_idx;
-  uint8_t bmu_idx_tmp;
-  struct {
-    uint8_t soc;
-    uint8_t soc_mWh;
-    uint16_t vlow;
-    uint16_t vhigh;
-    uint8_t pcba[32+1];
-  } bmu[PYLONTECH_MAX_BMUS];
-  uint16_t vcell_highest;
-  uint16_t vcell_lowest;
-} pylontech;
 
 #ifdef HAVE_EXT_CHARGER
 #define CHARGER_COM_INTERVAL_MS 700 // different period from the inverter call to try avoiding collision on CAN
@@ -501,7 +391,6 @@ struct {
 } charger;
 #endif // HAVE_EXT_CHARGER
 
-current_controller_pv_t pylontech_pid;
 
 /*
 GPIO=1 + EPS=230V -> (TRIAC=CLOSED) + EPS_relay(NO=COM) -> GRID_relay(OPENED) -> INV=|=GRID
@@ -602,13 +491,16 @@ void transcharge_auto_run(void) {
       while (pylon_idx-- > 0) {
         // only perform balancing based on lowest voltage cell of each pack
         uint32_t v = pylontech.bmu[pylon_idx].vlow;
-        if (vcellmin_mv > v 
+        if (vcellmin_mv > v
+          && VCELL_VALID(v)
+          && VCELL_VALID(pylontech.bmu[pylon_idx].vhigh)
           // don't select this pack when its top cell is already too high, wait for internal balancing
           && pylontech.bmu[pylon_idx].vhigh < PYLONTECH_BALANCING_MAX_MV) {
           vcellmin_mv = v;
           vcellmin_mv_idx = transcharge_idx;
         }
-        if (vcellmax_mv < v) {
+        if (vcellmax_mv < v
+          && VCELL_VALID(v)) {
           vcellmax_mv = v;
           vcellmax_mv_idx = transcharge_idx;
         }
@@ -621,6 +513,7 @@ void transcharge_auto_run(void) {
 
       // Safety, disable all charge balancing due to over charge
       if (transcharge.auto_last_idx < pylontech.bmu_idx
+        && VCELL_VALID(pylontech.bmu[transcharge.auto_last_idx].vhigh)
         && pylontech.bmu[transcharge.auto_last_idx].vhigh >= PYLONTECH_BALANCING_MAX_MV) {
         master_log("BALANCE: stop overcharge");
         transcharge_disable_all();
@@ -634,7 +527,8 @@ void transcharge_auto_run(void) {
         // Continue charging the same pack until its vcellmin is XmV above the current cellmin
         if (transcharge.auto_last_idx < pylontech.bmu_idx
           && vcellmin_mv_idx != transcharge.auto_last_idx
-          && vcellmin_mv + TRANSCHARGE_BALANCING_MIN_GAP_MV < pylontech.bmu[transcharge.auto_last_idx].vlow ) {
+          && VCELL_VALID(pylontech.bmu[transcharge.auto_last_idx].vlow)
+          && vcellmin_mv + TRANSCHARGE_BALANCING_MIN_GAP_MV < pylontech.bmu[transcharge.auto_last_idx].vlow) {
           transcharge.timeout = uwTick + TRANSCHARGE_AUTO_TIMEOUT_MS;
           master_log("BALANCE: not charged enough, continue charging the same pack\n");
         }
@@ -663,65 +557,6 @@ void transcharge_auto_run(void) {
       }
     }
   }
-}
-
-#define MV_NO_BOUNDARY 0
-#define CHARGE_NO_BOUNDARY 255
-struct {
-  uint16_t min_mV; // if 0 => no boundary
-  uint16_t max_mV; // if 0 => no boundary
-  uint16_t charge_dA;  // if 255 => no boundary
-} const bms_max_charge_constraint[] = {
- { .min_mV = 0,    .max_mV = 3370, .charge_dA = 255 },
- { .min_mV = 3375, .max_mV = 3395, .charge_dA = 100 },
- { .min_mV = 3400, .max_mV = 3425, .charge_dA = 60 },
- { .min_mV = 3430, .max_mV = 3475, .charge_dA = 30 },
- { .min_mV = 3480, .max_mV = 3495, .charge_dA = 20 },
- { .min_mV = 3500, .max_mV = 3550, .charge_dA = 10 },
- { .min_mV = 3560, .max_mV = 0,    .charge_dA = 1 }, // make sure controlled charge takes over
- //{ .min_mV = 3600, .max_mV = 0, .charge_dA = 0 },
-};
-
-// Hysterisis are NOT respected! when cell passes 3.5 then 0 applies, then when it jumps back to 3.499, then
-// 2.0 applies! => must respect the fact the top value has crossed
-
-void bms_cap_charge_update(uint16_t max_cell_mV) {
-  int i;
-
-  // initialize the cap max charge if not initiliazed yet
-  if (pylontech.cap_max_charge == 0) {
-    master_log("cap max charge = BMS\n");
-    pylontech.cap_max_charge = pylontech.max_charge;
-  }
-
-  // avoid fully charged weirdness when requesting power
-  if (pylontech.soc >= 100) {
-    pylontech.cap_max_charge = 1;
-    return;
-  }
-
-  // no default cap max harge value to allow for hysterisis gap to respect the last set value
-  for (i = 0; i<sizeof(bms_max_charge_constraint) / sizeof(bms_max_charge_constraint[0]) ; i++) {
-    if ((bms_max_charge_constraint[i].min_mV == MV_NO_BOUNDARY || bms_max_charge_constraint[i].min_mV <= max_cell_mV)
-        && (bms_max_charge_constraint[i].max_mV == MV_NO_BOUNDARY || bms_max_charge_constraint[i].max_mV >= max_cell_mV)) {
-      if (bms_max_charge_constraint[i].charge_dA == CHARGE_NO_BOUNDARY) {
-        master_log("cap max charge = BMS\n");
-        pylontech.cap_max_charge = pylontech.max_charge;
-      }
-      else {
-        //uint16_t offset_dA = bms_max_charge_constraint[i].charge_dA>0?SOLAX_BATTERY_CHARGE_OFFSET_DA:0;
-        uint16_t cap_dA = bms_max_charge_constraint[i].charge_dA;
-        //snprintf((char*)tmp+128, sizeof(tmp)-128, "cap max charge = %d + %d (was %d)\n", cap_dA, offset_dA, pylontech.cap_max_charge);
-        snprintf((char*)tmp+128, sizeof(tmp)-128, "cap max charge = %d  (was %d)\n", cap_dA, pylontech.cap_max_charge);
-        master_log((char*)tmp+128);
-        pylontech.cap_max_charge = cap_dA /*+ (cap_dA>1?offset_dA:0)*/;
-      }
-      // no more match SHOULD occur
-      break;
-    }
-  }
-
-  master_log("cap max charge = unchanged\n");
 }
 
 
@@ -1131,56 +966,7 @@ void interp(void) {
             tmp[7] = 0;
           }
 
-          bms_cap_charge_update(pylontech.vcell_highest);
-
-          uint16_t bat_current_dA = pylontech.current;
-          if (pylontech.precise_wattage) {
-            bat_current_dA = pylontech.precise_current/100;
-          }
-
-          uint16_t target_dA = pylontech.cap_max_charge;
-          if (pylontech.soc >= 100 || pylontech.vcellmax >= knobs.cell_voltage_limited_charge) {
-            target_dA = knobs.limited_charge_wattage*10/pylontech.voltage;
-          }
-
-          if (knobs.forced_wattage != 0) {
-            // forced!
-            pylontech_pid.charge_allowed = true;
-            maxch = bms_charge_pid(
-              bat_current_dA, 
-              knobs.forced_wattage*100/pylontech.voltage,
-              pylontech.vcell_highest, 
-              pylontech.soc >= 100, 
-              &pylontech_pid);
-
-            snprintf((char*)tmp+16, sizeof(tmp)-16, "PID: cur=%ddA tgt=%ddA chg=%ddA\n", 
-                     knobs.forced_wattage,
-                     pylontech.voltage,
-                     bat_current_dA,
-                     knobs.forced_wattage*100/pylontech.voltage,
-                     maxch
-                     );
-          }
-          else {
-            maxch = bms_charge_pid(
-              bat_current_dA, 
-              target_dA,
-              pylontech.vcell_highest, 
-              pylontech.soc >= 100, 
-              &pylontech_pid);
-
-
-            snprintf((char*)tmp+16, sizeof(tmp)-16, "PID: cur=%ddA tgt=%ddA chg=%ddA\n", 
-                     bat_current_dA,
-                     target_dA,
-                     maxch
-                     );
-          }
-
-          // avoid too high result (shall be taken care of in the PID instead!, this is security harness)
-          if (maxch > target_dA + 8) {
-            maxch = target_dA + 8;
-          }
+          maxch = update_charge(maxch);
 
           tmp[4] = maxch&0xFF;
           tmp[5] = (maxch>>8)&0xFF;
@@ -1350,6 +1136,7 @@ void interp(void) {
           // send request to the bms
           uart_select_intf(USART6);
           uart_send_mem("pwr\n",4);
+          // invalidate bmu values
           pylontech.bmu_idx = 0;
           bms_uart_state = BMS_UART_STATE_WAIT_PWR;
           bms_uart_next = uwTick + BMS_UART_NEXT_INTERVAL;
@@ -1509,9 +1296,11 @@ void interp(void) {
               // send request to the bms
               uart_select_intf(USART6);
               uart_send_mem("unit\n",5);
-              pylontech.bmu_idx = pylontech.bmu_idx_tmp; // validate new count, so that i2c are not desynch
               bms_uart_state = BMS_UART_STATE_WAIT_UNIT; 
               bms_uart_timeout = uwTick + BMS_UART_TIMEOUT;
+              // init unit's min/max voltages
+              pylontech.vcell_highest=0;
+              pylontech.vcell_lowest=-1;
             }
             else {
               tparse_token_u32(&tp_bms);
@@ -1522,7 +1311,7 @@ void interp(void) {
           case BMS_UART_STATE_WAIT_UNIT: {
             // unit info lines start with index value
             uint32_t idx = tparse_token_u32(&tp_bms)-1; // index
-            if (idx >= 0 && idx < pylontech.bmu_idx && idx < PYLONTECH_MAX_BMUS) {
+            if (idx >= 0 && idx < pylontech.bmu_idx_tmp && idx < PYLONTECH_MAX_BMUS) {
               /*
               Index  Volt   Curr   Tempr  BTlow  BThigh BVlow  BVhigh Base.St  Volt.St  Temp.St  CoulombAH                CoulombWH               Time               
               1      50682  753    28000  25000  25000  3378   3380    Charge   Normal   Normal    93%          46477 mAH  93%            2238 WH 2000-11-27 01:37:22 
@@ -1542,11 +1331,24 @@ void interp(void) {
               tparse_token_u32(&tp_bms); // 'mAh'
               pylontech.bmu[idx].soc_mWh = tparse_token_u32(&tp_bms); // CoulombWH
               tparse_discard_line(&tp_bms);
+
+              if (VCELL_VALID(pylontech.bmu[idx].vlow) && VCELL_VALID(pylontech.bmu[idx].vhigh)) {
+                // add absolute limit to filter out invlaid values
+                if (pylontech.bmu[idx].vlow < pylontech.vcell_lowest) {
+                  pylontech.vcell_lowest = pylontech.bmu[idx].vlow;
+                }
+                // add absolute limit to filter out invlaid values
+                if (pylontech.bmu[idx].vhigh > pylontech.vcell_highest) {
+                  pylontech.vcell_highest = pylontech.bmu[idx].vhigh;
+                }
+              }
             }
             // end?
             else if (read >= 3 && strstr((const char *)tmp, "\r$$") == (const char *)tmp) {
               tparse_discard(&tp_bms);
               master_log("UARTBMS end\n");
+              // validate new count, so that i2c are not desynch
+              pylontech.bmu_idx = pylontech.bmu_idx_tmp;
               bms_uart_state = BMS_UART_STATE_IDLE; 
               bms_uart_timeout = 0;
             }

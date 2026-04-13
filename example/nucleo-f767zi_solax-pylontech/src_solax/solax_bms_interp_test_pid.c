@@ -3,9 +3,17 @@
 #include <stdlib.h>
 #include <time.h>
 #include "bms_charge_pid.h"
+#include "globals.h"
 #include "string.h"
 
 #define MIN(x,y) ((x)<(y)?x:y)
+
+#ifdef X86
+uint8_t tmp[TMP_BUFFER_SIZE_B];
+void master_log(char* str) {
+    printf(str);
+}
+#endif // X86
 
 void init_pid(current_controller_pv_t *ctrl)
 {
@@ -108,10 +116,10 @@ int16_t battery_step(battery_t *b, int16_t allowed_dA)
 
 typedef struct {
     int32_t soc_acc;
-    int16_t voltage_mV;
-    int16_t filt_current_dA;
-    int16_t load_dA;
-    int16_t soc_max;
+    int32_t voltage_mV;
+    int32_t filt_current_dA;
+    int32_t load_dA;
+    int32_t soc_max;
 
 } plant_t;
 
@@ -780,8 +788,58 @@ void test_allowed_never_exceeds_target_plus_offset()
     }
 }
 
+int16_t update_charge(int16_t maxch); // really lame decl
+// non regression test for current, with observed problems
+void test_update_charge(void) {
+  // faked init value for test to run smoothly
+  knobs.limited_charge_wattage = 180;
+  pylontech.voltage = 4131;
+  pylontech.precise_voltage = 413100;
+  pylontech.precise_current = 6200;
+  knobs.forced_wattage = 0;
+  pylontech.vcellmax = 33;
+  knobs.cell_voltage_limited_charge = 35;
+  knobs.max_charge_voltage = 36;
+  pylontech.bmu_idx = 8;
+  pylontech.max_charge = 255;
+  pylontech.vcell_highest = 3385;
+  pylontech.current = 62;
+
+  /*
+  pylontech.vcell_highest = 3411;
+  pylontech.current = 59;
+  */
+
+  memset(&pylontech_pid, 0, sizeof(pylontech_pid));
+  pylontech_pid.kp_x100 = 59;
+  pylontech_pid.ki_up_x100 = 10;
+  pylontech_pid.ki_down_x100 = 20;
+  pylontech_pid.kd_x100 = 5;
+  pylontech_pid.max_step_up_dA = 20; // max change per cycle
+  pylontech_pid.max_step_down_dA = 50; // max change per cycle (faster on drops)
+  pylontech_pid.max_energy_step_dA = 50;
+  pylontech_pid.energy_deadband_dA = 2;
+  pylontech_pid.v_start_hyst_mV = 3450;
+  pylontech_pid.v_stop_hyst_mV = 3550;
+  pylontech_pid.charge_allowed = true;
+  pylontech_pid.min_current_offset_dA = 1;
+  pylontech_pid.inverter_offset_dA = 5;
+
+  int16_t maxch; 
+  for (int i = 0; i < 50; i++) {
+      maxch = update_charge(250);
+      printf("%d \tmeas:%d\tallow:%d\n",__LINE__,
+                   pylontech.current,
+                   maxch);
+      // adjust current smoothly from computed charge request
+      pylontech.current += (maxch-pylontech.current)/10;
+  }
+}
+
 #ifdef X86
 int main(void) {
+
+    // PID-only tests
 
     test_noise_rejection();
     test_pv_limited();
@@ -796,6 +854,11 @@ int main(void) {
     test_full_sun_day();
     test_load_disturbance_rejection();
     test_allowed_never_exceeds_target_plus_offset();
+
+
+    // charge update global tests
+    test_update_charge();
+
     return 0;
 }
 #endif // X86

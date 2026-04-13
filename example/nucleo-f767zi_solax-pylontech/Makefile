@@ -71,3 +71,8 @@ load_nucleo:
 
 load_nucleob:
 	sudo mount /dev/sdb /mnt/ ; sudo cp build_solax/output.bin /mnt/; sudo umount /mnt
+
+test: 
+	rm -f $(BUILD_DIR)/solax_pid_test
+	gcc -DX86 -o $(BUILD_DIR)/solax_pid_test src_solax/solax_bms_interp_test_pid.c src_solax/bms_charge_pid.c
+	$(BUILD_DIR)/solax_pid_test

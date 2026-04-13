@@ -44,9 +44,11 @@ if __name__ == '__main__':
 	
 	for line in sys.stdin:
 		line = line.rstrip("\n").rstrip("\r")
+		print(">" + line)
 		#start = time.time();
 		try:
 			rline = iob.exchange(line)
+			print("<" + rline)# + " (time:"+str(math.ceil((stop-start)*1000)/1000.0)+"s)")
 		except:
 			traceback.print_exc()
 	s.close()

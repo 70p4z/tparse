@@ -791,73 +791,159 @@ void test_allowed_never_exceeds_target_plus_offset()
 int16_t update_charge(int16_t maxch); // really lame decl
 // non regression test for current, with observed problems
 void test_update_charge(void) {
-  // faked init value for test to run smoothly
-  knobs.limited_charge_wattage = 180;
-  pylontech.voltage = 4131;
-  pylontech.precise_voltage = 413100;
-  pylontech.precise_current = 6200;
-  knobs.forced_wattage = 0;
-  pylontech.vcellmax = 33;
-  knobs.cell_voltage_limited_charge = 35;
-  knobs.max_charge_voltage = 36;
-  pylontech.bmu_idx = 8;
-  pylontech.max_charge = 255;
-  pylontech.vcell_highest = 3385;
-  pylontech.current = 62;
+    // faked init value for test to run smoothly
+    knobs.limited_charge_wattage = 180;
+    pylontech.voltage = 4131;
+    pylontech.precise_voltage = 413100;
+    pylontech.precise_current = 6200;
+    knobs.forced_wattage = 0;
+    pylontech.vcellmax = 33;
+    knobs.cell_voltage_limited_charge = 35;
+    knobs.max_charge_voltage = 36;
+    pylontech.bmu_idx = 8;
+    pylontech.max_charge = 255;
 
-  /*
-  pylontech.vcell_highest = 3411;
-  pylontech.current = 59;
-  */
+    uint16_t target_dA = 255;
+    pylontech.vcell_highest = 3355;
+    pylontech.current = 62;
 
-  memset(&pylontech_pid, 0, sizeof(pylontech_pid));
-  pylontech_pid.kp_x100 = 59;
-  pylontech_pid.ki_up_x100 = 10;
-  pylontech_pid.ki_down_x100 = 20;
-  pylontech_pid.kd_x100 = 5;
-  pylontech_pid.max_step_up_dA = 20; // max change per cycle
-  pylontech_pid.max_step_down_dA = 50; // max change per cycle (faster on drops)
-  pylontech_pid.max_energy_step_dA = 50;
-  pylontech_pid.energy_deadband_dA = 2;
-  pylontech_pid.v_start_hyst_mV = 3450;
-  pylontech_pid.v_stop_hyst_mV = 3550;
-  pylontech_pid.charge_allowed = true;
-  pylontech_pid.min_current_offset_dA = 1;
-  pylontech_pid.inverter_offset_dA = 5;
+    /*
+    uint16_t target_dA = 100;
+    pylontech.vcell_highest = 3411;
+    pylontech.current = 59;
+    */
 
-  int16_t maxch; 
-  for (int i = 0; i < 50; i++) {
-      maxch = update_charge(250);
-      printf("%d \tmeas:%d\tallow:%d\n",__LINE__,
+    memset(&pylontech_pid, 0, sizeof(pylontech_pid));
+    pylontech_pid.kp_x100 = 60;
+    pylontech_pid.ki_up_x100 = 20;
+    pylontech_pid.ki_down_x100 = 50;
+    pylontech_pid.kd_x100 = 5;
+    pylontech_pid.max_step_up_dA = 20; // max change per cycle
+    pylontech_pid.max_step_down_dA = 50; // max change per cycle (faster on drops)
+    pylontech_pid.max_energy_step_dA = 50;
+    pylontech_pid.energy_deadband_dA = 2;
+    pylontech_pid.v_start_hyst_mV = 3450;
+    pylontech_pid.v_stop_hyst_mV = 3550;
+    pylontech_pid.charge_allowed = true;
+    pylontech_pid.min_current_offset_dA = 1;
+    pylontech_pid.inverter_offset_dA = 5;
+
+    int16_t maxch; 
+    int16_t missed_integral_x10 = 0;
+    for (int i = 0; i < 50; i++) {
+        maxch = update_charge(250);
+        printf("%d \tmeas:%d\tallow:%d\n",__LINE__,
                    pylontech.current,
                    maxch);
-      // adjust current smoothly from computed charge request
-      pylontech.current += (maxch-pylontech.current)/10;
-  }
+        // adjust current smoothly from computed charge request
+        int16_t delta = (maxch-pylontech.current);
+        pylontech.current += delta/10;
+        missed_integral_x10 += delta - (delta/10)*10;
+        if (missed_integral_x10 >= 10 || missed_integral_x10 <= -10) {
+            pylontech.current += missed_integral_x10/10;
+            missed_integral_x10 -= (missed_integral_x10/10)*10;
+        }
+
+        assert(maxch <= pylontech.cap_max_charge+pylontech_pid.inverter_offset_dA);
+    }
+
+    assert(pylontech.current >= target_dA - 5*target_dA/100);
+    assert(pylontech.current <= target_dA + 5*target_dA/100);
+}
+
+void test_update_charge2(void) {
+    // faked init value for test to run smoothly
+    knobs.limited_charge_wattage = 180;
+    pylontech.voltage = 4131;
+    pylontech.precise_voltage = 413100;
+    pylontech.precise_current = 6200;
+    knobs.forced_wattage = 0;
+    pylontech.vcellmax = 33;
+    knobs.cell_voltage_limited_charge = 35;
+    knobs.max_charge_voltage = 36;
+    pylontech.bmu_idx = 8;
+    pylontech.max_charge = 255;
+
+    uint16_t target_dA = 60;
+    pylontech.vcell_highest = 3411;
+    pylontech.current = 59;
+
+    memset(&pylontech_pid, 0, sizeof(pylontech_pid));
+    pylontech_pid.kp_x100 = 60;
+    pylontech_pid.ki_up_x100 = 20;
+    pylontech_pid.ki_down_x100 = 50;
+    pylontech_pid.kd_x100 = 5;
+    pylontech_pid.max_step_up_dA = 20; // max change per cycle
+    pylontech_pid.max_step_down_dA = 50; // max change per cycle (faster on drops)
+    pylontech_pid.max_energy_step_dA = 50;
+    pylontech_pid.energy_deadband_dA = 2;
+    pylontech_pid.v_start_hyst_mV = 3450;
+    pylontech_pid.v_stop_hyst_mV = 3550;
+    pylontech_pid.charge_allowed = true;
+    pylontech_pid.min_current_offset_dA = 1;
+    pylontech_pid.inverter_offset_dA = 5;
+
+    int16_t maxch; 
+    int16_t missed_integral_x10 = 0;
+    for (int i = 0; i < 50; i++) {
+        maxch = update_charge(250);
+        printf("%d \tmeas:%d\tallow:%d\n",__LINE__,
+                   pylontech.current,
+                   maxch);
+        // adjust current smoothly from computed charge request
+        int16_t delta = (maxch-pylontech.current);
+        pylontech.current += delta/10;
+        missed_integral_x10 += delta - (delta/10)*10;
+        if (missed_integral_x10 >= 10 || missed_integral_x10 <= -10) {
+            pylontech.current += missed_integral_x10/10;
+            missed_integral_x10 -= (missed_integral_x10/10)*10;
+        }
+
+        assert(maxch <= pylontech.cap_max_charge+pylontech_pid.inverter_offset_dA);
+    }
+
+    assert(pylontech.current >= target_dA - 5*target_dA/100);
+    assert(pylontech.current <= target_dA + 5*target_dA/100);
 }
 
 #ifdef X86
 int main(void) {
 
+
     // PID-only tests
 
+    printf("test_noise_rejection\n");
     test_noise_rejection();
+    printf("test_pv_limited\n");
     test_pv_limited();
+    printf("test_min_current_when_full\n");
     test_min_current_when_full();
+    printf("test_prevent_discharge_near_zero\n");
     test_prevent_discharge_near_zero();
-    test_positive_offset();
+    printf("test_positive_offset\n");
     // test_positive_offset_close_0(); // no such world with a positive offset for charging (yet?)
+    test_positive_offset();
+    printf("test_negative_offset\n");
     test_negative_offset();
+    printf("test_negative_offset_close_0\n");
     test_negative_offset_close_0();
+    printf("test_cloud_recovery\n");
     test_cloud_recovery();
+    printf("test_hysteresis_cycle\n");
     test_hysteresis_cycle();
+    printf("test_full_sun_day\n");
     test_full_sun_day();
+    printf("test_load_disturbance_rejection\n");
     test_load_disturbance_rejection();
+    printf("test_allowed_never_exceeds_target_plus_offset\n");
     test_allowed_never_exceeds_target_plus_offset();
 
 
     // charge update global tests
+    printf("test_update_charge\n");
     test_update_charge();
+    printf("test_update_charge2\n");
+    test_update_charge2();
 
     return 0;
 }

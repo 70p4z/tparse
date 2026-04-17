@@ -205,7 +205,6 @@ void test_noise_rejection()
             measured + noise,
             300,
             3500,
-            false,
             &ctrl
         );
 
@@ -235,7 +234,6 @@ void test_pv_limited()
             measured,
             500,   // target higher than PV
             3500,
-            false,
             &ctrl
         );
         printf("%d %d\tmeas:%d\tallow:%d\ttgt:%d\n",
@@ -261,7 +259,6 @@ void test_min_current_when_full()
         0,
         0,
         3600,   // above stop
-        true,
         &ctrl
     );
 
@@ -287,7 +284,6 @@ void test_prevent_discharge_near_zero()
             measured,
             0,
             3500,
-            false,
             &ctrl
         );
 
@@ -318,7 +314,6 @@ void test_positive_offset()
             measured,
             300,
             3500,
-            false,
             &ctrl
         );
 
@@ -349,7 +344,7 @@ void test_positive_offset_close_0()
 
     for (int i = 0; i < 200; i++)
     {
-        allowed = bms_charge_pid(measured, 2, 3500, false, &ctrl);
+        allowed = bms_charge_pid(measured, 2, 3500, &ctrl);
         printf("%d %d\tmeas:%d\tallow:%d\ttgt:%d\n",
                 __LINE__,
                i,
@@ -378,7 +373,6 @@ void test_negative_offset()
             measured,
             300,
             3500,
-            false,
             &ctrl
         );
 
@@ -411,7 +405,6 @@ void test_negative_offset_close_0()
             measured,
             2,
             3500,
-            false,
             &ctrl
         );
 
@@ -442,7 +435,6 @@ void test_cloud_recovery()
             measured,
             300,
             3500,
-            false,
             &ctrl
         );
 
@@ -528,7 +520,6 @@ void test_hysteresis_cycle()
             measured,
             300,
             v,
-            soc_full,
             &ctrl
         );
 
@@ -590,7 +581,6 @@ void test_full_sun_day()
             measured,
             300,
             v,
-            soc_full,
             &ctrl
         );
 
@@ -680,7 +670,7 @@ void test_load_disturbance_rejection()
     for (int t = 0; t < 20; t++)
     {
         measured = plant_step(&plant, allowed);
-        allowed = bms_charge_pid(measured, target, 3500, true, &ctrl);
+        allowed = bms_charge_pid(measured, target, 3500, &ctrl);
 
         printf("%d %d\tmeas:%d\tallow:%d\ttgt:%d v:%d\n",
                 __LINE__,
@@ -707,7 +697,7 @@ void test_load_disturbance_rejection()
             negative_measure_seen = true;
         }
 
-        allowed = bms_charge_pid(measured, target, 3500, true, &ctrl);
+        allowed = bms_charge_pid(measured, target, 3500, &ctrl);
 
         printf("%d %d\tmeas:%d\tallow:%d\ttgt:%d v:%d\n",
                 __LINE__,
@@ -718,8 +708,8 @@ void test_load_disturbance_rejection()
                3500);
 
         // KEY ASSERTIONS
-        assert(measured >= 0 || measured > -40);   // must reject discharge
-        assert(allowed > 0);                      // controller must react
+        assert(measured >= 0 || measured > -30);   // must reject discharge
+        assert(allowed > 2);                      // controller must react
     }
     assert(negative_measure_seen);
 
@@ -730,7 +720,7 @@ void test_load_disturbance_rejection()
     {
         measured = plant_step(&plant, allowed);
 
-        allowed = bms_charge_pid(measured, target, 3500, true, &ctrl);
+        allowed = bms_charge_pid(measured, target, 3500, &ctrl);
 
         printf("%d %d\tmeas:%d\tallow:%d\ttgt:%d v:%d\n",
                 __LINE__,
@@ -764,7 +754,6 @@ void test_allowed_never_exceeds_target_plus_offset()
             measured,
             target,
             v,
-            false,
             &ctrl
         );
 
@@ -906,6 +895,74 @@ void test_update_charge2(void) {
     assert(pylontech.current <= target_dA + 5*target_dA/100);
 }
 
+void test_maintain_top_up(void) {
+    // faked init value for test to run smoothly
+    pylontech.voltage = 4131;
+    pylontech.precise_voltage = 413100;
+    pylontech.precise_current = 6200;
+    pylontech.precise_wattage = 0;
+    knobs.forced_wattage = 0;
+    knobs.cell_voltage_limited_charge = 35;
+    knobs.limited_charge_wattage = 180;
+    knobs.max_charge_voltage = 36;
+    pylontech.bmu_idx = 8;
+    pylontech.max_charge = 255;
+
+    uint16_t target_dA = 1;
+    pylontech.current = 0;
+
+    pylontech.vcell_highest = 3400;
+    pylontech.vcellmax = pylontech.vcell_highest/100;
+
+    memset(&pylontech_pid, 0, sizeof(pylontech_pid));
+    pylontech_pid.kp_x100 = 60;
+    pylontech_pid.ki_up_x100 = 20;
+    pylontech_pid.ki_down_x100 = 50;
+    pylontech_pid.kd_x100 = 5;
+    pylontech_pid.max_step_up_dA = 20; // max change per cycle
+    pylontech_pid.max_step_down_dA = 50; // max change per cycle (faster on drops)
+    pylontech_pid.max_energy_step_dA = 50;
+    pylontech_pid.energy_deadband_dA = 2;
+    pylontech_pid.v_start_hyst_mV = 3450;
+    pylontech_pid.v_stop_hyst_mV = 3550;
+    pylontech_pid.charge_allowed = true;
+    pylontech_pid.min_current_offset_dA = 1;
+    pylontech_pid.inverter_offset_dA = 5;
+
+
+
+
+    int16_t maxch; 
+    int32_t missed_integral_x10 = 0;
+
+    for (int t = 0; t < 1000; t++)
+    {
+        //pylontech.vcell_highest = simulate_voltage_from_charge(pylontech.current);
+        maxch = update_charge(0 /*BMS says end of charge*/);
+        printf("%d %d \tmeas:%d\tallow:%d v:%d\n",__LINE__, t,
+                   pylontech.current,
+                   maxch,
+                   pylontech.vcell_highest);
+
+        // adjust current smoothly from computed charge request
+        int16_t delta = (maxch-pylontech.current);
+        pylontech.current += delta/10;
+        missed_integral_x10 += delta - (delta/10)*10;
+        if (missed_integral_x10 >= 10 || missed_integral_x10 <= -10) {
+            pylontech.current += missed_integral_x10/10;
+            missed_integral_x10 -= (missed_integral_x10/10)*10;
+        }
+
+
+        pylontech.vcell_highest += pylontech.current*10/20;
+        pylontech.vcell_highest--; // natural relaxation
+        pylontech.vcellmax = pylontech.vcell_highest/100;
+    }
+
+    assert(pylontech.current >= target_dA - 5*target_dA/100);
+    assert(pylontech.current <= target_dA + 5*target_dA/100);
+}
+
 #ifdef X86
 int main(void) {
 
@@ -944,6 +1001,8 @@ int main(void) {
     test_update_charge();
     printf("test_update_charge2\n");
     test_update_charge2();
+    printf("test_maintain_top_up\n");
+    test_maintain_top_up();
 
     return 0;
 }
@@ -968,6 +1027,8 @@ I want few tests, here are each one description:
 - a test where battery is full (meaning the target current is minimal or 0), and the battery gets discharged because of home consumption, therefore the measured current gets negative, the PID has to compensate to ensure the residual charge is at least positive. And adjust after the load is disconnected, and therefore the compensation charge will be too much
 - a test that ensure the allowed dA cannot go over target (255dA) + inverter_offset_dA, I have a log where the pv is limited, therefore measure is 16dA, target is 255dA, and the allowed dA goes 50dA, 100dA, 150dA, 200dA, 250dA, 300dA... this is not expected, it shall be limited.
 
+- a test that reproduce the LOG (negative charge offset => wolala)
+- another test with the hysterisis of end of charge. but a complete one, adjusting the soc too (seems to have an impact)
 take care of the right modelisation for battery voltage/ measured charge current (depending on fake pv power)
 
 */

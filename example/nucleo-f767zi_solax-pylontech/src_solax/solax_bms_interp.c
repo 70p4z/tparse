@@ -596,7 +596,7 @@ void interp(void) {
   memset(&charger, 0, sizeof(charger));
 #endif // HAVE_EXT_CHARGER
   memset(&pylontech_pid, 0, sizeof(pylontech_pid));
-  pylontech_pid.kp_x100 = 59;
+  pylontech_pid.kp_x100 = 30;
   pylontech_pid.ki_up_x100 = 10;
   pylontech_pid.ki_down_x100 = 20;
   pylontech_pid.kd_x100 = 5;
@@ -973,6 +973,7 @@ void interp(void) {
           pylontech.effective_charge = maxch;
 
           // absolute max rating to avoid chemistry degradation
+          // has not worked when maxch was negative
           if (pylontech.vcellmax >= knobs.max_charge_voltage) {
             master_log("batt voltage dangerous (3.6V), stop forced charge to avoid wearing\n");
             tmp[4] = 0;

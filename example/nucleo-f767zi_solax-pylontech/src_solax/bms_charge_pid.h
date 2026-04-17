@@ -64,10 +64,9 @@ typedef struct
 
 } current_controller_pv_t;
 
-int16_t bms_charge_pid(
+uint16_t bms_charge_pid(
     int16_t measured_current_avg_dA,   // measured battery current
     int16_t target_current_dA,         // target battery current
     uint16_t cell_max_voltage_mV,
-    bool soc_full,
     current_controller_pv_t *ctrl
 );

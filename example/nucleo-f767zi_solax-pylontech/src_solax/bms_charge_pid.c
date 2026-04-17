@@ -6,11 +6,10 @@
 #include "bms_charge_pid.h"
 
 #if 1
-int16_t bms_charge_pid(
+uint16_t bms_charge_pid(
     int16_t measured_current_dA,
     int16_t target_current_dA,
     uint16_t cell_max_voltage_mV,
-    bool soc_full,
     current_controller_pv_t *ctrl
 )
 {
@@ -269,6 +268,11 @@ int16_t bms_charge_pid(
         }
     }
 
+    if (allowed_dA < ctrl->min_current_offset_dA)
+    {
+        allowed_dA = ctrl->min_current_offset_dA;
+    }
+
     // ============================================================
     // STATE UPDATE
     // ============================================================
@@ -293,7 +297,7 @@ int16_t bms_charge_pid(
     );
 #endif // X86
 
-    return (int16_t)allowed_dA;
+    return (uint16_t)allowed_dA>0?allowed_dA:0;
 }
 #endif
 

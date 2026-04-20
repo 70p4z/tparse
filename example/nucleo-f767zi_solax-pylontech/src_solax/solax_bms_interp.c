@@ -44,7 +44,7 @@ TODO
 // min difference to enable balancing charge
 #define PYLONTECH_BALANCING_STOP_DIFF_MV 5
 // max voltage to continue balancing
-#define PYLONTECH_BALANCING_MAX_MV 3500
+#define PYLONTECH_BALANCING_MAX_MV 3550
 #define PYLONTECH_BALANCING_MIN_MV 3450
 // optimal max wattage
 #define PYLONTECH_BALANCING_OPTIMAL_WATTAGE 160
@@ -478,7 +478,8 @@ void transcharge_auto_run(void) {
     if (pylontech.bmu_idx > 0) {
       int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
       // don't start charge balancing when wattage is too high, this will not be working well
-      if (pylontech_wattage > TRANSCHARGE_BALANCING_START_MAX_WATTAGE) {
+      if (pylontech_wattage > TRANSCHARGE_BALANCING_START_MAX_WATTAGE 
+        || pylontech_wattage < -TRANSCHARGE_BALANCING_START_MAX_WATTAGE) {
         master_log("BALANCE: skipped, too much charge wattage already\n");
         transcharge.auto_next_run = uwTick + TRANSCHARGE_INTERVAL_MS;
         if (transcharge.auto_next_run == 0) { transcharge.auto_next_run++; } 
@@ -510,7 +511,6 @@ void transcharge_auto_run(void) {
       transcharge.auto_next_run = uwTick + TRANSCHARGE_INTERVAL_MS;
       if (transcharge.auto_next_run == 0) { transcharge.auto_next_run++; } 
 
-
       // Safety, disable all charge balancing due to over charge
       if (transcharge.auto_last_idx < pylontech.bmu_idx
         && VCELL_VALID(pylontech.bmu[transcharge.auto_last_idx].vhigh)
@@ -533,7 +533,7 @@ void transcharge_auto_run(void) {
           master_log("BALANCE: not charged enough, continue charging the same pack\n");
         }
 
-        // is this pack already being balanced?
+        // is this pack already being balanced? or not?
         else if ((transcharge.enabled & (1<<vcellmin_mv_idx)) == 0) {
           // disable all other pack balancing (only one at a time)
           transcharge_disable_all();
@@ -597,12 +597,12 @@ void interp(void) {
 #endif // HAVE_EXT_CHARGER
   memset(&pylontech_pid, 0, sizeof(pylontech_pid));
   pylontech_pid.kp_x100 = 30;
-  pylontech_pid.ki_up_x100 = 10;
-  pylontech_pid.ki_down_x100 = 20;
+  pylontech_pid.ki_up_x100 = 2;
+  pylontech_pid.ki_down_x100 = 2;
   pylontech_pid.kd_x100 = 5;
-  pylontech_pid.max_step_up_dA = 20; // max change per cycle
-  pylontech_pid.max_step_down_dA = 50; // max change per cycle (faster on drops)
-  pylontech_pid.max_energy_step_dA = 50;
+  pylontech_pid.max_step_up_dA = 10; // max change per cycle
+  pylontech_pid.max_step_down_dA = 20; // max change per cycle (faster on drops)
+  pylontech_pid.max_energy_step_dA = 20;
   pylontech_pid.energy_deadband_dA = 2;
   pylontech_pid.v_start_hyst_mV = 3450;
   pylontech_pid.v_stop_hyst_mV = 3550;
@@ -877,7 +877,7 @@ void interp(void) {
     }
 
     // perform transcharge auto algorithm only when all data from BMS are valid
-    if (bms_uart_state == BMS_UART_STATE_IDLE && transcharge.auto_enable) {
+    if (pylontech.bmu_idx > 0 && transcharge.auto_enable) {
       transcharge_auto_run();
     }
 

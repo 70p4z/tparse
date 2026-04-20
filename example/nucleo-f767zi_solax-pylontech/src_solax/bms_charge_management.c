@@ -103,7 +103,7 @@ uint16_t update_charge(uint16_t maxch) {
       pylontech.vcell_highest, 
       &pylontech_pid);
 
-    snprintf((char*)tmp+16, sizeof(tmp)-16, "PID: FORCED cur=%ddA tgt=%ddA chg=%ddA\n", 
+    snprintf((char*)tmp+128, sizeof(tmp)-128, "PID: FORCED cur=%ddA tgt=%ddA chg=%ddA\n", 
              knobs.forced_wattage,
              pylontech.voltage,
              bat_current_dA,
@@ -119,13 +119,13 @@ uint16_t update_charge(uint16_t maxch) {
       &pylontech_pid);
 
 
-    snprintf((char*)tmp+16, sizeof(tmp)-16, "PID: cur=%ddA tgt=%ddA chg=%ddA\n", 
+    snprintf((char*)tmp+128, sizeof(tmp)-128, "PID: cur=%ddA tgt=%ddA chg=%ddA\n", 
              bat_current_dA,
              target_dA,
              maxch
              );
   }
-  master_log((char*)tmp+16);
+  master_log((char*)tmp+128);
 
   // avoid too high result (shall be taken care of in the PID instead!, this is security harness)
   if (maxch > target_dA + 8) {

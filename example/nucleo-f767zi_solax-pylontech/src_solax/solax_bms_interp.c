@@ -40,6 +40,7 @@ TODO
 #define BMS_CELL_VOLTAGE_FOR_LIMITED_CHARGE_DV 35
 // (~0.7A) => the dissipation of internal pack cell balancing (0.6*3.5 = 2 Watts) 
 #define BMS_LIMITED_CHARGE_WATTAGE_PER_PACK (3500*15*5/10/1000) 
+#define BMS_MAX_CHARGE_TEMPERATURE_DC 400 // in 0.1°C
 
 // min difference to enable balancing charge
 #define PYLONTECH_BALANCING_STOP_DIFF_MV 5
@@ -626,6 +627,7 @@ void interp(void) {
   knobs.max_pylontech_charge_drive = BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV;
   knobs.cell_voltage_limited_charge = BMS_CELL_VOLTAGE_FOR_LIMITED_CHARGE_DV;
   knobs.limited_charge_wattage = -1;
+  knobs.max_charge_temperature = BMS_MAX_CHARGE_TEMPERATURE_DC;
   solax.stop_discharge_soc = STOP_DISCHARGE_SOC;
   solax.self_use_discharge_enabled = 1; // allow self use by default at reboot
 #ifdef HAVE_EXT_CHARGER
@@ -877,7 +879,7 @@ void interp(void) {
     }
 
     // perform transcharge auto algorithm only when all data from BMS are valid
-    if (pylontech.bmu_idx > 0 && transcharge.auto_enable) {
+    if (pylontech.bmu_idx > 0 && transcharge.auto_enable && pylontech.tcellmax < knobs.max_charge_temperature) {
       transcharge_auto_run();
     }
 
@@ -974,8 +976,10 @@ void interp(void) {
 
           // absolute max rating to avoid chemistry degradation
           // has not worked when maxch was negative
-          if (pylontech.vcellmax >= knobs.max_charge_voltage) {
-            master_log("batt voltage dangerous (3.6V), stop forced charge to avoid wearing\n");
+          if (pylontech.vcellmax >= knobs.max_charge_voltage
+            // avoid charging when battery are too hot!
+            || pylontech.tcellmax >= knobs.max_charge_temperature) {
+            master_log("batt voltage dangerous (3.6V), or temperature too high, stop forced charge to avoid wearing\n");
             tmp[4] = 0;
             tmp[5] = 0;
             pylontech.effective_charge = 0;
@@ -988,6 +992,10 @@ void interp(void) {
             auto_grid_connection = 1;
             // battery voltage too high, stop transcharge balancing
             transcharge_disable_all();
+#ifdef HAVE_EXT_CHARGER
+            // disable all forms of charge!
+            charger.charge_enabled = 0;
+#endif // HAVE_EXT_CHARGER
           }
           forward = 1;
           break;
@@ -2452,35 +2460,41 @@ void solax_process_data(void) {
   ///                                                                                                  */
   ///                                                                                                  */
   /////////////////////////////////////////////////////////////////////////////////////////////////////*/
-  if (auto_bat_charge) {
-    // we've charged enough, stop compensation from grid
-    if (pylontech.soc < solax.enable_self_use_soc) {
-      charger.charge_enabled = 0;
-    }
-    // when to enable auto charge to compensate 
-    if (pylontech.soc <= solax.disable_self_use_soc) {
-      charger.charge_enabled = 1;
-    }
+  if (pylontech.tcellmax < knobs.max_charge_temperature) {
+    if (auto_bat_charge) {
+      // we've charged enough, stop compensation from grid
+      if (pylontech.soc < solax.enable_self_use_soc) {
+        charger.charge_enabled = 0;
+      }
+      // when to enable auto charge to compensate 
+      if (pylontech.soc <= solax.disable_self_use_soc) {
+        charger.charge_enabled = 1;
+      }
 
-    // modulate charge current to compensate EPS load
-    if (charger.charge_enabled) {
-      uint32_t charger_wattage = charger.out_voltage * charger.out_current / 100; // dV*dA => W
-      // if more than 50 watts charging, then 
-      if (batt_wattage > 50) {
-        charger_wattage -= 10;
+      // modulate charge current to compensate EPS load
+      if (charger.charge_enabled) {
+        uint32_t charger_wattage = charger.out_voltage * charger.out_current / 100; // dV*dA => W
+        // if more than 50 watts charging, then 
+        if (batt_wattage > 50) {
+          charger_wattage -= 10;
+        }
+        else if (batt_wattage < 0) {
+          charger_wattage = MIN(-batt_wattage + 10, charger.allowed_charge_wattage);
+        }
+        // update v/a from targeted wattage
+        charger.max_charge_voltage = charger.out_voltage + 50; // in dV
+        charger.max_charge_current = charger_wattage * 10 * 10 / charger.out_voltage; // in dA
       }
-      else if (batt_wattage < 0) {
-        charger_wattage = MIN(-batt_wattage + 10, charger.allowed_charge_wattage);
-      }
-      // update v/a from targeted wattage
+    }
+    // apply max allowed charge current
+    if (!auto_bat_charge) {
       charger.max_charge_voltage = charger.out_voltage + 50; // in dV
-      charger.max_charge_current = charger_wattage * 10 * 10 / charger.out_voltage; // in dA
+      charger.max_charge_current = charger.allowed_charge_wattage * 10 * 10 / charger.out_voltage; // in dA
     }
   }
-  // apply max allowed charge current
-  if (!auto_bat_charge) {
-    charger.max_charge_voltage = charger.out_voltage + 50; // in dV
-    charger.max_charge_current = charger.allowed_charge_wattage * 10 * 10 / charger.out_voltage; // in dA
+  else {
+    // disable charging
+    charger.charge_enabled = 0;
   }
 #endif //HAVE_EXT_CHARGER
 

@@ -13,6 +13,7 @@ struct knobs_s {
                                                  // limited charge)
   uint8_t cell_voltage_limited_charge; // unit dV (0 means disabled limited_wattage)
   int32_t limited_charge_wattage; // unit: W (0 means disabled limited wattage)
+  int16_t max_charge_temperature; // unit 0.1°C
 };
 
 enum solax_forced_work_mode_e {
@@ -106,7 +107,7 @@ struct pylontech_s {
   // cached values
   uint16_t vcell_highest;
   uint16_t vcell_lowest;
-  
+
   uint8_t bmu_idx_tmp;
   uint8_t bmu_idx;
   // ONLY VALID WHEN BMU8IDX != 0

@@ -472,9 +472,9 @@ void transcharge_disable_all(void) {
 // must be run only when pylontech data are valid
 void transcharge_auto_run(void) {
   if (transcharge.auto_enable && EXPIRED(transcharge.auto_next_run)) {
-    int32_t vcellmin_mv = -1;
+    uint32_t vcellmin_mv = -1;
     uint32_t vcellmin_mv_idx=pylontech.bmu_idx;
-    int32_t vcellmax_mv = 0;
+    uint32_t vcellmax_mv = 0;
     uint32_t vcellmax_mv_idx=pylontech.bmu_idx;
     if (pylontech.bmu_idx > 0) {
       int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
@@ -531,6 +531,7 @@ void transcharge_auto_run(void) {
           && VCELL_VALID(pylontech.bmu[transcharge.auto_last_idx].vlow)
           && vcellmin_mv + TRANSCHARGE_BALANCING_MIN_GAP_MV < pylontech.bmu[transcharge.auto_last_idx].vlow) {
           transcharge.timeout = uwTick + TRANSCHARGE_AUTO_TIMEOUT_MS;
+          if (transcharge.timeout == 0) { transcharge.timeout++; }
           master_log("BALANCE: not charged enough, continue charging the same pack\n");
         }
 
@@ -542,12 +543,14 @@ void transcharge_auto_run(void) {
           transcharge_enable(vcellmin_mv_idx, 1);
           transcharge.auto_last_idx = vcellmin_mv_idx;
           transcharge.timeout = uwTick + TRANSCHARGE_AUTO_TIMEOUT_MS;
+          if (transcharge.timeout == 0) { transcharge.timeout++; }
           master_log("BALANCE: charge pack 0x");
           master_log_hex(&vcellmin_mv_idx, 1);
           master_log("\n");
         }
         else {
           transcharge.timeout = uwTick + TRANSCHARGE_AUTO_TIMEOUT_MS;
+          if (transcharge.timeout == 0) { transcharge.timeout++; }
           master_log("BALANCE: no change\n");
         }
       }

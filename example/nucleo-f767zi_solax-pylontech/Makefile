@@ -7,7 +7,6 @@ endif
 
 DEFINES += VERSION=\"v1L\"
 #DEFINES += BOARD_DEV # for nucleo with hand soldered pcb aggregation
-DEFINES += MODE_SOLAX_BMS
 BUILD_DIR = build_solax
 SOURCE_PATH += src_solax/
 
@@ -37,7 +36,8 @@ CFLAGS += -mcpu=cortex-m0plus -mthumb --specs=nano.specs #-mfpu=fpv4-sp-d16 -mfl
 LDFLAGS += -TSTM32F767ZITx_FLASH.ld
 LDFLAGS += -Wl,-Map="$(BUILD_DIR)/output.map" 
 LDFLAGS += -Wl,--gc-sections -static 
-LDFLAGS += -mcpu=cortex-m0plus --specs=nano.specs -mthumb #-mfpu=fpv4-sp-d16 -mfloat-abi=hard
+#LDFLAGS += -mcpu=cortex-m0plus --specs=nano.specs -mthumb #-mfpu=fpv4-sp-d16 -mfloat-abi=hard
+LDFLAGS += -mcpu=cortex-m4 --specs=nano.specs -mthumb
 
 LIBS += -lm -lc
 
@@ -72,7 +72,7 @@ load_nucleo:
 load_nucleob:
 	sudo mount /dev/sdb /mnt/ ; sudo cp build_solax/output.bin /mnt/; sudo umount /mnt
 
-test: 
+test: | prepare
 	rm -f $(BUILD_DIR)/solax_pid_test
-	gcc -DX86 -g -o $(BUILD_DIR)/solax_pid_test src_solax/solax_bms_interp_test_pid.c src_solax/bms_charge_pid.c src_solax/bms_charge_management.c src_solax/globals.c
+	gcc -DX86 -g -o $(BUILD_DIR)/solax_pid_test src_solax/solax_bms_interp_test_pid.c src_solax/bms_charge_pid.c src_solax/bms_charge_management.c src_solax/globals.c src_solax/inv_can_interp.c src_solax/bms_can_interp.c
 	$(BUILD_DIR)/solax_pid_test

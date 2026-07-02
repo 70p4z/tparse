@@ -47,26 +47,22 @@ typedef struct
     // minimum enforced current due to inverter bug
     int16_t min_current_offset_dA;
 
-    // ============================================================
-    // LAYER 1 — PHYSICAL / SYSTEM LIMITS
-    // ============================================================
-
-    uint16_t v_start_hyst_mV;
-    uint16_t v_stop_hyst_mV;
+    // set to true to avoid the PID return to be capped by the target value (+ various offsets)
+    // the PID will adjust its return value to ensure next measure matches the required target.
+    // The target is not interpreted as a maximum value to be returned.
+    bool compensate_measure;
 
     // INTERNALS
     // energy average of measured current (fixed-point x100)
     int32_t avg_current_dA_x100;
-    int32_t  integral_x100;
-    int16_t  prev_error_dA;
-    int16_t  last_allowed_dA;
-    bool charge_allowed;
+    int32_t integral_x100;
+    int16_t prev_error_dA;
+    int16_t last_allowed_dA;
 
 } current_controller_pv_t;
 
 uint16_t bms_charge_pid(
     int16_t measured_current_avg_dA,   // measured battery current
     int16_t target_current_dA,         // target battery current
-    uint16_t cell_max_voltage_mV,
     current_controller_pv_t *ctrl
 );

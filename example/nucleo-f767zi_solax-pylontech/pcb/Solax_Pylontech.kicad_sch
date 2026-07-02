@@ -8490,7 +8490,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "MCP2551-I-SN"
+		(property "Value" "TJA1050 (NOT MCP2551-I-SN)"
 			(at 134.0994 71.2271 0)
 			(effects
 				(font
@@ -8860,7 +8860,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "MCP2551-I-SN"
+		(property "Value" "TJA1050 (NOT MCP2551-I-SN)"
 			(at 132.8294 21.6971 0)
 			(effects
 				(font

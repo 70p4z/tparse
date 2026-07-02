@@ -12,33 +12,9 @@
 uint16_t bms_charge_pid(
     int16_t measured_current_dA,
     int16_t target_current_dA,
-    uint16_t cell_max_voltage_mV,
     current_controller_pv_t *ctrl
 )
 {
-    // ============================================================
-    // LAYER 1 — SAFETY (HYSTERESIS + CHARGE ENABLE)
-    // ============================================================
-
-    if (cell_max_voltage_mV >= ctrl->v_stop_hyst_mV)
-    {
-        ctrl->charge_allowed = false;
-    }
-    else if (cell_max_voltage_mV < ctrl->v_start_hyst_mV)
-    {
-        ctrl->charge_allowed = true;
-    }
-
-    if (!ctrl->charge_allowed)
-    {
-        ctrl->last_allowed_dA = ctrl->min_current_offset_dA;
-
-#ifdef X86
-        printf("min current offset dA, charge not allowed\n");
-#endif // X86
-        return ctrl->last_allowed_dA;
-    }
-
     // ============================================================
     // LAYER 2 — ENERGY LOOP (slow correction on real measurement)
     // ============================================================
@@ -122,7 +98,7 @@ uint16_t bms_charge_pid(
         (ctrl->last_allowed_dA <= ctrl->min_current_offset_dA);
 
     // conditional integration
-    if (!((saturating_high && error_dA > 0) ||
+    if (!((saturating_high && error_dA > 0 && !ctrl->compensate_measure) ||
           (saturating_low && error_dA < 0)))
     {
         ctrl->integral_x100 = new_integral;
@@ -170,13 +146,14 @@ uint16_t bms_charge_pid(
     // FIX: HARD GLOBAL CEILING PROJECTION (CRITICAL)
     // ============================================================
 
-    if (allowed_dA > hard_max_allowed)
+    if (allowed_dA > hard_max_allowed && !ctrl->compensate_measure)
     {
         allowed_dA = hard_max_allowed;
 
         // CRITICAL: stop integrator from “believing” overshoot is valid
-        if (ctrl->integral_x100 > 0)
+        if (ctrl->integral_x100 > 0) {
             ctrl->integral_x100 /= 2;
+        }
     }
 
 
@@ -224,7 +201,7 @@ uint16_t bms_charge_pid(
     // Avoid too high overshoots when panels/offset are too strict
     // ============================================================
 
-    if (allowed_dA > max_allowed) {
+    if (allowed_dA > max_allowed && !ctrl->compensate_measure) {
         allowed_dA = max_allowed;
 
         // 🔥 ANTI-WINDUP: prevent integrator from pushing further up
@@ -280,8 +257,7 @@ uint16_t bms_charge_pid(
 
 #ifdef X86
     printf(
-      "cellV=%d P=%d I=%d D=%d dyn=%d corr=%d last=%d meas=%d allowed_pre=%d allowed_post=%d bias=%d kp=%d ki_up=%d ki_down=%d kd=%d maxstpup=%d maxstepdown=%d maxenergystep=%d,  \n",
-      cell_max_voltage_mV,
+      "P=%d I=%d D=%d dyn=%d corr=%d last=%d meas=%d allowed_pre=%d allowed_post=%d bias=%d kp=%d ki_up=%d ki_down=%d kd=%d maxstpup=%d maxstepdown=%d maxenergystep=%d,  \n",
       p, i, d,
       dynamic_dA,
       energy_correction_dA,

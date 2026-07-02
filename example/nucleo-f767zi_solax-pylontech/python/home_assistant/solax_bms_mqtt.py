@@ -51,7 +51,7 @@ try:
     i2cbus = SMBus(3)
   except:
     i2cbus = SMBus(1)
-  i2c_addr = 0x22 # validated on bus 7bit address
+  i2c_addr = 0x22 # validated on bus 7bit address (0x44 on STM32 side)
 
   def i2c_write(data):
     with i2clock:
@@ -95,6 +95,9 @@ def mqtt_start():
 
   def mqtt_setup():
     global mqtt_client
+
+    # wipe battery packs MQTT enumeration, to ensure redoing it again
+    mqtt.bms_packs_topic = {}
 
     mqtt_client.publish('homeassistant/sensor/solax_state/config', payload=json.dumps({"name": "Solax State", "state_topic": "homeassistant/sensor/solax_state/state"}), retain=True)
     mqtt_client.publish('homeassistant/sensor/solax_grid_export/config', payload=json.dumps({"device_class": "power", "name": "Solax Grid Export", "state_topic": "homeassistant/sensor/solax_grid_export/state", "unit_of_measurement": "W"}), retain=True)
@@ -334,7 +337,8 @@ def mqtt_start():
     mqtt_client.subscribe('homeassistant/number/solax_battery_limited_charge_wattage/set')
     mqtt_client.publish('homeassistant/number/solax_battery_limited_charge_wattage/config', payload=json.dumps({"device_class": "power", "name": "Solax Limited Charge Wattage", "state_topic": "homeassistant/number/solax_battery_limited_charge_wattage/state", "unit_of_measurement": "W", "command_topic": "homeassistant/number/solax_battery_limited_charge_wattage/set", "min": "0", "max": "2550", "step": "10"}), retain=True)
 
-
+    mqtt_client.publish('homeassistant/sensor/solax_bat_chrgr_current/config', payload=json.dumps({"device_class": "current", "name": "Grid Charger Current", "state_topic": "homeassistant/sensor/solax_bat_chrgr_current/state", "unit_of_measurement": "A"}), retain=True)
+    mqtt_client.publish('homeassistant/sensor/solax_bat_max_chrgr_current/config', payload=json.dumps({"device_class": "current", "name": "Grid Charger Max Current", "state_topic": "homeassistant/sensor/solax_bat_max_chrgr_current/state", "unit_of_measurement": "A"}), retain=True)
 
   def on_connect(client, userdata, flags, rc):
     #print(f"on_connect: rc={rc}")
@@ -384,7 +388,7 @@ while True:
     print(binascii.hexlify(data))
 
 
-    SCHEMA_VERSION = 6
+    SCHEMA_VERSION = 7
 
 
     #check length and data schema version
@@ -414,6 +418,19 @@ while True:
       97/96% 3325/3325mV 0x13
       97/96% 3325/3325mV 0x22
       97/96% 3324/3325mV 0x47
+
+    v7
+      b'7707070000000001400137001f12c90f280000000064000000fa000107ea050b0f06000b8ab201550101000000c34f00004afe642400000103e800002314009864640da00dbf9164640db70dbe3464640dbe0dbe6664640dbe0dbe2464640dbd0dbf1364640dbe0dbf2264640dbe0dbf4764640dbe0dbf'
+      (119, 7, 7, 0, 0, 320, 311, 31, 4809, 3880, 0, 0, 100, 0, 250, 1, 2026, 5, 11, 15, 6, 756402, 341, 1, 1, 0, 49999, 19198, 100, 36, 0, 0, 1, 1000, 0, 0, 35, 20, 0)
+      100/100% 3488/3519mV 0x98
+      100/100% 3511/3518mV 0x91
+      100/100% 3518/3518mV 0x34
+      100/100% 3518/3518mV 0x66
+      100/100% 3517/3519mV 0x24
+      100/100% 3518/3519mV 0x13
+      100/100% 3518/3519mV 0x22
+      100/100% 3518/3519mV 0x47
+      
     """
 
     class Field(enum.Enum):
@@ -436,8 +453,8 @@ while True:
       IDX_GRID_EXPORT = "h",
       IDX_GRID = "h",
       IDX_EPS_POWER = "h",
-      IDX_EPS_CURRENT = "h",
-      IDX_EPS_VOLTAGE = "h",
+      #IDX_EPS_CURRENT = "h",
+      #IDX_EPS_VOLTAGE = "h",
       IDX_PV1 = "h",
       IDX_PV2 = "h",
       IDX_PV1_VOLTAGE = "h",
@@ -470,6 +487,8 @@ while True:
       IDX_TRANSCHARGE_ENABLED = "B",
       IDX_CELL_DV_FOR_LIMITED_CHARGE = "B",
       IDX_LIMITED_CHARGE_WATTAGE = "B",
+      IDX_BATCHRGR_CURRENT = "B",
+      IDX_BATCHRGR_MAX_CURRENT = "B",
       
     binformat= ">"+"".join(list(map(lambda field: field.format, Field.__members__.values())))
 
@@ -509,11 +528,13 @@ while True:
       mqtt_client.publish("homeassistant/number/solax_battery_max_charge_voltage/state", payload=str(fields[Field.IDX_MAX_CHG_VOLTAGE.value]/10), retain=True)
       mqtt_client.publish("homeassistant/number/solax_battery_forced_soc/state", payload=str(fields[Field.IDX_FORCED_SOC.value]), retain=True)
       mqtt_client.publish("homeassistant/number/solax_battery_forced_wattage/state", payload=str(fields[Field.IDX_FORCED_WATTAGE.value]*10), retain=True)
-      mqtt_client.publish("homeassistant/number/solax_bat_chrgr_auto/state", payload=str(fields[Field.IDX_BATCHRGR_AUTO.value]), retain=True)
+      mqtt_client.publish("homeassistant/switch/solax_bat_chrgr_auto/state", payload=str(fields[Field.IDX_BATCHRGR_AUTO.value]), retain=True)
       mqtt_client.publish("homeassistant/number/solax_bat_chrgr_wattage/state", payload=str(fields[Field.IDX_BATCHRGR_ALLOWED_WATTAGE.value]), retain=True)
       mqtt_client.publish("homeassistant/switch/solax_bat_transcharge_auto/state", payload=mqtt_boolstr(fields[Field.IDX_TRANSCHARGE_AUTO.value]!=0), retain=True)
       mqtt_client.publish("homeassistant/number/solax_battery_cell_dv_for_limited_charge/state", payload=str(fields[Field.IDX_CELL_DV_FOR_LIMITED_CHARGE.value]/10), retain=True)
       mqtt_client.publish("homeassistant/number/solax_battery_limited_charge_wattage/state", payload=str(fields[Field.IDX_LIMITED_CHARGE_WATTAGE.value]*10), retain=True)
+      mqtt_client.publish("homeassistant/sensor/solax_bat_chrgr_current/state", payload=str(fields[Field.IDX_BATCHRGR_CURRENT.value]/10.0), retain=True)
+      mqtt_client.publish("homeassistant/sensor/solax_bat_max_chrgr_current/state", payload=str(fields[Field.IDX_BATCHRGR_MAX_CURRENT.value]/10.0), retain=True)
 
       # todo publish empty values for all packs
 

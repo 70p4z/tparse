@@ -74,7 +74,7 @@ extern "C" {
 
 #define DMA_Stream_USBVCP DMA1_Stream1
 void Configure_USBVCP(uint32_t baudrate);
-void Configure_UARTPW(uint32_t baudrate);
+void Configure_UARTPW(uint32_t baudrate, uint8_t inverted); // Solax is regular, SAJ is inverted
 void Configure_UARTBMS(uint32_t baudrate);
 #define USBVCP_BUFFER_SIZE_B (32+512*2)
 extern char uart_usbvcp_buffer[USBVCP_BUFFER_SIZE_B];

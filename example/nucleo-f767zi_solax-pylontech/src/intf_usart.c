@@ -275,7 +275,7 @@ void Configure_USART3(uint32_t baudrate)
 #endif
 
 #ifdef BOARD_DEV
-void Configure_UARTPW(uint32_t baudrate)
+void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
 {
   /* DMA used for USART4 Transmission and Reception
    * RX: DMA1 Stream 2 Channel 4
@@ -334,6 +334,11 @@ void Configure_UARTPW(uint32_t baudrate)
   /* TX/RX direction */
   LL_USART_SetTransferDirection(UARTPW, LL_USART_DIRECTION_TX_RX);
 
+  if (inverted) {
+    LL_USART_SetRXPinLevel(UARTPW, LL_USART_RXPIN_LEVEL_INVERTED);
+    LL_USART_SetTXPinLevel(UARTPW, LL_USART_TXPIN_LEVEL_INVERTED);
+  }
+  
   /* 8 data bit, 1 start bit, 1 stop bit, no parity */
   LL_USART_ConfigCharacter(UARTPW, LL_USART_DATAWIDTH_8B, LL_USART_PARITY_NONE, LL_USART_STOPBITS_1);
 
@@ -354,6 +359,7 @@ void Configure_UARTPW(uint32_t baudrate)
   */
   LL_USART_SetBaudRate(UARTPW, SystemCoreClock, LL_USART_OVERSAMPLING_16, baudrate);
 
+
   /* (4) Enable USART **********************************************************/
   LL_USART_Enable(UARTPW);
 
@@ -367,7 +373,7 @@ void Configure_UARTPW(uint32_t baudrate)
   LL_USART_DisableDMAReq_TX(UARTPW);
 }
 #else // BOARD_DEV
-void Configure_UARTPW(uint32_t baudrate)
+void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
 {
   /* DMA used for USART1 Transmission and Reception
    * RX: USART1 DMA2 Stream 2 Channel 4
@@ -426,6 +432,11 @@ void Configure_UARTPW(uint32_t baudrate)
 
   /* TX/RX direction */
   LL_USART_SetTransferDirection(UARTPW, LL_USART_DIRECTION_TX_RX);
+
+  if (inverted) {
+    LL_USART_SetRXPinLevel(UARTPW, LL_USART_RXPIN_LEVEL_INVERTED);
+    LL_USART_SetTXPinLevel(UARTPW, LL_USART_TXPIN_LEVEL_INVERTED);
+  }
 
   /* 8 data bit, 1 start bit, 1 stop bit, no parity */
   LL_USART_ConfigCharacter(UARTPW, LL_USART_DATAWIDTH_8B, LL_USART_PARITY_NONE, LL_USART_STOPBITS_1);

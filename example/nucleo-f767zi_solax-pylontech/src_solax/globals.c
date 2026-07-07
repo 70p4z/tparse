@@ -2,7 +2,7 @@
 #include "globals.h"
 
 
-struct solax_s solax;
+struct inverter_s inverter;
 struct pylontech_s pylontech;
 struct charger_s charger;
 current_controller_pv_t pylontech_pid;

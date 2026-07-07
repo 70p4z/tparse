@@ -5,8 +5,10 @@ ifeq ($(BUILD_DIR),)
 BUILD_DIR = build
 endif
 
-DEFINES += VERSION=\"v1L\"
 #DEFINES += BOARD_DEV # for nucleo with hand soldered pcb aggregation
+DEFINES += VERSION=\"v20\"
+#DEFINES += INVERTER_SOLAX
+DEFINES += INVERTER_SAJ
 BUILD_DIR = build_solax
 SOURCE_PATH += src_solax/
 

@@ -31,7 +31,7 @@ enum solax_forced_work_mode_e {
 };
 
 
-struct solax_s {
+struct inverter_s {
   uint16_t pv1_voltage;
   uint16_t pv2_voltage;
   uint16_t pv1_current;
@@ -127,7 +127,7 @@ struct pylontech_s {
   // }
 };
 
-extern struct solax_s solax;
+extern struct inverter_s inverter;
 extern struct pylontech_s pylontech;
 extern current_controller_pv_t pylontech_pid;
 
@@ -144,7 +144,7 @@ extern enum solax_forced_work_mode_e solax_forced_work_mode;
 extern uint8_t tmp[TMP_BUFFER_SIZE_B];
 
 
-#define CHARGER_COM_INTERVAL_MS 700 // different period from the inverter call to try avoiding collision on CAN
+#define CHARGER_COM_INTERVAL_MS 2500 // different period from the inverter call to try avoiding collision on CAN
 struct charger_s {
   uint8_t charge_enabled;
   uint16_t max_charge_voltage; // in 0.1V

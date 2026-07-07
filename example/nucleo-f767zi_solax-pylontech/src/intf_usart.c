@@ -96,6 +96,7 @@ void Configure_USBVCP(uint32_t baudrate)
    */
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART3);
 
+  LL_USART_Disable(USART_USBVCP);
 
   LL_DMA_ConfigTransfer(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_RX,
             LL_DMA_DIRECTION_PERIPH_TO_MEMORY |
@@ -123,20 +124,6 @@ void Configure_USBVCP(uint32_t baudrate)
             LL_DMA_PDATAALIGN_BYTE            |
             LL_DMA_MDATAALIGN_BYTE);
   LL_DMA_SetChannelSelection(USART_USBVCP_DMA_PERIPH, USART_USBVCP_DMA_CHAN_TX, USART_USBVCP_DMA_REQ_TX);
-
-  /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
-  LL_GPIO_SetPinMode(GPIOD, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_8_15(GPIOD, LL_GPIO_PIN_8, LL_GPIO_AF_7);
-  LL_GPIO_SetPinSpeed(GPIOD, LL_GPIO_PIN_8, LL_GPIO_SPEED_FREQ_HIGH);
-  LL_GPIO_SetPinOutputType(GPIOD, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOD, LL_GPIO_PIN_8, LL_GPIO_PULL_UP);
-
-  /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
-  LL_GPIO_SetPinMode(GPIOD, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_8_15(GPIOD, LL_GPIO_PIN_9, LL_GPIO_AF_7);
-  LL_GPIO_SetPinSpeed(GPIOD, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_HIGH);
-  LL_GPIO_SetPinOutputType(GPIOD, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOD, LL_GPIO_PIN_9, LL_GPIO_PULL_UP);
 
   /* Set clock source */
   LL_RCC_SetUSARTClockSource(LL_RCC_USART3_CLKSOURCE_PCLK1);
@@ -172,6 +159,21 @@ void Configure_USBVCP(uint32_t baudrate)
 
   /* (4) Enable USART **********************************************************/
   LL_USART_Enable(USART_USBVCP);
+
+  /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  LL_GPIO_SetPinMode(GPIOD, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOD, LL_GPIO_PIN_8, LL_GPIO_AF_7);
+  LL_GPIO_SetPinSpeed(GPIOD, LL_GPIO_PIN_8, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOD, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOD, LL_GPIO_PIN_8, LL_GPIO_PULL_UP);
+
+  /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  LL_GPIO_SetPinMode(GPIOD, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOD, LL_GPIO_PIN_9, LL_GPIO_AF_7);
+  LL_GPIO_SetPinSpeed(GPIOD, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOD, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOD, LL_GPIO_PIN_9, LL_GPIO_PULL_UP);
+
 
   /* Polling USART initialisation */
   while((!(LL_USART_IsActiveFlag_TEACK(USART_USBVCP))) || (!(LL_USART_IsActiveFlag_REACK(USART_USBVCP))))
@@ -284,7 +286,7 @@ void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_UART4);
 
   // disable before reconf
-  LL_USART_Enable(UARTPW);
+  LL_USART_Disable(UARTPW);
   LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_2);
 
   LL_DMA_ConfigTransfer(DMA1, LL_DMA_STREAM_2,
@@ -305,20 +307,6 @@ void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
   /* Enable DMA Channel Rx */
   LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_2);
 
-  /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
-  LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_8_15(GPIOC, LL_GPIO_PIN_10, LL_GPIO_AF_8);
-  LL_GPIO_SetPinSpeed(GPIOC, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_HIGH);
-  LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_10, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_10, LL_GPIO_PULL_UP);
-
-  /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
-  LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_11, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_8_15(GPIOC, LL_GPIO_PIN_11, LL_GPIO_AF_8);
-  LL_GPIO_SetPinSpeed(GPIOC, LL_GPIO_PIN_11, LL_GPIO_SPEED_FREQ_HIGH);
-  LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_11, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_11, LL_GPIO_PULL_UP);
-
   /* (2) Enable USART peripheral clock and clock source ****************/
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_UART4);
 
@@ -334,11 +322,6 @@ void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
   /* TX/RX direction */
   LL_USART_SetTransferDirection(UARTPW, LL_USART_DIRECTION_TX_RX);
 
-  if (inverted) {
-    LL_USART_SetRXPinLevel(UARTPW, LL_USART_RXPIN_LEVEL_INVERTED);
-    LL_USART_SetTXPinLevel(UARTPW, LL_USART_TXPIN_LEVEL_INVERTED);
-  }
-  
   /* 8 data bit, 1 start bit, 1 stop bit, no parity */
   LL_USART_ConfigCharacter(UARTPW, LL_USART_DATAWIDTH_8B, LL_USART_PARITY_NONE, LL_USART_STOPBITS_1);
 
@@ -359,9 +342,28 @@ void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
   */
   LL_USART_SetBaudRate(UARTPW, SystemCoreClock, LL_USART_OVERSAMPLING_16, baudrate);
 
+  if (inverted) {
+    LL_USART_SetRXPinLevel(UARTPW, LL_USART_RXPIN_LEVEL_INVERTED);
+    LL_USART_SetTXPinLevel(UARTPW, LL_USART_TXPIN_LEVEL_INVERTED);
+  }
+
 
   /* (4) Enable USART **********************************************************/
   LL_USART_Enable(UARTPW);
+
+  /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOC, LL_GPIO_PIN_10, LL_GPIO_AF_8);
+  LL_GPIO_SetPinSpeed(GPIOC, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_10, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_10, inverted?LL_GPIO_PULL_DOWN:LL_GPIO_PULL_UP);
+
+  /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_11, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOC, LL_GPIO_PIN_11, LL_GPIO_AF_8);
+  LL_GPIO_SetPinSpeed(GPIOC, LL_GPIO_PIN_11, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_11, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_11, inverted?LL_GPIO_PULL_DOWN:LL_GPIO_PULL_UP);
 
   /* Polling USART initialisation */
   while((!(LL_USART_IsActiveFlag_TEACK(UARTPW))) || (!(LL_USART_IsActiveFlag_REACK(UARTPW))))
@@ -383,7 +385,7 @@ void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
 
 
   // disable before reconf
-  LL_USART_Enable(UARTPW);
+  LL_USART_Disable(UARTPW);
   LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
 
   LL_DMA_ConfigTransfer(DMA2, LL_DMA_STREAM_2,
@@ -404,20 +406,6 @@ void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
   /* Enable DMA Channel Rx */
   LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
 
-  /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
-  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_0_7(GPIOB, LL_GPIO_PIN_6, LL_GPIO_AF_7);
-  LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
-  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_6, LL_GPIO_PULL_UP);
-
-  /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
-  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_15, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_15, LL_GPIO_AF_4);
-  LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_15, LL_GPIO_SPEED_FREQ_HIGH);
-  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_15, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_15, LL_GPIO_PULL_UP);
-
   /* (2) Enable USART peripheral clock and clock source ****************/
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
 
@@ -433,10 +421,6 @@ void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
   /* TX/RX direction */
   LL_USART_SetTransferDirection(UARTPW, LL_USART_DIRECTION_TX_RX);
 
-  if (inverted) {
-    LL_USART_SetRXPinLevel(UARTPW, LL_USART_RXPIN_LEVEL_INVERTED);
-    LL_USART_SetTXPinLevel(UARTPW, LL_USART_TXPIN_LEVEL_INVERTED);
-  }
 
   /* 8 data bit, 1 start bit, 1 stop bit, no parity */
   LL_USART_ConfigCharacter(UARTPW, LL_USART_DATAWIDTH_8B, LL_USART_PARITY_NONE, LL_USART_STOPBITS_1);
@@ -458,8 +442,28 @@ void Configure_UARTPW(uint32_t baudrate, uint8_t inverted)
   */
   LL_USART_SetBaudRate(UARTPW, SystemCoreClock, LL_USART_OVERSAMPLING_16, baudrate);
 
+  if (inverted) {
+    LL_USART_SetRXPinLevel(UARTPW, LL_USART_RXPIN_LEVEL_INVERTED);
+    LL_USART_SetTXPinLevel(UARTPW, LL_USART_TXPIN_LEVEL_INVERTED);
+  }
+
   /* (4) Enable USART **********************************************************/
   LL_USART_Enable(UARTPW);
+
+  /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOB, LL_GPIO_PIN_6, LL_GPIO_AF_7);
+  LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_6, inverted?LL_GPIO_PULL_DOWN:LL_GPIO_PULL_UP);
+
+  /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_15, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_8_15(GPIOB, LL_GPIO_PIN_15, LL_GPIO_AF_4);
+  LL_GPIO_SetPinSpeed(GPIOB, LL_GPIO_PIN_15, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_15, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_15, inverted?LL_GPIO_PULL_DOWN:LL_GPIO_PULL_UP);
+
 
   /* Polling USART initialisation */
   while((!(LL_USART_IsActiveFlag_TEACK(UARTPW))) || (!(LL_USART_IsActiveFlag_REACK(UARTPW))))
@@ -480,6 +484,8 @@ void Configure_UARTBMS(uint32_t baudrate)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2);
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART6);
 
+  LL_USART_Disable(USART6);
+
   LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_1);
   LL_DMA_ConfigTransfer(DMA2, LL_DMA_STREAM_1,
             LL_DMA_DIRECTION_PERIPH_TO_MEMORY |
@@ -498,20 +504,6 @@ void Configure_UARTBMS(uint32_t baudrate)
 
   /* Enable DMA Channel Rx */
   LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_1);
-
-  /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
-  LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_0_7(GPIOC, LL_GPIO_PIN_6, LL_GPIO_AF_8);
-  LL_GPIO_SetPinSpeed(GPIOC, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
-  LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_6, LL_GPIO_PULL_DOWN);
-
-  /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
-  LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetAFPin_0_7(GPIOC, LL_GPIO_PIN_7, LL_GPIO_AF_8);
-  LL_GPIO_SetPinSpeed(GPIOC, LL_GPIO_PIN_7, LL_GPIO_SPEED_FREQ_HIGH);
-  LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_7, LL_GPIO_OUTPUT_PUSHPULL);
-  LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_7, LL_GPIO_PULL_DOWN);
 
   /* (2) Enable USART peripheral clock and clock source ****************/
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART6);
@@ -553,6 +545,20 @@ void Configure_UARTBMS(uint32_t baudrate)
 
   /* (4) Enable USART **********************************************************/
   LL_USART_Enable(USART6);
+
+  /* Configure Tx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOC, LL_GPIO_PIN_6, LL_GPIO_AF_8);
+  LL_GPIO_SetPinSpeed(GPIOC, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_6, LL_GPIO_PULL_DOWN);
+
+  /* Configure Rx Pin as : Alternate function, High Speed, Push pull, Pull up */
+  LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetAFPin_0_7(GPIOC, LL_GPIO_PIN_7, LL_GPIO_AF_8);
+  LL_GPIO_SetPinSpeed(GPIOC, LL_GPIO_PIN_7, LL_GPIO_SPEED_FREQ_HIGH);
+  LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_7, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_7, LL_GPIO_PULL_DOWN);
 
   /* Polling USART initialisation */
   while((!(LL_USART_IsActiveFlag_TEACK(USART6))) || (!(LL_USART_IsActiveFlag_REACK(USART6))))

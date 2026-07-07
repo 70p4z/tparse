@@ -302,7 +302,7 @@ void interp(void) {
   uint32_t last_BMS_CAN_activity_timeout = 0;
 
   memset(&knobs, 0, sizeof(knobs));
-  memset(&solax, 0, sizeof(solax));
+  memset(&inverter, 0, sizeof(inverter));
   memset(&pylontech, 0, sizeof(pylontech));
 #ifdef HAVE_EXT_CHARGER
   uint32_t charger_com_next_ms = 1;
@@ -332,17 +332,13 @@ void interp(void) {
     // allow to respect the target as a measured value, not as a returned max allowed value
   charger_pid.compensate_measure = 1;
 
-  // init the queue
-  inverter_uart_init();
-  bms_uart_init();
-  pylontech_cache_clear();
 
   // automatic state switching and eps disconnect mode by default
   auto_self_use_from_bat = 1;
   auto_grid_connection = 1;
   auto_bat_charge = 1;
-  solax.grid_connect_soc = GRID_CONNECT_SOC;
-  solax.grid_disconnect_soc = GRID_DISCONNECT_SOC;
+  inverter.grid_connect_soc = GRID_CONNECT_SOC;
+  inverter.grid_disconnect_soc = GRID_DISCONNECT_SOC;
   knobs.max_charge_voltage = BMS_MAX_CELL_VOLTAGE_FOR_CURRENT_CHG_DV;
   knobs.max_pylontech_charge_drive = BMS_MAX_CELL_VOLTAGE_FOR_PYLONTECH_DRIVE_DV;
   knobs.cell_voltage_limited_charge = BMS_CELL_VOLTAGE_FOR_LIMITED_CHARGE_DV;
@@ -374,6 +370,11 @@ void interp(void) {
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOE);
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOF);
+
+  // init the queue
+  inverter_uart_init();
+  bms_uart_init();
+  pylontech_cache_clear();
 
   // USART used for USBVCP communication
   Configure_USBVCP(USART_BAUDRATE_USBVCP);
@@ -625,7 +626,7 @@ void I2C_Slave_Reception_Callback(void) {
     case 0: // get info
       // read stats
       // don't process when an error has been detected, only ignore optimization rules (< 0x70)
-      if (solax.valid_data && pylontech.soc != 0 && pylontech.soc != 255) 
+      if (inverter.valid_data && pylontech.soc != 0 && pylontech.soc != 255) 
       {
         i2c_xfer_r_length = 0; // wipe the previous buffer content
         // data encoding version
@@ -635,39 +636,39 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = 7; 
 
         // solax state
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.status; 
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.status; 
         // grid export wattage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.grid_meter_ct>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_meter_ct&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.grid_meter_ct>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.grid_meter_ct&0xFF;
         // internal grid wattage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.grid_wattage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.grid_wattage&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.grid_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.grid_wattage&0xFF;
         // eps power
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_power>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_power&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.eps_power>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.eps_power&0xFF;
         /*
         // eps current
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_current>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_current&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.eps_current>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.eps_current&0xFF;
         // eps voltage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.eps_voltage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.eps_voltage&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.eps_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.eps_voltage&0xFF;
         */
         // pv1 wattage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv1_wattage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_wattage&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.pv1_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.pv1_wattage&0xFF;
         // pv2 wattage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv2_wattage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_wattage&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.pv2_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.pv2_wattage&0xFF;
         // pv1 voltage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv1_voltage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv1_voltage&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.pv1_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.pv1_voltage&0xFF;
         // pv2 voltage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.pv2_voltage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.pv2_voltage&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.pv2_voltage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.pv2_voltage&0xFF;
         // bat wattage
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.bat_wattage>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.bat_wattage&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.bat_wattage>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.bat_wattage&0xFF;
         // bat effective wattage (0.1A rounding if no precise wattage provided)
         int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
         i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech_wattage>>8)&0xFF;
@@ -684,19 +685,19 @@ void I2C_Slave_Reception_Callback(void) {
         i2c_xfer_buffer[i2c_xfer_r_length++] = (pylontech.effective_charge_dA>>8)&0xFF;
         i2c_xfer_buffer[i2c_xfer_r_length++] = pylontech.effective_charge_dA&0xFF;
         // timestamp
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.year>>8;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.year&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.month;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.day;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.hour;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.minute;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.year>>8;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.year&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.month;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.day;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.hour;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.minute;
 
         // time since restart
         U4BE_ENCODE(i2c_xfer_buffer, i2c_xfer_r_length, uwTick);
         i2c_xfer_r_length+=4;
         // output VA
-        i2c_xfer_buffer[i2c_xfer_r_length++] = (solax.output_va>>8)&0xFF;
-        i2c_xfer_buffer[i2c_xfer_r_length++] = solax.output_va&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = (inverter.output_va>>8)&0xFF;
+        i2c_xfer_buffer[i2c_xfer_r_length++] = inverter.output_va&0xFF;
         // output auto switches
         i2c_xfer_buffer[i2c_xfer_r_length++] = auto_self_use_from_bat;
         i2c_xfer_buffer[i2c_xfer_r_length++] = auto_grid_connection;
@@ -837,10 +838,10 @@ void I2C_Slave_Reception_Callback(void) {
       switch(i2c_xfer_buffer[0]) {
       /*
       case 0x10:
-        solax.grid_connect_soc = i2c_xfer_buffer[1];
+        inverter.grid_connect_soc = i2c_xfer_buffer[1];
         break;
       case 0x11:
-        solax.grid_disconnect_soc = i2c_xfer_buffer[1];
+        inverter.grid_disconnect_soc = i2c_xfer_buffer[1];
         break;
       case 0x12:
         pylontech.max_charge_soc = i2c_xfer_buffer[1];
@@ -1171,7 +1172,7 @@ void Configure_I2C_Slave(void)
 }
 
 void solax_process_data(void) {
-  if (!solax.valid_data) {
+  if (!inverter.valid_data) {
     return;
   }
 
@@ -1188,16 +1189,16 @@ void solax_process_data(void) {
 ///                                                                                                 */
 ////////////////////////////////////////////////////////////////////////////////////////////////////*/
   master_log("Solax: status=0x");
-  master_log_hex(&solax.status, 1);
+  master_log_hex(&inverter.status, 1);
   master_log(" count=0x");
-  master_log_hex(&solax.status_count, 1);
+  master_log_hex(&inverter.status_count, 1);
   master_log("\n");
   // only do this after the inverter status is stable and ready for connection
-  if (solax.status_count >= GRID_SWITCH_STATE_COUNT ) {
+  if (inverter.status_count >= GRID_SWITCH_STATE_COUNT ) {
     // when max charge value is degraded, then severs the grid connection
 
     if (auto_grid_connection == 1) {
-      if (pylontech.soc > solax.grid_disconnect_soc
+      if (pylontech.soc > inverter.grid_disconnect_soc
         // when battery does not accept the full power for charging, it means it's either dead, or full. 
         // therefore sever the grid connection to avoid injection
         || pylontech.max_charge_dA < pylontech.max_discharge_dA
@@ -1206,29 +1207,29 @@ void solax_process_data(void) {
           // only perform disconnection when we're in sync with the grid and in self use mode, else
           // no disconnection
           // at boot, when in EPS, must stay in EPS!, therefore activate the relay to stay in EPS
-          (solax.status == INVERTER_STATUS_NORMAL 
-            || solax.status == INVERTER_STATUS_EPS
+          (inverter.status == INVERTER_STATUS_NORMAL 
+            || inverter.status == INVERTER_STATUS_EPS
             /* /!\ don't switch while waiting or EPS wait, that triggers power outage locally
-            || solax.status == INVERTER_STATUS_WAITING
-            || solax.status == INVERTER_STATUS_CHECKING
-            || solax.status == INVERTER_STATUS_EPS_WAIT
+            || inverter.status == INVERTER_STATUS_WAITING
+            || inverter.status == INVERTER_STATUS_CHECKING
+            || inverter.status == INVERTER_STATUS_EPS_WAIT
             */
             )
           ) {
           master_log("Antisurge: disconnect GRID, force EPS\n");
           offgrid_switch(1);
-          solax.status_count = 0; // avoid glitching too frequently
+          inverter.status_count = 0; // avoid glitching too frequently
         }
       }
       // when SoC is lower than a value, then 
-      else if (pylontech.soc <= solax.grid_connect_soc) {
+      else if (pylontech.soc <= inverter.grid_connect_soc) {
         master_log("Antisurge: connect GRID (2)\n");
         // restablish the GRID connection, 
         offgrid_switch(0);
-        solax.status_count = 0; // avoid glitching too frequently
+        inverter.status_count = 0; // avoid glitching too frequently
       }
       else {
-        switch(solax.status) {
+        switch(inverter.status) {
         // failing states, must reenable grid!!
         case INVERTER_STATUS_IDLE:
         case INVERTER_STATUS_ERROR:
@@ -1237,7 +1238,7 @@ void solax_process_data(void) {
         case INVERTER_STATUS_UPDATE:
           master_log("Antisurge: connect GRID (3)\n");
           offgrid_switch(0);
-          solax.status_count = 0; // avoid glitching too frequently
+          inverter.status_count = 0; // avoid glitching too frequently
           break;
         }
       }

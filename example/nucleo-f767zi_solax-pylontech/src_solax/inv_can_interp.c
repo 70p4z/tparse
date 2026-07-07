@@ -16,7 +16,7 @@ uint32_t can_inv_interp(uint32_t cid, size_t cid_bitlen, uint8_t* candata, size_
           master_log_hex(b, 4);
           master_log("\n");
         }
-        solax.powered_on = candata[2];
+        inverter.powered_on = candata[2];
         // get data
         forward = 1;
         break;

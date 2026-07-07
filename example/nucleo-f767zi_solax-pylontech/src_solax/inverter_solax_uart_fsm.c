@@ -5,9 +5,9 @@
 #include "stdbool.h"
 #include "globals.h"
 
-#if 0
+#ifdef INVERTER_SOLAX
 
-#define INVERTER_UART_TIMEOUT_MS 10000 // give few seconds for 400 bytes @ 9600bps
+#define INVERTER_UART_TIMEOUT_MS 2000 // give few seconds for 400 bytes @ 9600bps
 #define INVERTER_UART_NEXT_TIMEOUT 1000 // pocket wifi link update
 #define INVERTER_UART_INVALID_RETRY_TIMEOUT 500 // 100ms before retrying in case of an error on the pocketwifi serial response
 
@@ -133,9 +133,11 @@ void inverter_uart_update(void) {
         master_log("UART TIMEOUT\n");
         //master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
         inverter_uart_state = INVERTER_UART_WAIT_NEXT;
-        inverter_uart_timeout = EXPIRE_IN(INVERTER_UART_NEXT_TIMEOUT);
+        inverter_uart_timeout = EXPIRE_IN(1); // immediate retry
         tparse_reset(&tp_solax_pw);
-        inverter_usart_queue_pop();
+        while (inverter_usart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
+          inverter_usart_queue_pop();
+        }
 
         inverter_uart_force_bitrate();
       }
@@ -283,43 +285,43 @@ uint32_t inverter_uart_parse_response(uint8_t* reply, uint32_t length) {
   if (reply[0] == 0xAA && reply[1] == 0x55 && reply[2] == 0x5F && reply[3] == 0x81 && reply[4] == 0x90 ) {
 
     // invalid until tested valid
-    solax.valid_data = 0;
+    inverter.valid_data = 0;
 
     // extract fields
-    solax.grid_wattage = S2LE(reply, 9);
-    solax.pv1_voltage = U2LE(reply, 13);
-    solax.pv2_voltage = U2LE(reply, 15);
-    solax.pv1_current = U2LE(reply, 17);
-    solax.pv2_current = U2LE(reply, 19);
-    solax.pv1_wattage = U2LE(reply, 21);
-    solax.pv2_wattage = U2LE(reply, 23);
-    if (reply[25] != solax.status) {
-      solax.status_count=0;
+    inverter.grid_wattage = S2LE(reply, 9);
+    inverter.pv1_voltage = U2LE(reply, 13);
+    inverter.pv2_voltage = U2LE(reply, 15);
+    inverter.pv1_current = U2LE(reply, 17);
+    inverter.pv2_current = U2LE(reply, 19);
+    inverter.pv1_wattage = U2LE(reply, 21);
+    inverter.pv2_wattage = U2LE(reply, 23);
+    if (reply[25] != inverter.status) {
+      inverter.status_count=0;
     }
-    solax.status      = reply[25];
-    if (solax.status_count<255) {
-      solax.status_count++;
+    inverter.status      = reply[25];
+    if (inverter.status_count<255) {
+      inverter.status_count++;
     }
-    solax.bat_wattage = S2LE(reply, 37);
-    solax.bat_temp = S2LE(reply, 39);
-    solax.bat_SoC = U2LE(reply, 41);
-    solax.output_va = U2LE(reply, 55);
-    solax.eps_power = U2LE(reply, 61);
-    solax.eps_voltage = U2LE(reply, 63);
-    solax.eps_current = U2LE(reply, 65);
-    solax.grid_meter_ct = S2LE(reply, 69);
-    solax.seconds = reply[203];
-    solax.minute = reply[204];
-    solax.hour = reply[205];
-    solax.day = reply[206];
-    solax.month = reply[207];
-    solax.year = reply[208] + 2000;
+    inverter.bat_wattage = S2LE(reply, 37);
+    inverter.bat_temp = S2LE(reply, 39);
+    inverter.bat_SoC = U2LE(reply, 41);
+    inverter.output_va = U2LE(reply, 55);
+    inverter.eps_power = U2LE(reply, 61);
+    inverter.eps_voltage = U2LE(reply, 63);
+    inverter.eps_current = U2LE(reply, 65);
+    inverter.grid_meter_ct = S2LE(reply, 69);
+    inverter.seconds = reply[203];
+    inverter.minute = reply[204];
+    inverter.hour = reply[205];
+    inverter.day = reply[206];
+    inverter.month = reply[207];
+    inverter.year = reply[208] + 2000;
 
     uint32_t valid_crc = solax_checksum_verify(reply+2,reply[2]-2);
 
-    snprintf((char*)tmp, sizeof(tmp), "PV1: %dW (%d.%dV %d.%dA)\nPV2: %dW (%d.%dV %d.%dA)\n", solax.pv1_wattage, solax.pv1_voltage/10,solax.pv1_voltage%10, solax.pv1_current/10, solax.pv1_current%10, solax.pv2_wattage, solax.pv2_voltage/10, solax.pv2_voltage%10, solax.pv2_current/10, solax.pv2_current%10);
+    snprintf((char*)tmp, sizeof(tmp), "PV1: %dW (%d.%dV %d.%dA)\nPV2: %dW (%d.%dV %d.%dA)\n", inverter.pv1_wattage, inverter.pv1_voltage/10,inverter.pv1_voltage%10, inverter.pv1_current/10, inverter.pv1_current%10, inverter.pv2_wattage, inverter.pv2_voltage/10, inverter.pv2_voltage%10, inverter.pv2_current/10, inverter.pv2_current%10);
     master_log((char*)tmp);
-    snprintf((char*)tmp, sizeof(tmp), "AC: Grid: %dW (meter %dW) EPS: %dW Output: %dVA\n", solax.grid_wattage, solax.grid_meter_ct, solax.eps_power, solax.output_va);
+    snprintf((char*)tmp, sizeof(tmp), "AC: Grid: %dW (meter %dW) EPS: %dW Output: %dVA\n", inverter.grid_wattage, inverter.grid_meter_ct, inverter.eps_power, inverter.output_va);
     master_log((char*)tmp);
 
     if (!valid_crc) {
@@ -327,27 +329,27 @@ uint32_t inverter_uart_parse_response(uint8_t* reply, uint32_t length) {
     }
 
     //int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
-    //int32_t power_balance_w = solax.pv1_wattage + solax.pv2_wattage - (solax.grid_wattage + pylontech_wattage );
+    //int32_t power_balance_w = inverter.pv1_wattage + inverter.pv2_wattage - (inverter.grid_wattage + pylontech_wattage );
     // check for invalid data (glitch sometimes returned by the inverter)
-    if (solax.pv1_voltage > SOLAX_MAX_PV_VOLTAGE_V*10 || solax.pv2_voltage > SOLAX_MAX_PV_VOLTAGE_V*10) {
+    if (inverter.pv1_voltage > SOLAX_MAX_PV_VOLTAGE_V*10 || inverter.pv2_voltage > SOLAX_MAX_PV_VOLTAGE_V*10) {
       master_log("cause 71\n");
       return -1;
     }
 
     /* this is triggered too easily when fluctuating power
-    if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 > 150*solax.pv1_wattage/100) {
+    if (inverter.pv1_voltage && inverter.pv1_wattage > 100 && inverter.pv1_voltage/10*inverter.pv1_current/10 > 150*inverter.pv1_wattage/100) {
       master_log("cause 72\n");
       goto invalid;
     }
-    if (solax.pv1_voltage && solax.pv1_wattage > 100 && solax.pv1_voltage/10*solax.pv1_current/10 < 50*solax.pv1_wattage/100) {
+    if (inverter.pv1_voltage && inverter.pv1_wattage > 100 && inverter.pv1_voltage/10*inverter.pv1_current/10 < 50*inverter.pv1_wattage/100) {
       master_log("cause 73\n");
       goto invalid; 
     }
-    if (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 > 150*solax.pv2_wattage/100) {
+    if (inverter.pv2_voltage && inverter.pv2_wattage > 100 && inverter.pv2_voltage/10*inverter.pv2_current/10 > 150*inverter.pv2_wattage/100) {
       master_log("cause 74\n");
       goto invalid; 
     }
-    if (solax.pv2_voltage && solax.pv2_wattage > 100 && solax.pv2_voltage/10*solax.pv2_current/10 < 50*solax.pv2_wattage/100) {
+    if (inverter.pv2_voltage && inverter.pv2_wattage > 100 && inverter.pv2_voltage/10*inverter.pv2_current/10 < 50*inverter.pv2_wattage/100) {
       master_log("cause 75\n");
       goto invalid; 
     }
@@ -364,15 +366,15 @@ uint32_t inverter_uart_parse_response(uint8_t* reply, uint32_t length) {
     }
     */
     // detect invalid packet (no power flows :s)
-    if (solax.grid_wattage == 0 && solax.pv1_voltage == 0 && solax.pv2_voltage == 0 && solax.bat_wattage == 0 && solax.eps_voltage == 0 && solax.output_va == 0 && solax.grid_meter_ct == 0) {
+    if (inverter.grid_wattage == 0 && inverter.pv1_voltage == 0 && inverter.pv2_voltage == 0 && inverter.bat_wattage == 0 && inverter.eps_voltage == 0 && inverter.output_va == 0 && inverter.grid_meter_ct == 0) {
       master_log("cause 78\n");
       return -2;
     }
 
     // only reset condition when a packet can be interpreted
-    solax.valid_data = 1;
+    inverter.valid_data = 1;
   
     solax_process_data();
   }  
 }
-#endif 
+#endif // INVERTER_SOLAX

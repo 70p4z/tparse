@@ -34,22 +34,40 @@ enum solax_forced_work_mode_e {
 struct inverter_s {
   uint16_t pv1_voltage;
   uint16_t pv2_voltage;
+  uint16_t pv3_voltage;
+  uint16_t pv4_voltage;
   uint16_t pv1_current;
   uint16_t pv2_current;
+  uint16_t pv3_current;
+  uint16_t pv4_current;
   uint16_t pv1_wattage;
   uint16_t pv2_wattage;
+  uint16_t pv3_wattage;
+  uint16_t pv4_wattage;
   int16_t bat_wattage;
-  #define INVERTER_STATUS_WAITING 0
-  #define INVERTER_STATUS_CHECKING 1
-  #define INVERTER_STATUS_NORMAL 2
-  #define INVERTER_STATUS_FAULT 3
-  #define INVERTER_STATUS_ERROR 4
-  #define INVERTER_STATUS_UPDATE 5
-  #define INVERTER_STATUS_EPS_WAIT 6
-  #define INVERTER_STATUS_EPS 7
-  #define INVERTER_STATUS_SELFTEST 8
-  #define INVERTER_STATUS_IDLE 9
-  #define INVERTER_STATUS_STANDBY 10
+  #define INVERTER_SOLAX_STATUS_WAITING 0
+  #define INVERTER_SOLAX_STATUS_CHECKING 1
+  #define INVERTER_SOLAX_STATUS_NORMAL 2
+  #define INVERTER_SOLAX_STATUS_FAULT 3
+  #define INVERTER_SOLAX_STATUS_ERROR 4
+  #define INVERTER_SOLAX_STATUS_UPDATE 5
+  #define INVERTER_SOLAX_STATUS_EPS_WAIT 6
+  #define INVERTER_SOLAX_STATUS_EPS 7
+  #define INVERTER_SOLAX_STATUS_SELFTEST 8
+  #define INVERTER_SOLAX_STATUS_IDLE 9
+  #define INVERTER_SOLAX_STATUS_STANDBY 10
+
+  #define INVERTER_SAJ_STATUS_INIT 0
+  #define INVERTER_SAJ_STATUS_WAIITNG 1
+  #define INVERTER_SAJ_STATUS_NORMAL 2
+  #define INVERTER_SAJ_STATUS_OFFGRID 3
+  #define INVERTER_SAJ_STATUS_ONGRID 4
+  #define INVERTER_SAJ_STATUS_FAULT 5
+  #define INVERTER_SAJ_STATUS_UPGRADE 6
+  #define INVERTER_SAJ_STATUS_DEBUG 7
+  #define INVERTER_SAJ_STATUS_SELFTEST 8
+  #define INVERTER_SAJ_STATUS_RESET 9
+
   uint8_t status;
   uint8_t status_count; // account for number of times the same state has shown
   uint8_t powered_on; // inverter_status != standby
@@ -182,6 +200,8 @@ uint32_t inverter_usart_queue_free(void);
 void inverter_usart_queue_push(const uint8_t* cmd, uint32_t cmd_len, uint32_t rep_len);
 void inverter_uart_init(void);
 void inverter_uart_update(void);
+void inverter_process_data(void);
+void inverter_uart_force_bitrate(void);
 
 void bms_uart_init(void);
 void bms_uart_update(void);
@@ -190,13 +210,13 @@ void master_log(char* buffer);
 void master_log_mem(void* _buffer, size_t length);
 void master_log_hex(void* _buffer, size_t length);
 
-void solax_process_data(void);
+#ifdef INVERTER_SOLAX
 void solax_pw_gmppt1_off(void);
 void solax_pw_gmppt1_high(void);
 void solax_pw_gmppt2_off(void);
 void solax_pw_gmppt2_high(void);
 void solax_pw_mode_self_use(void);
-void inverter_uart_force_bitrate(void);
+#endif // INVERTER_SOLAX
 
 void master_log(char* buffer);
 void master_log_mem(void* _buffer, size_t length);

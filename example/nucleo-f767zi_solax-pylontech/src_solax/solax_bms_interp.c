@@ -387,8 +387,10 @@ void interp(void) {
   //solax_pw_queue_push(solax_pw_cmd_change_bitrate, sizeof(solax_pw_cmd_change_bitrate), 7);
   inverter_uart_force_bitrate();
 
+#ifdef INVERTER_SOLAX
   // ensure starting with SELF USE mode
   solax_pw_mode_self_use();
+#endif // INVERTER_SOLAX
 
   Configure_I2C_Slave();
 
@@ -745,6 +747,8 @@ void I2C_Slave_Reception_Callback(void) {
       }
       // DESIGN NOTE: TXIS is raised right when a READ transaction match occurs
       break;
+
+#ifdef INVERTER_SOLAX
     case 1:
       master_log("I2C: pv1 gmppt off\n");
       // perform gmppt wakeup
@@ -763,6 +767,7 @@ void I2C_Slave_Reception_Callback(void) {
       master_log("I2C: pv2 gmppt high\n");
       solax_pw_gmppt2_high();
       break;
+#endif // INVERTER_SOLAX
 
     case 0xA:
       master_log("I2C: force offgrid\n");
@@ -1171,11 +1176,12 @@ void Configure_I2C_Slave(void)
 #endif // BOARD_DEV
 }
 
-void solax_process_data(void) {
+void inverter_process_data(void) {
   if (!inverter.valid_data) {
     return;
   }
 
+#ifdef INVERTER_SOLAX
 ////////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///                                                                                                 */
 ///        ▄▄▄▄   ▄▄▄▄▄▄     ▄▄▄▄▄▄   ▄▄▄▄▄                  ▄▄▄▄     ▄▄▄▄    ▄▄▄   ▄▄  ▄▄▄   ▄▄    */
@@ -1207,12 +1213,12 @@ void solax_process_data(void) {
           // only perform disconnection when we're in sync with the grid and in self use mode, else
           // no disconnection
           // at boot, when in EPS, must stay in EPS!, therefore activate the relay to stay in EPS
-          (inverter.status == INVERTER_STATUS_NORMAL 
-            || inverter.status == INVERTER_STATUS_EPS
+          (inverter.status == INVERTER_SOLAX_STATUS_NORMAL 
+            || inverter.status == INVERTER_SOLAX_STATUS_EPS
             /* /!\ don't switch while waiting or EPS wait, that triggers power outage locally
-            || inverter.status == INVERTER_STATUS_WAITING
-            || inverter.status == INVERTER_STATUS_CHECKING
-            || inverter.status == INVERTER_STATUS_EPS_WAIT
+            || inverter.status == INVERTER_SOLAX_STATUS_WAITING
+            || inverter.status == INVERTER_SOLAX_STATUS_CHECKING
+            || inverter.status == INVERTER_SOLAX_STATUS_EPS_WAIT
             */
             )
           ) {
@@ -1231,11 +1237,11 @@ void solax_process_data(void) {
       else {
         switch(inverter.status) {
         // failing states, must reenable grid!!
-        case INVERTER_STATUS_IDLE:
-        case INVERTER_STATUS_ERROR:
-        case INVERTER_STATUS_FAULT:
-        case INVERTER_STATUS_STANDBY:
-        case INVERTER_STATUS_UPDATE:
+        case INVERTER_SOLAX_STATUS_IDLE:
+        case INVERTER_SOLAX_STATUS_ERROR:
+        case INVERTER_SOLAX_STATUS_FAULT:
+        case INVERTER_SOLAX_STATUS_STANDBY:
+        case INVERTER_SOLAX_STATUS_UPDATE:
           master_log("Antisurge: connect GRID (3)\n");
           offgrid_switch(0);
           inverter.status_count = 0; // avoid glitching too frequently
@@ -1247,6 +1253,8 @@ void solax_process_data(void) {
   else {
     // wait state to stabilize
   }
+#endif // INVERTER_SOLAX
+
 
 #ifdef HAVE_EXT_CHARGER
   update_external_charger();

@@ -76,7 +76,7 @@ bool hm_put(hm_t *m, uint16_t key, uint32_t val)
     /* caller must not use sentinel keys */
     if (key == HM_EMPTY_KEY || key == HM_TOMB_KEY) return false;
     /* refuse insert when load >= 75% (count + tombs) */
-    if ((uint16_t)(m->count + m->tombs) >= (uint16_t)(HM_CAPACITY * 3 / 4))
+    if ((uint16_t)(m->count + m->tombs) >= (uint16_t)(HM_CAPACITY))
         return false;
 
     uint16_t idx  = hm__hash(key);

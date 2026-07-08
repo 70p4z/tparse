@@ -9,6 +9,8 @@
 
 #ifdef INVERTER_SAJ
 
+#define INVERTER_UART_QUEUE_SIZE 10 // schedule a mode change while reading a status response
+
 #define INVERTER_UART_TIMEOUT_MS 2000 // give few seconds for 400 bytes @ 9600bps
 #define INVERTER_UART_NEXT_TIMEOUT 1000 // pocket wifi link update
 #define INVERTER_UART_INVALID_RETRY_TIMEOUT 500 // 100ms before retrying in case of an error on the pocketwifi serial response
@@ -17,178 +19,6 @@
 #define SAJ_COMMAND_WRITE_SINGLE 0x06
 #define SAJ_COMMAND_WRITE 0x10
 
-void inverter_uart_idle(void);
-
-// return 0 when OK, anything else is error
-uint32_t inverter_uart_parse_response(uint8_t* buffer, uint32_t length);
-
-enum inverter_uart_state_e {
-  INVERTER_UART_IDLE,
-  INVERTER_UART_SEND,
-  INVERTER_UART_REQ_SENT,
-  INVERTER_UART_WAIT_NEXT,
-  INVERTER_UART_INVALID_NEXT,
-} inverter_uart_state;
-
-uint32_t inverter_uart_timeout;
-
-// structure to store u32 for each value read inside the inverter
-hm_t saj_cache;
-
-#define INVERTER_UART_QUEUE_SIZE 10 // schedule a mode change while reading a status response
-struct {
-  uint8_t*  cmd;
-  uint32_t  cmd_len;
-  uint32_t  rep_len;
-} inverter_uart_queue[INVERTER_UART_QUEUE_SIZE];
-
-
-void inverter_uart_queue_pop(void) {
-  // consume the first slot
-  memmove(&inverter_uart_queue[0], &inverter_uart_queue[1], sizeof(inverter_uart_queue)-sizeof(inverter_uart_queue[0]));
-  memset(&inverter_uart_queue[INVERTER_UART_QUEUE_SIZE-1], 0, sizeof(inverter_uart_queue[INVERTER_UART_QUEUE_SIZE-1]));
-}
-
-// return last sent command
-uint8_t* inverter_uart_queue_get(void) {
-  return inverter_uart_queue[0].cmd;
-}
-
-uint32_t inverter_uart_queue_free(void) {
-  uint32_t idx=0;
-  // seek for first free slot
-  while (inverter_uart_queue[idx].cmd_len != 0 && idx < INVERTER_UART_QUEUE_SIZE) {
-    idx++;
-  }
-  return INVERTER_UART_QUEUE_SIZE - idx;
-}
-
-void inverter_uart_queue_push(const uint8_t* cmd, uint32_t cmd_len, uint32_t rep_len) {
-  uint32_t idx=0;
-  // seek for first free slot
-  while (inverter_uart_queue[idx].cmd_len != 0 && idx < INVERTER_UART_QUEUE_SIZE) {
-    idx++;
-  }
-  // full
-  if (idx >= INVERTER_UART_QUEUE_SIZE) {
-    return;
-  }
-  inverter_uart_queue[idx].cmd = (uint8_t*)cmd;
-  inverter_uart_queue[idx].cmd_len = cmd_len;
-  inverter_uart_queue[idx].rep_len = rep_len;
-}
-
-tparse_ctx_t tp_inv_uart;
-
-void inverter_uart_init(void) {
-  inverter_uart_timeout=0;
-  inverter_uart_state = INVERTER_UART_IDLE;
-  memset(inverter_uart_queue, 0, sizeof(inverter_uart_queue));
-  tparse_init(&tp_inv_uart, uart_pw_buffer, sizeof(uart_pw_buffer), "");
-
-  // 116200 8N1 INVERTED
-  Configure_UARTPW(115200, 1);
-
-  // init value storage
-  hm_init(&saj_cache);
-}
-
-// abstract UART state machine
-void inverter_uart_update(void) {
-  // handle solax PocketWifi port to get the solax status
-  tparse_finger(&tp_inv_uart, sizeof(uart_pw_buffer) - DMA_Stream_PW->NDTR);
-  switch(inverter_uart_state) {
-    case INVERTER_UART_IDLE:
-      // is no command scheduled for sending?
-      if (inverter_uart_queue_free() == INVERTER_UART_QUEUE_SIZE) {
-        inverter_uart_idle();
-        inverter_uart_state = INVERTER_UART_SEND;
-      }
-      break;
-
-    case INVERTER_UART_SEND:
-      // data request to be transmitted toward the inverter
-      if (inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
-      send_next:
-        tparse_discard(&tp_inv_uart);
-        master_log("UARTINV >> ");
-        master_log_hex(inverter_uart_queue[0].cmd, inverter_uart_queue[0].cmd_len);
-        master_log("\n");
-        // send info request to solax
-        uart_select_intf(UARTPW);
-        uart_send_mem(inverter_uart_queue[0].cmd, inverter_uart_queue[0].cmd_len);
-        inverter_uart_state = INVERTER_UART_REQ_SENT;
-        inverter_uart_timeout = EXPIRE_IN(INVERTER_UART_TIMEOUT_MS);
-      }
-      break;
-
-    case INVERTER_UART_REQ_SENT:
-      // if the reply is complete
-      if (tparse_avail(&tp_inv_uart) >= inverter_uart_queue[0].rep_len) {
-        size_t read = tparse_read(&tp_inv_uart, (char*)tmp, inverter_uart_queue[0].rep_len);
-        if (read < inverter_uart_queue[0].rep_len) {
-          master_log("UARTINV reading error ");
-          master_log_hex(&read, 4);
-          read = tparse_avail(&tp_inv_uart);
-          master_log_hex(&read, 4);
-          master_log("\n");
-          goto invalid;
-        }
-        master_log("UARTINV << ");
-        master_log_hex(tmp, inverter_uart_queue[0].rep_len);
-        master_log("\n");
-
-        uint32_t parse_error = inverter_uart_parse_response(tmp, inverter_uart_queue[0].rep_len);
-        inverter_uart_queue_pop();
-
-        if (parse_error) {
-        invalid:
-          inverter_uart_state = INVERTER_UART_INVALID_NEXT;
-          inverter_uart_timeout = EXPIRE_IN(INVERTER_UART_NEXT_TIMEOUT);
-          goto error_flush;
-        }
-
-        // parsing was ok, still some command to send
-        if (inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
-          goto send_next;
-        }
-        // parsing was ok, no more command to send
-        else {
-          // will enter idle again after timeout
-          inverter_uart_state = INVERTER_UART_WAIT_NEXT; 
-          inverter_uart_timeout = EXPIRE_IN(INVERTER_UART_NEXT_TIMEOUT);
-        }
-      }
-      // timing out first entry if any
-      else if (inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE 
-        && inverter_uart_timeout && EXPIRED(inverter_uart_timeout)) {
-        master_log("UARTINV TIMEOUT\n");
-        //master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
-        inverter_uart_state = INVERTER_UART_WAIT_NEXT;
-        inverter_uart_timeout = EXPIRE_IN(1); // RIGHT NOW
-      error_flush:
-        tparse_reset(&tp_inv_uart);
-        // flush queue
-        while (inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
-          inverter_uart_queue_pop();
-        }
-      }
-      break;
-
-    case INVERTER_UART_INVALID_NEXT:
-    case INVERTER_UART_WAIT_NEXT:
-      // skip to next command sending immediately, this is not a new attempt/request
-      if ((inverter_uart_timeout && EXPIRED(inverter_uart_timeout))
-        || inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
-        inverter_uart_timeout = 0;
-        inverter_uart_state = INVERTER_UART_IDLE;
-      }
-      break;
-  }
-}
-
-
-#define MAX_PV_VOLTAGE_V 600 // from user manual
 
 static const uint16_t crc16_modbus_table[256] = {
     0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
@@ -235,6 +65,212 @@ uint16_t crc16_modbus(const uint8_t *buf, size_t len)
 
     return crc;
 }
+
+
+void inverter_uart_event_idle(void);
+void inverter_uart_event_init(void);
+
+// return 0 when OK, anything else is error
+uint32_t inverter_uart_total_length(uint8_t* buffer, uint32_t length);
+uint32_t inverter_uart_parse_response(uint8_t* buffer, uint32_t length);
+
+enum inverter_uart_state_e {
+  INVERTER_UART_IDLE,
+  INVERTER_UART_SEND,
+  INVERTER_UART_REQ_SENT,
+  INVERTER_UART_WAIT_NEXT,
+  INVERTER_UART_INVALID_NEXT,
+} inverter_uart_state;
+
+uint32_t inverter_uart_timeout;
+
+// structure to store u32 for each value read inside the inverter
+hm_t saj_cache;
+
+struct {
+  uint8_t*  cmd;
+  uint32_t  cmd_len;
+} inverter_uart_queue[INVERTER_UART_QUEUE_SIZE];
+
+
+void inverter_uart_queue_pop(void) {
+  // consume the first slot
+  memmove(&inverter_uart_queue[0], &inverter_uart_queue[1], sizeof(inverter_uart_queue)-sizeof(inverter_uart_queue[0]));
+  memset(&inverter_uart_queue[INVERTER_UART_QUEUE_SIZE-1], 0, sizeof(inverter_uart_queue[INVERTER_UART_QUEUE_SIZE-1]));
+}
+
+// return last sent command
+uint8_t* inverter_uart_queue_get(void) {
+  return inverter_uart_queue[0].cmd;
+}
+
+uint32_t inverter_uart_queue_free(void) {
+  uint32_t idx=0;
+  // seek for first free slot
+  while (inverter_uart_queue[idx].cmd_len != 0 && idx < INVERTER_UART_QUEUE_SIZE) {
+    idx++;
+  }
+  return INVERTER_UART_QUEUE_SIZE - idx;
+}
+
+// without the CRC
+void inverter_uart_queue_push(const uint8_t* cmd, uint32_t cmd_len) {
+  uint32_t idx=0;
+  // seek for first free slot
+  while (inverter_uart_queue[idx].cmd_len != 0 && idx < INVERTER_UART_QUEUE_SIZE) {
+    idx++;
+  }
+  // full
+  if (idx >= INVERTER_UART_QUEUE_SIZE) {
+    return;
+  }
+  inverter_uart_queue[idx].cmd = (uint8_t*)cmd;
+  inverter_uart_queue[idx].cmd_len = cmd_len;
+}
+
+tparse_ctx_t tp_inv_uart;
+
+void inverter_uart_init(void) {
+  inverter_uart_timeout=0;
+  inverter_uart_state = INVERTER_UART_IDLE;
+  memset(inverter_uart_queue, 0, sizeof(inverter_uart_queue));
+  tparse_init(&tp_inv_uart, uart_pw_buffer, sizeof(uart_pw_buffer), "");
+
+  // 116200 8N1 INVERTED
+  Configure_UARTPW(115200, 1);
+
+  // init value storage
+  hm_init(&saj_cache);
+
+  inverter_uart_event_init();
+}
+
+// abstract UART state machine
+void inverter_uart_update(void) {
+  // handle solax PocketWifi port to get the solax status
+  tparse_finger(&tp_inv_uart, sizeof(uart_pw_buffer) - DMA_Stream_PW->NDTR);
+  switch(inverter_uart_state) {
+    case INVERTER_UART_IDLE:
+      // is no command scheduled for sending?
+      if (inverter_uart_queue_free() == INVERTER_UART_QUEUE_SIZE) {
+        inverter_uart_event_idle();
+      }
+      inverter_uart_state = INVERTER_UART_SEND;
+      break;
+
+    case INVERTER_UART_SEND:
+      // data request to be transmitted toward the inverter
+      if (inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
+      send_next:
+        uint32_t cmd_len = inverter_uart_queue[0].cmd_len;
+        tparse_discard(&tp_inv_uart);
+        // send info request to solax
+        // append CRC before sending
+        memmove(tmp, inverter_uart_queue[0].cmd, cmd_len);
+        uint16_t crc = crc16_modbus(tmp, cmd_len);
+        tmp[cmd_len++] = crc&0xFF;
+        tmp[cmd_len++] = (crc>>8)&0xFF;
+        master_log("UARTINV >> ");
+        master_log_hex(tmp, cmd_len);
+        master_log("\n");
+        uart_select_intf(UARTPW);
+        uart_send_mem(tmp, cmd_len);
+        inverter_uart_state = INVERTER_UART_REQ_SENT;
+        inverter_uart_timeout = EXPIRE_IN(INVERTER_UART_TIMEOUT_MS);
+      }
+      else {
+        inverter_uart_state = INVERTER_UART_WAIT_NEXT;
+        inverter_uart_timeout = EXPIRE_IN(1);
+      }
+      break;
+
+    case INVERTER_UART_REQ_SENT:
+      // if the reply is complete
+      if (tparse_avail(&tp_inv_uart) >= 2+2 /*command and CRC at least*/) {
+        tparse_peek_line(&tp_inv_uart, (char*)tmp, 4);
+
+        uint32_t length = inverter_uart_total_length(tmp, 4);
+        if (length < 0) {
+          master_log("UARTINV total length error ");
+          master_log_hex(&length, 4);
+          length = tparse_avail(&tp_inv_uart);
+          master_log_hex(&length, 4);
+          master_log("\n");
+          goto invalid;
+        }
+
+        // not everything received, check timeout
+        if (tparse_avail(&tp_inv_uart) < length) {
+          goto check_timeout;
+        }
+
+        size_t read = tparse_read(&tp_inv_uart, (char*)tmp, length);
+        if (read < length) {
+          master_log("UARTINV reading error ");
+          master_log_hex(&read, 4);
+          read = tparse_avail(&tp_inv_uart);
+          master_log_hex(&read, 4);
+          master_log("\n");
+          goto invalid;
+        }
+        master_log("UARTINV << ");
+        master_log_hex(tmp, length);
+        master_log("\n");
+
+        uint32_t parse_error = inverter_uart_parse_response(tmp, length);
+        inverter_uart_queue_pop();
+
+        if (parse_error) {
+        invalid:
+          inverter_uart_state = INVERTER_UART_INVALID_NEXT;
+          inverter_uart_timeout = EXPIRE_IN(INVERTER_UART_NEXT_TIMEOUT);
+          goto error_flush;
+        }
+
+        // parsing was ok, still some command to send
+        if (inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
+          goto send_next;
+        }
+        // parsing was ok, no more command to send
+        else {
+          // will enter idle again after timeout
+          inverter_uart_state = INVERTER_UART_WAIT_NEXT; 
+          inverter_uart_timeout = EXPIRE_IN(INVERTER_UART_NEXT_TIMEOUT);
+        }
+      }
+      // timing out first entry if any
+      else {
+        check_timeout:
+          if (inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE 
+          && inverter_uart_timeout && EXPIRED(inverter_uart_timeout)) {
+          master_log("UARTINV TIMEOUT\n");
+          //master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
+          inverter_uart_state = INVERTER_UART_WAIT_NEXT;
+          inverter_uart_timeout = EXPIRE_IN(1); // RIGHT NOW
+        error_flush:
+          tparse_reset(&tp_inv_uart);
+          // flush queue
+          while (inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
+            inverter_uart_queue_pop();
+          }
+        }
+      }
+      break;
+
+    case INVERTER_UART_INVALID_NEXT:
+    case INVERTER_UART_WAIT_NEXT:
+      // skip to next command sending immediately, this is not a new attempt/request
+      if ((inverter_uart_timeout && EXPIRED(inverter_uart_timeout))
+        || inverter_uart_queue_free() != INVERTER_UART_QUEUE_SIZE) {
+        inverter_uart_timeout = 0;
+        inverter_uart_state = INVERTER_UART_IDLE;
+      }
+      break;
+  }
+}
+
+
+#define MAX_PV_VOLTAGE_V 600 // from user manual
 
 uint32_t saj_checksum_verify(uint8_t* packet, uint16_t len) {
   return crc16_modbus(packet, len-2) == U2LE(packet, len-2);
@@ -378,6 +414,8 @@ PASSIVE_BATTERY_DATA_MAP = [
     ("time_bat_dis", "16u", 1),  # 0x3660: 0=Not allow, 1=Allow charge/discharge in time-sharing mode
 ]
 
+
+
 */
 
 // values to be firstly decoded as u32
@@ -390,38 +428,90 @@ const uint16_t saj_u32_values[] = {
 // TODO compute CRC on the fly
 
 const uint8_t saj_read_rt[] = {
-  // READDDD              START       COUNT       CRC16
-  0x01, SAJ_COMMAND_READ, 0x40, 0x04, 0x00, 0x25,      0xD0, 0x10
+  // READDDD              START       COUNT      
+  0x01, SAJ_COMMAND_READ, 0x40, 0x04, 0x00, 0x25,
 };
 
 const uint8_t saj_read_pv[] = {
-  // READDDD              START       COUNT       CRC16
-  0x01, SAJ_COMMAND_READ, 0x40, 0x6E, 0x00, 0x0F,      0x71, 0xD3
+  // READDDD              START       COUNT      
+  0x01, SAJ_COMMAND_READ, 0x40, 0x6E, 0x00, 0x0F,
 };
 
 const uint8_t saj_read_power[] = {
-  // READDDD              START       COUNT       CRC16
-  0x01, SAJ_COMMAND_READ, 0x40, 0x95, 0x00, 0x1A,      0xC1, 0xED
+  // READDDD              START       COUNT      
+  0x01, SAJ_COMMAND_READ, 0x40, 0x95, 0x00, 0x1A,
 };
 
 const uint8_t saj_read_settings[] = {
-  // READDDD              START       COUNT       CRC16
-  0x01, SAJ_COMMAND_READ, 0x36, 0x00, 0x00, 0x60,      0x4A, 0x6A
+  // READDDD              START       COUNT      
+  0x01, SAJ_COMMAND_READ, 0x36, 0x00, 0x00, 0x70,
+};
+
+const uint8_t saj_read_settings_2[] = {
+  // READDDD              START       COUNT      
+  0x01, SAJ_COMMAND_READ, 0x36, 0x70, 0x00, 0x20,
 };
 
 #define READ_MULTIPLE_REPLY_LENGTH(reg_count) (2+1+reg_count*2+2)
-#define READ_MULTIPLE_REPLY_LENGTH_FROM_CMD(cmd) (2+1+((cmd)[5])*2+2) /*ignore high byte, not supported!*/
 
-void inverter_uart_idle(void) {
-  inverter_uart_queue_push(saj_read_rt, sizeof(saj_read_rt), READ_MULTIPLE_REPLY_LENGTH_FROM_CMD(saj_read_rt));
-  inverter_uart_queue_push(saj_read_pv, sizeof(saj_read_pv), READ_MULTIPLE_REPLY_LENGTH_FROM_CMD(saj_read_pv));
-  inverter_uart_queue_push(saj_read_power, sizeof(saj_read_power), READ_MULTIPLE_REPLY_LENGTH_FROM_CMD(saj_read_power));
-  inverter_uart_queue_push(saj_read_settings, sizeof(saj_read_settings), READ_MULTIPLE_REPLY_LENGTH_FROM_CMD(saj_read_settings));
+void inverter_uart_event_init(void) {
+  /// setup the parameters of the inverter
+  // single phase meter
+  // 0x3630 = 1
+  inverter_uart_queue_push("\x01\x06\x36\x30\x00\x01", 6);
+  // pylontech SC0500 protocol
+  // 0x363B = 0x15
+  inverter_uart_queue_push("\x01\x06\x36\x3B\x00\x15", 6);
+  // prevent reverse flow
+  // 0x3635 = 1 (master, read meter data)
+  inverter_uart_queue_push("\x01\x06\x36\x35\x00\x01", 6);
+  // app mode
+  // 0x3647 = 0 (self use)
+  inverter_uart_queue_push("\x01\x06\x36\x47\x00\x00", 6);
+  // anti reflux power limit
+  // 0x365A = 0
+  // anti reflux current limit
+  // 0x365B = 0
+  // anti reflux current mode
+  // 0x365C = 1 // total power mode
+  inverter_uart_queue_push("\x01\x10\x36\x5A\x00\x03\x06\x00\x00\x00\x00\x00\x01", 13);
+}
+
+void inverter_uart_event_idle(void) {
+  inverter_uart_queue_push(saj_read_rt, sizeof(saj_read_rt));
+  inverter_uart_queue_push(saj_read_pv, sizeof(saj_read_pv));
+  inverter_uart_queue_push(saj_read_power, sizeof(saj_read_power));
+  inverter_uart_queue_push(saj_read_settings, sizeof(saj_read_settings));
+  inverter_uart_queue_push(saj_read_settings_2, sizeof(saj_read_settings_2));
 }
 
 const uint8_t test_crc[] = {
   0x01, 0x03, 0x4a, 0x00, 0x04, 0x00, 0x00, 0x00, 0x22, 0x10, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0xd7, 0x00, 0xbe, 0xff, 0xf5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x48, 0x1b, 0x80, 0x00, 0x00, 0x00, 0x79, 0xfc, 0x21, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x15, 0x13, 0x9E
 };
+
+uint32_t inverter_uart_total_length(uint8_t* reply, uint32_t length) {
+  if (length < 4) {
+    return -1;
+  }
+  // error!
+  if (reply[1] & 0x80) {
+    return -reply[3];
+  }
+
+  switch(reply[1]) {
+  case 0x03:
+  case 0x17:
+    length = 2+1+reply[2]+2;
+    break;
+  case 0x06:
+  case 0x10:
+    length = 2+2+2+2;
+    break;
+  default:
+    length = 0;
+  }
+  return length;
+}
 
 uint32_t inverter_uart_parse_response(uint8_t* reply, uint32_t length) {
   uint8_t* cmd = inverter_uart_queue_get();
@@ -433,7 +523,9 @@ uint32_t inverter_uart_parse_response(uint8_t* reply, uint32_t length) {
 
   // extract values from the command
   if (reply[1] == SAJ_COMMAND_READ) {
+    // start address of the command sent
     uint16_t reg_addr = U2BE(cmd, 2);
+    // expected reg count for the command sent
     uint16_t reg_count = U2BE(cmd, 4);
     uint16_t bytes_count = reply[2];
 
@@ -454,133 +546,41 @@ uint32_t inverter_uart_parse_response(uint8_t* reply, uint32_t length) {
     }
   }
 
-  // when last status is received, then run the value converter
+  // when last command's reply is received, then run the value converter
   if (inverter_uart_queue_free() == INVERTER_UART_QUEUE_SIZE - 1) {
     uint32_t val;
     #define VAL_U16(dest, reg_addr) { if (hm_get(&saj_cache, reg_addr, &val)) {inverter. dest = val;} }
     #define VAL_I16(dest, reg_addr) { if (hm_get(&saj_cache, reg_addr, &val)) {inverter. dest = (int16_t)val;} }
     VAL_U16(status, 0x4004);
-    VAL_I16(grid_wattage, 0x40A1);
-    VAL_U16(pv1_wattage, 0x4073);
-    VAL_U16(pv2_wattage, 0x4076);
-    //VAL_U16(pv3_wattage, 0x4079);
-    // inverter.grid_wattage = 
+    VAL_I16(grid_wattage, 0x40A0);
+    //VAL_U16(pv1_wattage, 0x40A3); // cumulative all PV power at once
     VAL_I16(bat_wattage, 0x40A6);
-    VAL_I16(eps_power, 0x40AB);
+    VAL_U16(eps_power, 0x40AB); // 0x40AC VA // 0x40AB W
+    VAL_U16(output_va, 0x40AA);
     VAL_I16(grid_meter_ct, 0x40A7); // total grid power
-  }
+    
+    VAL_U16(pv1_voltage, 0x4071);
+    VAL_U16(pv1_current, 0x4072);
+    VAL_U16(pv1_wattage, 0x4073);
+    VAL_U16(pv2_voltage, 0x4074);
+    VAL_U16(pv2_current, 0x4075);
+    VAL_U16(pv2_wattage, 0x4076);
+    VAL_U16(pv3_voltage, 0x4077);
+    VAL_U16(pv3_current, 0x4078);
+    VAL_U16(pv3_wattage, 0x4079);
+    VAL_U16(pv4_voltage, 0x407A);
+    VAL_U16(pv4_current, 0x407B);
+    VAL_U16(pv4_wattage, 0x407C);
 
-  // check it's the expected response
-  if (reply[0] == 0xAA && reply[1] == 0x55 && reply[2] == 0x5F && reply[3] == 0x81 && reply[4] == 0x90 ) {
-
-    // invalid until tested valid
-    inverter.valid_data = 0;
-
-    // extract fields
-    inverter.grid_wattage = S2LE(reply, 9);
-    inverter.pv1_voltage = U2LE(reply, 13);
-    inverter.pv2_voltage = U2LE(reply, 15);
-    inverter.pv1_current = U2LE(reply, 17);
-    inverter.pv2_current = U2LE(reply, 19);
-    inverter.pv1_wattage = U2LE(reply, 21);
-    inverter.pv2_wattage = U2LE(reply, 23);
-    if (reply[25] != inverter.status) {
-      inverter.status_count=0;
-    }
-    inverter.status      = reply[25];
-    if (inverter.status_count<255) {
-      inverter.status_count++;
-    }
-    inverter.bat_wattage = S2LE(reply, 37);
-    inverter.bat_temp = S2LE(reply, 39);
-    inverter.bat_SoC = U2LE(reply, 41);
-    inverter.output_va = U2LE(reply, 55);
-    inverter.eps_power = U2LE(reply, 61);
-    inverter.eps_voltage = U2LE(reply, 63);
-    inverter.eps_current = U2LE(reply, 65);
-    inverter.grid_meter_ct = S2LE(reply, 69);
-    inverter.seconds = reply[203];
-    inverter.minute = reply[204];
-    inverter.hour = reply[205];
-    inverter.day = reply[206];
-    inverter.month = reply[207];
-    inverter.year = reply[208] + 2000;
-
-    //uint32_t valid_crc = solax_checksum_verify(reply+2,reply[2]-2);
-
-    snprintf((char*)tmp, sizeof(tmp), "PV1: %dW (%d.%dV %d.%dA)\nPV2: %dW (%d.%dV %d.%dA)\n", inverter.pv1_wattage, inverter.pv1_voltage/10,inverter.pv1_voltage%10, inverter.pv1_current/10, inverter.pv1_current%10, inverter.pv2_wattage, inverter.pv2_voltage/10, inverter.pv2_voltage%10, inverter.pv2_current/10, inverter.pv2_current%10);
+    snprintf((char*)tmp, sizeof(tmp), "PV1: %4dW (%3d.%dV)\tPV2: %4dW (%3d.%dV)\tPV3: %4dW (%3d.%dV)\tPV4: %4dW (%3d.%dV)\n", inverter.pv1_wattage, inverter.pv1_voltage/10,inverter.pv1_voltage%10, inverter.pv2_wattage, inverter.pv2_voltage/10, inverter.pv2_voltage%10, inverter.pv3_wattage, inverter.pv3_voltage/10, inverter.pv3_voltage%10, inverter.pv4_wattage, inverter.pv4_voltage/10, inverter.pv4_voltage%10);
     master_log((char*)tmp);
-    snprintf((char*)tmp, sizeof(tmp), "AC: Grid: %dW (meter %dW) EPS: %dW Output: %dVA\n", inverter.grid_wattage, inverter.grid_meter_ct, inverter.eps_power, inverter.output_va);
+    snprintf((char*)tmp, sizeof(tmp), "BAT: %4dW\t\tAC:  %4dW (ct %4dW)\tEPS: %4dW\t\tINV: %4dVA\n", inverter.bat_wattage, inverter.grid_wattage, inverter.grid_meter_ct, inverter.eps_power, inverter.output_va);
     master_log((char*)tmp);
 
-    // if (!valid_crc) {
-    //   return -3;
-    // }
-
-    //int32_t pylontech_wattage = pylontech.precise_wattage?pylontech.precise_wattage:pylontech.wattage;
-    //int32_t power_balance_w = inverter.pv1_wattage + inverter.pv2_wattage - (inverter.grid_wattage + pylontech_wattage );
-    // check for invalid data (glitch sometimes returned by the inverter)
-    if (inverter.pv1_voltage > MAX_PV_VOLTAGE_V*10 || inverter.pv2_voltage > MAX_PV_VOLTAGE_V*10) {
-      master_log("cause 71\n");
-      return -1;
-    }
-
-    /* this is triggered too easily when fluctuating power
-    if (inverter.pv1_voltage && inverter.pv1_wattage > 100 && inverter.pv1_voltage/10*inverter.pv1_current/10 > 150*inverter.pv1_wattage/100) {
-      master_log("cause 72\n");
-      goto invalid;
-    }
-    if (inverter.pv1_voltage && inverter.pv1_wattage > 100 && inverter.pv1_voltage/10*inverter.pv1_current/10 < 50*inverter.pv1_wattage/100) {
-      master_log("cause 73\n");
-      goto invalid; 
-    }
-    if (inverter.pv2_voltage && inverter.pv2_wattage > 100 && inverter.pv2_voltage/10*inverter.pv2_current/10 > 150*inverter.pv2_wattage/100) {
-      master_log("cause 74\n");
-      goto invalid; 
-    }
-    if (inverter.pv2_voltage && inverter.pv2_wattage > 100 && inverter.pv2_voltage/10*inverter.pv2_current/10 < 50*inverter.pv2_wattage/100) {
-      master_log("cause 75\n");
-      goto invalid; 
-    }
-    */
-    /*
-    // check power balance is correct (with a +- variance)
-    if (power_balance_w < 0 && power_balance_w < - SOLAX_SELF_CONSUMPTION_MPPT_W - SOLAX_SELF_CONSUMPTION_INVERTER_W) {
-      master_log("cause 76\n");
-      goto invalid; 
-    }
-    if (power_balance_w > 0 && power_balance_w > SOLAX_SELF_CONSUMPTION_MPPT_W + SOLAX_SELF_CONSUMPTION_INVERTER_W) {
-      master_log("cause 77\n");
-      goto invalid; 
-    }
-    */
-    // detect invalid packet (no power flows :s)
-    if (inverter.grid_wattage == 0 && inverter.pv1_voltage == 0 && inverter.pv2_voltage == 0 && inverter.bat_wattage == 0 && inverter.eps_voltage == 0 && inverter.output_va == 0 && inverter.grid_meter_ct == 0) {
-      master_log("cause 78\n");
-      return -2;
-    }
-
-    // only reset condition when a packet can be interpreted
     inverter.valid_data = 1;
-  
-    solax_process_data();
+    inverter_process_data();
   }  
   return 0;
-}
-
-void solax_pw_gmppt1_off(void) {
-}
-
-void solax_pw_gmppt1_high(void) {
-}
-
-void solax_pw_gmppt2_off(void) {
-}
-
-void solax_pw_gmppt2_high(void) {
-}
-
-void solax_pw_mode_self_use(void) {
 }
 
 #endif // INVERTER_SOJ

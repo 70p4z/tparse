@@ -252,3 +252,5 @@ class IOBridge(UsartIface):
     self.exchange("ctx " + hex(cid) + " " + cidkind + " " + binascii.hexlify(data).decode("utf8"))
   def spi_xfer(self, data):
     return binascii.unhexlify(self.exchange("spix " + binascii.hexlify(data).decode("utf8")))
+  def spicfg(self, divider):
+    self.exchange("spicfg " + hex(divider))

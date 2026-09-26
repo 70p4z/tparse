@@ -134,7 +134,7 @@ __attribute__((weak)) void interp(void) {
           "ctx", "crx", "cavail", "ccfg",
           "i2cfg", "isocfg",
           "i2cwc", "i2cwclast",
-          "i2crxfer", "spix", "rel",
+          "i2crxfer", "spix", "rel", "spicfg"
       };
       cmd = tparse_token_in(tp, (char**)cmds, sizeof(cmds)/sizeof(cmds[0]), (char*)tmp, &ts);
       switch (cmd) {
@@ -754,6 +754,16 @@ __attribute__((weak)) void interp(void) {
         GPIOH->MODER = 0xFFFFFFFFU;
         #endif // GPIOH_BASE
         break;
+      case __COUNTER__:
+        // spicfg <divider>
+        // isocfg
+        val = 0;
+        if (tparse_token_size(tp)) {
+          val = tparse_token_u32(tp);
+        }
+        Configure_SPI1(val);
+        uart_send("OK:\n");
+        break;
       }
     end_cmd:
       // discard any remnant of the processed line
@@ -843,7 +853,7 @@ int main(void)
 
   Configure_I2C1(400);
 
-  Configure_SPI1();
+  Configure_SPI1(32);
 
   Configure_USART1_ISO();
 

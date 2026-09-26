@@ -12,7 +12,7 @@ size_t spi_xfer(uint8_t* buf, size_t len) {
   return len;
 }
 
-int32_t Configure_SPI1(void) {
+int32_t Configure_SPI1(uint32_t divider) {
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
 
@@ -41,6 +41,26 @@ int32_t Configure_SPI1(void) {
   LL_SPI_Disable(SPI1);
 
   /* Configure SPI1 communication */
+  switch(divider) {
+  case 0:
+  case 1:
+  case 2:
+    divider = LL_SPI_BAUDRATEPRESCALER_DIV2;
+    break;
+  case 4:
+    divider = LL_SPI_BAUDRATEPRESCALER_DIV4;
+    break;
+  case 8:
+    divider = LL_SPI_BAUDRATEPRESCALER_DIV8;
+    break;
+  case 16:
+    divider = LL_SPI_BAUDRATEPRESCALER_DIV16;
+    break;
+  default:
+  case 32:
+    divider = LL_SPI_BAUDRATEPRESCALER_DIV32;
+    break;
+  }
   LL_SPI_SetBaudRatePrescaler(SPI1, LL_SPI_BAUDRATEPRESCALER_DIV32);
   LL_SPI_SetTransferDirection(SPI1, LL_SPI_FULL_DUPLEX);
   // this combination won't generate start conditions when muxed with i2c

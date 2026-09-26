@@ -93,7 +93,7 @@ size_t can_fifo_avail(void);
 size_t can_fifo_rx(uint32_t * id, size_t * id_bitlen, uint8_t* frame, size_t frame_max_len);
 size_t can_tx(uint32_t id, size_t id_bitlen, uint8_t *frame, size_t frame_len);
 
-int32_t Configure_SPI1(void);
+int32_t Configure_SPI1(uint32_t divider);
 size_t spi_xfer(uint8_t* buf, size_t len);
 
 void Configure_USART1_ISO(void);

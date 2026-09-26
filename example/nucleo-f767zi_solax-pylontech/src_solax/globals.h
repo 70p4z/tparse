@@ -70,6 +70,7 @@ struct inverter_s {
 
   uint8_t status;
   uint8_t status_count; // account for number of times the same state has shown
+  uint16_t temp; // inverter temperature
   uint8_t powered_on; // inverter_status != standby
   uint8_t work_mode;
   uint16_t bat_SoC;

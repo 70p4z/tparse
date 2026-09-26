@@ -34,7 +34,7 @@
 /* ── configuration ───────────────────────────────────────────────────────── */
 
 #ifndef HM_CAPACITY
-#  define HM_CAPACITY 256
+#  define HM_CAPACITY 512
 #endif
 
 #ifndef HM_EMPTY_KEY

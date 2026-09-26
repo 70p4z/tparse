@@ -9,7 +9,7 @@
 
 #ifdef INVERTER_SAJ
 
-#define INVERTER_UART_QUEUE_SIZE 10 // schedule a mode change while reading a status response
+#define INVERTER_UART_QUEUE_SIZE 20 // schedule a mode change while reading a status response
 
 #define INVERTER_UART_TIMEOUT_MS 2000 // give few seconds for 400 bytes @ 9600bps
 #define INVERTER_UART_NEXT_TIMEOUT 1000 // pocket wifi link update
@@ -84,6 +84,8 @@ enum inverter_uart_state_e {
 
 uint32_t inverter_uart_timeout;
 
+bool inverter_uart_reinit_request;
+
 // structure to store u32 for each value read inside the inverter
 hm_t saj_cache;
 
@@ -133,6 +135,7 @@ tparse_ctx_t tp_inv_uart;
 void inverter_uart_init(void) {
   inverter_uart_timeout=0;
   inverter_uart_state = INVERTER_UART_IDLE;
+  inverter_uart_reinit_request = true;
   memset(inverter_uart_queue, 0, sizeof(inverter_uart_queue));
   tparse_init(&tp_inv_uart, uart_pw_buffer, sizeof(uart_pw_buffer), "");
 
@@ -141,8 +144,6 @@ void inverter_uart_init(void) {
 
   // init value storage
   hm_init(&saj_cache);
-
-  inverter_uart_event_init();
 }
 
 // abstract UART state machine
@@ -153,6 +154,11 @@ void inverter_uart_update(void) {
     case INVERTER_UART_IDLE:
       // is no command scheduled for sending?
       if (inverter_uart_queue_free() == INVERTER_UART_QUEUE_SIZE) {
+        if (inverter_uart_reinit_request) {
+          // requested again upon timeout
+          inverter_uart_reinit_request = false;
+          inverter_uart_event_init();
+        }
         inverter_uart_event_idle();
       }
       inverter_uart_state = INVERTER_UART_SEND;
@@ -247,6 +253,7 @@ void inverter_uart_update(void) {
           //master_log_hex(uart_pw_buffer, sizeof(uart_pw_buffer));
           inverter_uart_state = INVERTER_UART_WAIT_NEXT;
           inverter_uart_timeout = EXPIRE_IN(1); // RIGHT NOW
+          inverter_uart_reinit_request = true;
         error_flush:
           tparse_reset(&tp_inv_uart);
           // flush queue
@@ -459,12 +466,17 @@ void inverter_uart_event_init(void) {
   // single phase meter
   // 0x3630 = 1
   inverter_uart_queue_push("\x01\x06\x36\x30\x00\x01", 6);
+  // buzzer off
+  // 0x3632 = 0
+  inverter_uart_queue_push("\x01\x06\x36\x32\x00\x00", 6);
   // pylontech SC0500 protocol
   // 0x363B = 0x15
   inverter_uart_queue_push("\x01\x06\x36\x3B\x00\x15", 6);
   // prevent reverse flow
   // 0x3635 = 1 (master, read meter data)
-  inverter_uart_queue_push("\x01\x06\x36\x35\x00\x01", 6);
+  // disable passive charge
+  // 0x3636 = 0 (standby)
+  inverter_uart_queue_push("\x01\x10\x36\x35\x00\x02\x04\x00\x01\x00\x00", 11);
   // app mode
   // 0x3647 = 0 (self use)
   inverter_uart_queue_push("\x01\x06\x36\x47\x00\x00", 6);
@@ -475,6 +487,28 @@ void inverter_uart_event_init(void) {
   // anti reflux current mode
   // 0x365C = 1 // total power mode
   inverter_uart_queue_push("\x01\x10\x36\x5A\x00\x03\x06\x00\x00\x00\x00\x00\x01", 13);
+  // 0x3668 = 1 (off grid on)
+  inverter_uart_queue_push("\x01\x06\x36\x68\x00\x01", 6);
+  // feature enable
+  // 0x366E = 0xFFFF
+  // 0x366F = 0xFE
+  //inverter_uart_queue_push("\x01\x10\x36\x6E\x00\x02\x04\xFF\xFF\x00\xFE", 11);
+  inverter_uart_queue_push("\x01\x10\x36\x6E\x00\x02\x04\x08\x00\x00\x02", 11);
+  // grid type
+  // 0x3674 = 0 (single phase)
+  inverter_uart_queue_push("\x01\x06\x36\x74\x00\x00", 6);
+  // limit bat forced charge from grid (constraint applies after 0x364F)
+  // 0x3676 = 10 (%)
+  inverter_uart_queue_push("\x01\x06\x36\x76\x00\x64", 6);
+  // max bat charge
+  // 0x364D = 110 (%)
+  // max bat discharge
+  // 0x364E = 110 (%)
+  // max grid charge
+  // 0x364F = 0 (%)
+  // max grid discharge
+  // 0x3650 = 0 (%)
+  inverter_uart_queue_push("\x01\x10\x36\x4F\x00\x04\x08\x04\x4C\x04\x4C\x00\x00\x00\x00", 15);
 }
 
 void inverter_uart_event_idle(void) {
@@ -483,6 +517,122 @@ void inverter_uart_event_idle(void) {
   inverter_uart_queue_push(saj_read_power, sizeof(saj_read_power));
   inverter_uart_queue_push(saj_read_settings, sizeof(saj_read_settings));
   inverter_uart_queue_push(saj_read_settings_2, sizeof(saj_read_settings_2));
+}
+
+
+const char* C_fault_definitions_4005 [] = {
+  "Lost com H<->M",
+  "Master lost com warning",
+  "HMI EEPROM error",
+  "HMI RTC error",
+  "BMS device error",
+  "BMS lost communication warning",
+  "res 71",
+  "res 72",
+  "res 73",
+  "res 74",
+  "res 75",
+  "R voltage high fault",
+  "R voltage low fault",
+  "S voltage high fault",
+  "S voltage low fault",
+  "T voltage high fault",
+  "T voltage low fault",
+  "high Grid frequency fault",
+  "Low Grid Frequency fault",
+  "res 84",
+  "res 85",
+  "res 86",
+  "res 87",
+  "No grid fault",
+  "PV input mode fault",
+  "HW PV curent high fault",
+  "PV high voltage fault",
+  "HW bus voltage high fault",
+  "res 93",
+  "res 94",
+  "res 95",
+  "res 96",
+};
+
+const char* C_fault_definitions_4007 [] = {
+  "Master bus high voltage",
+  "Master bus low voltage",
+  "Master grid phase error",
+  "Master PV high voltage error",
+  "Master islanding error",
+  "res 6",
+  "Master PV input error",
+  "DSP/PC comm lost",
+  "Master bus high voltage",
+  "Master HW PV high current",
+  "res 11",
+  "Master HW inverter high current",
+  "res 13",
+  "res 14",
+  "Master grid NE voltage error",
+  "Master DRM0 error",
+  "Master fan1 error",
+  "Master fan2 error",
+  "Master fan3 error",
+  "Master fan4 error",
+  "Master arc error",
+  "Master SW PV high current",
+  "Master battery high voltage",
+  "Master battery high current",
+  "Master battery charge high voltage",
+  "Master battery overload",
+  "Master battery soft connect timeout",
+  "Master output overload",
+  "Master battery open circuit error",
+  "Master battery discharge low voltage",
+  "Authority expires",
+  "Lost comm on D<->C",
+};
+
+const char* C_fault_definitions_4009 [] = {
+  "Master relay error",
+  "Master EEPROM error",
+  "Master high temperature error",
+  "Master low temperature error",
+  "Master lost comm M<->S",
+  "Master GFCI device error",
+  "Master DCI device error",
+  "Master current sensor error",
+  "Master phase 1 high voltage",
+  "Master phase 1 low voltage",
+  "Master phase 2 high voltage",
+  "Master phase 2 low voltage",
+  "Master phase 3 high voltage",
+  "Master phase 3 low voltage",
+  "Master 10min high voltage",
+  "Master offgrid low voltage",
+  "res 49",
+  "Master grid high frequency",
+  "Master grid low frequency",
+  "res 52",
+  "Master phase 1 DCV error",
+  "Master phase 2 DCV error",
+  "Master phase 3 DCV error",
+  "Master no grid error",
+  "res 57",
+  "res 58",
+  "Master GFCI error",
+  "Master phase 1 DCI error",
+  "Master phase 2 DCI error",
+  "Master phase 3 DCI error",
+  "Master ISO error",
+  "Master bus voltage balance error",
+};
+
+void log_fault_desc(uint32_t fault, const char* fault_defs[]) {
+  for (int i = 0; i < 32; i++) {
+    if (fault & (1<<i)) {
+      master_log("  ");
+      master_log(fault_defs[i]);
+      master_log("\n");
+    }
+  }
 }
 
 const uint8_t test_crc[] = {
@@ -549,9 +699,52 @@ uint32_t inverter_uart_parse_response(uint8_t* reply, uint32_t length) {
   // when last command's reply is received, then run the value converter
   if (inverter_uart_queue_free() == INVERTER_UART_QUEUE_SIZE - 1) {
     uint32_t val;
+    uint32_t hfault, mfault, mfault2;
+    uint32_t batstatus;
+    uint32_t batdod;
+    uint32_t batchmaxsoc;
+    uint32_t batdschminsoc;
+    uint32_t batressoc;
     #define VAL_U16(dest, reg_addr) { if (hm_get(&saj_cache, reg_addr, &val)) {inverter. dest = val;} }
     #define VAL_I16(dest, reg_addr) { if (hm_get(&saj_cache, reg_addr, &val)) {inverter. dest = (int16_t)val;} }
     VAL_U16(status, 0x4004);
+    hm_get(&saj_cache, 0x4005, &val);
+    hfault = val;
+    hm_get(&saj_cache, 0x4006, &val);
+    hfault = (hfault << 16) | val;
+    if (hfault) {
+      master_log("DISPLAY FAULT\n");
+      log_fault_desc(hfault, C_fault_definitions_4005);
+    }
+
+    hm_get(&saj_cache, 0x4007, &val);
+    mfault = val;
+    hm_get(&saj_cache, 0x4008, &val);
+    mfault = (mfault << 16) | val;
+    if (mfault) {
+      master_log("MASTER FAULT\n");
+      log_fault_desc(mfault, C_fault_definitions_4007);
+    }
+
+    hm_get(&saj_cache, 0x4009, &val);
+    mfault2 = val;
+    hm_get(&saj_cache, 0x400A, &val);
+    mfault2 = (mfault2 << 16) | val;
+    if (mfault2) {
+      master_log("DISPLAY FAULT2\n");
+      log_fault_desc(mfault2, C_fault_definitions_4009);
+    }
+
+    VAL_U16(work_mode, 0x4022);
+    hm_get(&saj_cache, 0x4027, &batstatus);
+    hm_get(&saj_cache, 0x4029, &batchmaxsoc);
+    hm_get(&saj_cache, 0x402A, &batdschminsoc);
+    hm_get(&saj_cache, 0x402B, &batdod);
+    hm_get(&saj_cache, 0x402C, &batressoc);
+
+    VAL_U16(temp, 0x4010);
+    VAL_U16(work_mode, 0x4022);
+
     VAL_I16(grid_wattage, 0x40A0);
     //VAL_U16(pv1_wattage, 0x40A3); // cumulative all PV power at once
     VAL_I16(bat_wattage, 0x40A6);
@@ -572,6 +765,8 @@ uint32_t inverter_uart_parse_response(uint8_t* reply, uint32_t length) {
     VAL_U16(pv4_current, 0x407B);
     VAL_U16(pv4_wattage, 0x407C);
 
+    snprintf((char*)tmp, sizeof(tmp), "mode: %1d hfault:%08X mfault:%08X mfault2:%08X\n", inverter.status, hfault, mfault, mfault2, inverter.temp);
+    master_log((char*)tmp);
     snprintf((char*)tmp, sizeof(tmp), "PV1: %4dW (%3d.%dV)\tPV2: %4dW (%3d.%dV)\tPV3: %4dW (%3d.%dV)\tPV4: %4dW (%3d.%dV)\n", inverter.pv1_wattage, inverter.pv1_voltage/10,inverter.pv1_voltage%10, inverter.pv2_wattage, inverter.pv2_voltage/10, inverter.pv2_voltage%10, inverter.pv3_wattage, inverter.pv3_voltage/10, inverter.pv3_voltage%10, inverter.pv4_wattage, inverter.pv4_voltage/10, inverter.pv4_voltage%10);
     master_log((char*)tmp);
     snprintf((char*)tmp, sizeof(tmp), "BAT: %4dW\t\tAC:  %4dW (ct %4dW)\tEPS: %4dW\t\tINV: %4dVA\n", inverter.bat_wattage, inverter.grid_wattage, inverter.grid_meter_ct, inverter.eps_power, inverter.output_va);
